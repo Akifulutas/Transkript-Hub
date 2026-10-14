@@ -24,7 +24,10 @@ chmod +x "$APP_DIR/Contents/MacOS/TranskriptHub"
 # Copy whisper.framework
 cp -R "$PROJECT_DIR/Frameworks/whisper.xcframework/macos-arm64_x86_64/whisper.framework" "$APP_DIR/Contents/Frameworks/"
 
-echo "4. Info.plist oluşturuluyor..."
+echo "4. RPATH ve dinamik bağlayıcı yapılandırılıyor..."
+install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
+
+echo "5. Info.plist oluşturuluyor..."
 cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,14 +59,18 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 </plist>
 EOF
 
-echo "5. DMG hazırlama dizini oluşturuluyor..."
+echo "6. Kod imzalama ve Gatekeeper temizliği..."
+xattr -cr "$APP_DIR" || true
+codesign --force --deep -s - "$APP_DIR"
+
+echo "7. DMG hazırlama dizini oluşturuluyor..."
 DMG_STAGING="$DIST_DIR/dmg_staging"
 rm -rf "$DMG_STAGING"
 mkdir -p "$DMG_STAGING"
 cp -R "$APP_DIR" "$DMG_STAGING/"
 ln -s /Applications "$DMG_STAGING/Applications"
 
-echo "6. DMG oluşturuluyor (hdiutil)..."
+echo "8. DMG oluşturuluyor (hdiutil)..."
 rm -f "$DMG_PATH"
 hdiutil create -volname "Transkript Hub" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
 rm -rf "$DMG_STAGING"
