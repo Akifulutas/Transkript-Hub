@@ -5,6 +5,7 @@ Packages/
 *.xcworkspace
 .swiftpm/
 DerivedData/
+dist/
 *.bin
 *.part
 Tests/Fixtures/*.txt
