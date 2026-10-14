@@ -17,7 +17,8 @@ public final class ClipboardMonitor: ObservableObject {
     public func startMonitoring() {
         guard !isMonitoring else { return }
         isMonitoring = true
-        lastChangeCount = NSPasteboard.general.changeCount
+        lastChangeCount = -1
+        checkPasteboard()
         
         timer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in

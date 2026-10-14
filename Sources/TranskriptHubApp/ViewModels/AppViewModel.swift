@@ -17,6 +17,16 @@ public final class AppViewModel: ObservableObject {
     @Published public var lastOutputURL: URL? = nil
     @Published public var errorMessage: String? = nil
     
+    @Published public var isClipboardMonitoring: Bool = false {
+        didSet {
+            if isClipboardMonitoring {
+                clipboardMonitor.startMonitoring()
+            } else {
+                clipboardMonitor.stopMonitoring()
+            }
+        }
+    }
+    
     public private(set) var clipboardMonitor: ClipboardMonitor!
     private var jobManager: JobManager?
     

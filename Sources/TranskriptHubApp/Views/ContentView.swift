@@ -22,19 +22,16 @@ public struct ContentView: View {
                 Spacer()
                 
                 // Clipboard Monitor Toggle
-                Toggle(isOn: Binding(
-                    get: { viewModel.clipboardMonitor.isMonitoring },
-                    set: { _ in viewModel.clipboardMonitor.toggle() }
-                )) {
+                Toggle(isOn: $viewModel.isClipboardMonitoring) {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(viewModel.clipboardMonitor.isMonitoring ? Color.green : Color.gray)
+                            .fill(viewModel.isClipboardMonitoring ? Color.green : Color.gray)
                             .frame(width: 8, height: 8)
                         Text("Panoyu İzle")
                             .font(.system(size: 13, weight: .medium))
                     }
                 }
-                .toggleStyle(.checkbox)
+                .toggleStyle(.switch)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
