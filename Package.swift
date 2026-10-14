@@ -12,6 +12,10 @@ let package = Package(
             targets: ["TranskriptHubCore"]
         ),
         .executable(
+            name: "TranskriptHubApp",
+            targets: ["TranskriptHubApp"]
+        ),
+        .executable(
             name: "transkripthub-cli",
             targets: ["transkripthub-cli"]
         ),
@@ -29,6 +33,15 @@ let package = Package(
             dependencies: [
                 "whisper",
                 .product(name: "GRDB", package: "GRDB.swift")
+            ],
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
+            ]
+        ),
+        .executableTarget(
+            name: "TranskriptHubApp",
+            dependencies: [
+                "TranskriptHubCore"
             ],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")
