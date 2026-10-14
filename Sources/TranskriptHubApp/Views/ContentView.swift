@@ -3,103 +3,241 @@ import AppKit
 import TranskriptHubCore
 
 public struct ContentView: View {
-    @StateObject private var viewModel = AppViewModel()
+    @ObservedObject var viewModel: AppViewModel
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     
-    public init() {}
-    
-    public var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            // Column 1: Sidebar
-            SidebarView(viewModel: viewModel)
-                .frame(minWidth: 170, idealWidth: 190, maxWidth: 240)
-        } content: {
-            // Column 2: Content List (Queue, History, Folder, Settings)
-            Group {
-                switch viewModel.selectedSection {
-                case .queue:
-                    QueueListView(viewModel: viewModel)
-                case .history:
-                    HistoryListView(viewModel: viewModel)
-                case .watchedFolder:
-                    WatchedFolderView(viewModel: viewModel)
-                case .settings:
-                    SettingsView(viewModel: viewModel)
-                }
-            }
-            .frame(minWidth: 280, idealWidth: 320, maxWidth: 420)
-        } detail: {
-            // Column 3: Interactive Inspector & Reader Pane
-            TranscriptDetailView(viewModel: viewModel)
-        }
-        .navigationSplitViewStyle(.prominentDetail)
-        .frame(minWidth: 850, minHeight: 560)
-        .toolbar {
-            mainToolbar
-        }
-        .searchable(text: $viewModel.searchQuery, prompt: "Transkriptlerde veya kuyrukta ara...")
+    public init(viewModel: AppViewModel = AppViewModel()) {
+        self.viewModel = viewModel
     }
     
-    // MARK: - Native macOS Unified Toolbar
+    public var body: some View {
+        ZStack {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                // Column 1: Sidebar
+                SidebarView(viewModel: viewModel)
+                    .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
+            } content: {
+                // Column 2: Content List (Queue, History, Folder, Settings)
+                Group {
+                    switch viewModel.selectedSection {
+                    case .queue:
+                        QueueListView(viewModel: viewModel)
+                    case .history:
+                        HistoryListView(viewModel: viewModel)
+                    case .watchedFolder:
+                        WatchedFolderView(viewModel: viewModel)
+                    case .settings:
+                        SettingsView(viewModel: viewModel)
+                    }
+                }
+                .frame(minWidth: 320, idealWidth: 350, maxWidth: 440)
+            } detail: {
+                // Column 3: Interactive Studio Canvas & Inspector Pane
+                TranscriptDetailView(viewModel: viewModel)
+            }
+            .navigationSplitViewStyle(.prominentDetail)
+            .frame(minWidth: 920, minHeight: 600)
+            .toolbar {
+                mainToolbar
+            }
+            .searchable(text: $viewModel.searchQuery, prompt: "Transkriptlerde veya kuyrukta ara...")
+            .sheet(item: $viewModel.pendingBatchIngestion) { pending in
+                PlaylistIngestionSheet(viewModel: viewModel, pending: pending)
+            }
+            
+            // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
+            if viewModel.showUndoToast {
+                VStack {
+                    Spacer()
+                    LiquidUndoToast(
+                        message: viewModel.undoToastMessage,
+                        undoAction: { viewModel.performUndo() },
+                        dismissAction: { viewModel.dismissUndoToast() }
+                    )
+                }
+            }
+            
+            // Floating ⌘K Command Palette Overlay
+            if viewModel.isCommandPalettePresented {
+                CommandPaletteView(
+                    isPresented: $viewModel.isCommandPalettePresented,
+                    searchText: $viewModel.commandPaletteSearch,
+                    onPasteClipboard: { viewModel.addFromClipboard() },
+                    onSelectAudioFile: {
+                        let panel = NSOpenPanel()
+                        panel.allowsMultipleSelection = true
+                        panel.canChooseDirectories = false
+                        panel.allowedContentTypes = [.audio, .movie]
+                        if panel.runModal() == .OK {
+                            viewModel.addAudioFiles(panel.urls)
+                        }
+                    },
+                    onStartQueue: { viewModel.startProcessingQueue() },
+                    onClearQueue: { viewModel.clearQueueWithUndo() },
+                    onCopyCurrentTranscript: { viewModel.copySelectedTranscript() },
+                    onToggleFolderWatch: { viewModel.isFolderWatching.toggle() }
+                )
+            }
+        }
+        // Real macOS Liquid Glass Translucency & Specular Ambiance
+        .background(
+            WindowAccessor { window in
+                window.isOpaque = false
+                window.backgroundColor = .clear
+                window.titlebarAppearsTransparent = true
+            }
+        )
+        .background(
+            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                .ignoresSafeArea()
+        )
+        .overlay(
+            LinearGradient(
+                stops: [
+                    .init(color: Color.blue.opacity(0.06), location: 0.0),
+                    .init(color: Color.purple.opacity(0.04), location: 0.35),
+                    .init(color: .clear, location: 0.75)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        )
+        // Global Keyboard Ergonomics
+        .background(
+            KeyboardShortcutsView(
+                onCommandK: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        viewModel.isCommandPalettePresented.toggle()
+                    }
+                },
+                onCommandV: {
+                    viewModel.addFromClipboard()
+                },
+                onCommandShiftC: {
+                    viewModel.copySelectedTranscript()
+                },
+                onCommandA: {
+                    viewModel.selectAllQueueItems()
+                }
+            )
+        )
+    }
+    
+    // MARK: - Native macOS Unified Toolbar (Liquid Glass Capsules)
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
         ToolbarItem(placement: .automatic) {
-            // Model Selector Dropdown
+            // Model Selector Dropdown (Only downloaded models shown)
             Menu {
-                Picker("Model", selection: $viewModel.selectedModel) {
-                    Label("Tiny (75 MB - Yıldırım Hızlı)", systemImage: "bolt.fill").tag(WhisperModel.tiny)
-                    Label("Base (142 MB - Standart)", systemImage: "hare.fill").tag(WhisperModel.base)
-                    Label("Small (466 MB - Önerilen)", systemImage: "sparkles").tag(WhisperModel.small)
-                    Label("Large-v3-Turbo (1.6 GB - En Yüksek Kalite)", systemImage: "crown.fill").tag(WhisperModel.largeV3Turbo)
+                if viewModel.downloadedModels.isEmpty {
+                    Text("İndirilmiş Model Yok")
+                } else {
+                    ForEach(viewModel.downloadedModels, id: \.self) { model in
+                        Button {
+                            viewModel.selectedModel = model
+                        } label: {
+                            HStack {
+                                Label(modelDisplayName(model), systemImage: modelSystemIcon(model))
+                                if viewModel.selectedModel == model { Image(systemName: "checkmark") }
+                            }
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                Button {
+                    viewModel.selectedSection = .settings
+                } label: {
+                    Label("Model İndir / Yönet... (Ayarlar)", systemImage: "gearshape")
                 }
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "cpu")
                         .foregroundColor(.secondary)
-                    Text(viewModel.selectedModel.rawValue.capitalized)
+                    Text(viewModel.selectedModelTitle)
                         .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8))
+                        .foregroundColor(.secondary.opacity(0.8))
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .liquidGlassCapsule(glowColor: .white.opacity(0.4), material: .ultraThinMaterial)
             }
-            .help("Whisper Yapay Zeka Modelini Seçin")
+            .buttonStyle(.plain)
+            .help("İndirilen Whisper Yapay Zeka Modelini Seçin")
         }
         
         ToolbarItem(placement: .automatic) {
-            // Language Selector Dropdown
+            // Language Selector Dropdown (Instant single-click, no submenu)
             Menu {
-                Picker("Dil", selection: $viewModel.selectedLanguage) {
-                    Text("🌐 Otomatik Algıla").tag("auto")
-                    Text("🇹🇷 Türkçe").tag("tr")
-                    Text("🇬🇧 İngilizce").tag("en")
-                    Text("🇩🇪 Almanca").tag("de")
-                    Text("🇫🇷 Fransızca").tag("fr")
-                    Text("🇪🇸 İspanyolca").tag("es")
-                    Text("🇷🇺 Rusça").tag("ru")
-                    Text("🇸🇦 Arapça").tag("ar")
-                }
+                languageMenuButton(code: "auto", title: "🌐 Otomatik Algıla")
+                Divider()
+                languageMenuButton(code: "tr", title: "🇹🇷 Türkçe")
+                languageMenuButton(code: "en", title: "🇬🇧 İngilizce")
+                languageMenuButton(code: "de", title: "🇩🇪 Almanca")
+                languageMenuButton(code: "fr", title: "🇫🇷 Fransızca")
+                languageMenuButton(code: "es", title: "🇪🇸 İspanyolca")
+                languageMenuButton(code: "ru", title: "🇷🇺 Rusça")
+                languageMenuButton(code: "ar", title: "🇸🇦 Arapça")
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "globe")
                         .foregroundColor(.secondary)
                     Text(languageTitle(viewModel.selectedLanguage))
                         .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8))
+                        .foregroundColor(.secondary.opacity(0.8))
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .liquidGlassCapsule(glowColor: .white.opacity(0.4), material: .ultraThinMaterial)
             }
+            .buttonStyle(.plain)
             .help("Transkript Edilecek Konuşma Dili")
         }
         
         ToolbarItem(placement: .automatic) {
             // Clipboard Monitor Toggle
-            Toggle(isOn: $viewModel.isClipboardMonitoring) {
-                HStack(spacing: 5) {
+            Button(action: {
+                viewModel.isClipboardMonitoring.toggle()
+            }) {
+                HStack(spacing: 6) {
                     Circle()
                         .fill(viewModel.isClipboardMonitoring ? Color.green : Color.gray.opacity(0.5))
                         .frame(width: 7, height: 7)
-                    Text("Pano Takibi")
-                        .font(.system(size: 12))
+                    Text("Pano İzle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(viewModel.isClipboardMonitoring ? .primary : .secondary)
                 }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .liquidGlassCapsule(glowColor: viewModel.isClipboardMonitoring ? .green : .white.opacity(0.3), material: .ultraThinMaterial)
             }
-            .toggleStyle(.button)
+            .buttonStyle(.plain)
             .help("Panoya kopyalanan tüm YouTube linklerini otomatik olarak kuyruğa ekler.")
+        }
+        
+        ToolbarItem(placement: .automatic) {
+            // ⌘K Quick Button in Toolbar
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    viewModel.isCommandPalettePresented.toggle()
+                }
+            }) {
+                Image(systemName: "command")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+            }
+            .buttonStyle(.plain)
+            .help("Hızlı Komut Paleti (⌘K)")
         }
         
         ToolbarItem(placement: .primaryAction) {
@@ -110,16 +248,38 @@ public struct ContentView: View {
                         ProgressView().controlSize(.small)
                     } else {
                         Image(systemName: "play.fill")
+                            .font(.system(size: 10))
                     }
                     Text(viewModel.isProcessing ? "İşleniyor..." : "Transkripti Başlat")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 8)
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.queueItems.isEmpty || viewModel.isProcessing)
             .keyboardShortcut(.defaultAction)
             .help("Kuyruktaki tüm videoları ve sesleri transkript etmeye başlar (⌘Return)")
+        }
+    }
+    
+    private func modelDisplayName(_ model: WhisperModel) -> String {
+        switch model {
+        case .tiny: return "Tiny (75 MB - Hızlı)"
+        case .base: return "Base (142 MB - Standart)"
+        case .small: return "Small (466 MB - Dengeli)"
+        case .medium: return "Medium (1.5 GB)"
+        case .largeV3Turbo: return "Large-v3-Turbo (1.6 GB - En İyi)"
+        case .largeV3TurboQ5: return "Large-v3-Turbo Q5 (547 MB)"
+        }
+    }
+    
+    private func modelSystemIcon(_ model: WhisperModel) -> String {
+        switch model {
+        case .tiny: return "bolt.fill"
+        case .base: return "hare.fill"
+        case .small: return "sparkles"
+        case .medium: return "waveform"
+        case .largeV3Turbo, .largeV3TurboQ5: return "crown.fill"
         }
     }
     
@@ -133,5 +293,69 @@ public struct ContentView: View {
         case "es": return "İspanyolca"
         default: return code.uppercased()
         }
+    }
+    
+    private func languageMenuButton(code: String, title: String) -> some View {
+        Button {
+            viewModel.selectedLanguage = code
+        } label: {
+            HStack {
+                Text(title)
+                if viewModel.selectedLanguage == code {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Global Invisible Keyboard Event Listener
+private struct KeyboardShortcutsView: NSViewRepresentable {
+    let onCommandK: () -> Void
+    let onCommandV: () -> Void
+    let onCommandShiftC: () -> Void
+    let onCommandA: () -> Void
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = KeyInterceptingView()
+        view.onCommandK = onCommandK
+        view.onCommandV = onCommandV
+        view.onCommandShiftC = onCommandShiftC
+        view.onCommandA = onCommandA
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class KeyInterceptingView: NSView {
+    var onCommandK: (() -> Void)?
+    var onCommandV: (() -> Void)?
+    var onCommandShiftC: (() -> Void)?
+    var onCommandA: (() -> Void)?
+    
+    override var acceptsFirstResponder: Bool { true }
+    
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        
+        if flags == .command && chars == "k" {
+            onCommandK?()
+            return true
+        }
+        if flags == [.command, .shift] && chars == "c" {
+            onCommandShiftC?()
+            return true
+        }
+        if flags == .command && chars == "a" {
+            // If user is focused on a text view / text editor, let the text view select its text
+            if let responder = window?.firstResponder, responder is NSTextView {
+                return super.performKeyEquivalent(with: event)
+            }
+            onCommandA?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }

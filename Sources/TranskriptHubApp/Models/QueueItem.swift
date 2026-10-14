@@ -25,6 +25,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var transcript: String?
     public var outputURL: URL?
     public var errorMessage: String?
+    public var isNewlyDiscovered: Bool
     public let addedAt: Date
     
     public init(
@@ -38,6 +39,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         transcript: String? = nil,
         outputURL: URL? = nil,
         errorMessage: String? = nil,
+        isNewlyDiscovered: Bool = false,
         addedAt: Date = Date()
     ) {
         self.id = id
@@ -50,6 +52,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.transcript = transcript
         self.outputURL = outputURL
         self.errorMessage = errorMessage
+        self.isNewlyDiscovered = isNewlyDiscovered
         self.addedAt = addedAt
     }
     
@@ -63,6 +66,18 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
             return video.canonicalURL
         }
         return nil
+    }
+    
+    public var isFailed: Bool {
+        state == .failed
+    }
+    
+    public var isInProgress: Bool {
+        state == .fetching || state == .transcribing
+    }
+    
+    public var isCompleted: Bool {
+        state == .completed
     }
 }
 

@@ -82,3 +82,72 @@ import Testing
     #expect(results[1].videoID == "1234567890a")
     #expect(results[2].videoID == "abcdefghijk")
 }
+
+@Test func testURLParserDetectType() throws {
+    // 1. Pure playlist
+    let playlistURL = "https://www.youtube.com/playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4"
+    let playlistType = URLParser.detectType(playlistURL)
+    #expect(playlistType != nil)
+    if case .playlist(let url, let playlistID, let videoID) = playlistType {
+        #expect(playlistID == "PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4")
+        #expect(videoID == nil)
+        #expect(url.contains("playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4"))
+    } else {
+        #expect(Bool(false), "Oynatma listesi tipi yanlış algılandı")
+    }
+    
+    // 2. Video with playlist parameter
+    let videoInPlaylistURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL12345"
+    let videoInPlaylistType = URLParser.detectType(videoInPlaylistURL)
+    if case .playlist(let url, let playlistID, let videoID) = videoInPlaylistType {
+        #expect(playlistID == "PL12345")
+        #expect(videoID == "dQw4w9WgXcQ")
+        #expect(url.contains("playlist?list=PL12345"))
+    } else {
+        #expect(Bool(false), "Oynatma listesi + video tipi yanlış algılandı")
+    }
+    
+    // 3. Channel with handle
+    let channelHandle = "https://www.youtube.com/@mkbhd"
+    let channelHandleType = URLParser.detectType(channelHandle)
+    if case .channel(let url, let identifier) = channelHandleType {
+        #expect(identifier == "@mkbhd")
+        #expect(url == "https://www.youtube.com/@mkbhd/videos")
+    } else {
+        #expect(Bool(false), "Kanal handle tipi yanlış algılandı")
+    }
+    
+    // 4. Channel with handle and /videos
+    let channelVideos = "https://www.youtube.com/@mkbhd/videos"
+    let channelVideosType = URLParser.detectType(channelVideos)
+    if case .channel(let url, let identifier) = channelVideosType {
+        #expect(identifier == "@mkbhd")
+        #expect(url == "https://www.youtube.com/@mkbhd/videos")
+    } else {
+        #expect(Bool(false), "Kanal /videos tipi yanlış algılandı")
+    }
+    
+    // 5. Channel with /channel/ID
+    let channelIDURL = "https://www.youtube.com/channel/UCBJycsmduvYEL83R_U4JriQ"
+    let channelIDType = URLParser.detectType(channelIDURL)
+    if case .channel(let url, let identifier) = channelIDType {
+        #expect(identifier == "UCBJycsmduvYEL83R_U4JriQ")
+        #expect(url == "https://www.youtube.com/channel/UCBJycsmduvYEL83R_U4JriQ/videos")
+    } else {
+        #expect(Bool(false), "Kanal ID tipi yanlış algılandı")
+    }
+    
+    // 6. Single regular video
+    let singleURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    let singleType = URLParser.detectType(singleURL)
+    if case .singleVideo(let video) = singleType {
+        #expect(video.videoID == "dQw4w9WgXcQ")
+    } else {
+        #expect(Bool(false), "Tek video tipi yanlış algılandı")
+    }
+    
+    // 7. Non-YouTube URL
+    let nonYouTube = "https://vimeo.com/12345678"
+    #expect(URLParser.detectType(nonYouTube) == nil)
+}
+

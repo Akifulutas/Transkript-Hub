@@ -14,7 +14,7 @@ struct SettingsView: View {
                     Text("Whisper Yapay Zeka Modelleri")
                         .font(.system(size: 14, weight: .bold))
                     
-                    Text("Modeller yerel olarak Mac'inizde saklanır ve Apple Silicon çipinizin Metal GPU hızlandırıcısını doğrudan kullanır.")
+                    Text("Modeller yerel olarak Mac'inizde saklanır ve Apple Silicon Metal GPU hızlandırıcısını doğrudan kullanır.")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     
@@ -28,12 +28,7 @@ struct SettingsView: View {
                         modelRow(model: .largeV3Turbo, name: "Large-v3-Turbo", size: "1.6 GB", desc: "Maksimum doğruluk, teknik ve karmaşık konuşmalar")
                     }
                     .padding(14)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
+                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
                 }
                 
                 // Storage Section
@@ -61,12 +56,7 @@ struct SettingsView: View {
                         .controlSize(.small)
                     }
                     .padding(14)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
+                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
                 }
                 
                 // Hardware / Engine Info
@@ -89,17 +79,15 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        Text("M1/M2/M3/M4")
+                        Text("Apple Silicon")
                             .font(.system(size: 10, weight: .bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.15))
                             .foregroundColor(.green)
-                            .clipShape(Capsule())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
                     }
                     .padding(14)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
+                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
                 }
                 
                 Spacer()
@@ -118,12 +106,19 @@ struct SettingsView: View {
                     Text(name)
                         .font(.system(size: 13, weight: .semibold))
                     Text(size)
-                        .font(.system(size: 10, design: .monospaced))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Color.secondary.opacity(0.12))
-                        .clipShape(Capsule())
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    
+                    if viewModel.selectedModel == model {
+                        Text("Aktif")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .liquidGlassCapsule(glowColor: .accentColor, material: .ultraThinMaterial)
+                    }
                 }
+                
                 Text(desc)
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -132,29 +127,48 @@ struct SettingsView: View {
             Spacer()
             
             if isDownloaded {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 13))
-                    Text("Yüklü")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.green)
+                HStack(spacing: 10) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 12))
+                        Text("İndirildi")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Button(role: .destructive) {
+                        viewModel.deleteModelInSettings(model)
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(4)
+                            .background(Color.red.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Modeli Silerek Disk Alanı Aç")
                 }
-            } else if downloadingModel == model {
-                ProgressView().controlSize(.small)
+            } else if viewModel.downloadingModel == model {
+                VStack(alignment: .trailing, spacing: 4) {
+                    ProgressView(value: viewModel.modelDownloadFraction)
+                        .progressViewStyle(.linear)
+                        .frame(width: 140)
+                    
+                    Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
             } else {
                 Button("İndir") {
-                    downloadingModel = model
-                    Task {
-                        _ = try? await viewModel.modelManager.downloadModel(model)
-                        downloadingModel = nil
-                    }
+                    viewModel.downloadModelInSettings(model)
                 }
-                .font(.system(size: 11))
+                .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }

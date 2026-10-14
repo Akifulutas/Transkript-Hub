@@ -62,6 +62,11 @@ public final class YTDLPClient: Sendable {
         let fm = FileManager.default
         if !fm.fileExists(atPath: workspace.path) {
             try fm.createDirectory(at: workspace, withIntermediateDirectories: true)
+        } else {
+            let existingFiles = (try? fm.contentsOfDirectory(at: workspace, includingPropertiesForKeys: nil)) ?? []
+            for f in existingFiles where f.lastPathComponent.hasPrefix("input.") {
+                try? fm.removeItem(at: f)
+            }
         }
         
         let outputTemplate = workspace.appendingPathComponent("input.%(ext)s").path
@@ -193,4 +198,79 @@ public final class YTDLPClient: Sendable {
         }
         return .unknown
     }
+    
+    // MARK: - Playlist & Channel Resolution
+    public func resolvePlaylistOrChannel(
+        url: String,
+        maxVideos: Int? = nil
+    ) async throws -> [PlaylistVideoEntry] {
+        try await toolManager.ensureToolsReady()
+        let ytdlpURL = toolManager.ytdlpExecutableURL
+        
+        var arguments = [
+            "--flat-playlist",
+            "--print", "%(id)s\t%(title)s"
+        ]
+        
+        if let max = maxVideos, max > 0 {
+            arguments.append(contentsOf: ["--playlist-end", "\(max)"])
+        }
+        
+        arguments.append(url)
+        
+        let process = Process()
+        process.executableURL = ytdlpURL
+        process.arguments = arguments
+        
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        
+        try process.run()
+        
+        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        
+        let output = String(data: stdoutData, encoding: .utf8) ?? ""
+        var entries: [PlaylistVideoEntry] = []
+        
+        for line in output.components(separatedBy: .newlines) {
+            let parts = line.components(separatedBy: "\t")
+            if parts.count >= 2 {
+                let id = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let title = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !id.isEmpty && URLParser.isValidID(id) {
+                    entries.append(PlaylistVideoEntry(id: id, title: title.isEmpty ? "Video (\(id))" : title))
+                }
+            } else if parts.count == 1 {
+                let id = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !id.isEmpty && URLParser.isValidID(id) {
+                    entries.append(PlaylistVideoEntry(id: id, title: "Video (\(id))"))
+                }
+            }
+        }
+        
+        if entries.isEmpty && process.terminationStatus != 0 {
+            let errStr = String(data: stderrData, encoding: .utf8) ?? ""
+            let kind = classifyError(stderr: errStr, exitCode: process.terminationStatus)
+            throw YTDLPError(kind: kind, message: "Oynatma listesi veya kanal çözümlenemedi: \(errStr.prefix(200))")
+        }
+        
+        return entries
+    }
 }
+
+public struct PlaylistVideoEntry: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let title: String
+    public let url: String
+    
+    public init(id: String, title: String) {
+        self.id = id
+        self.title = title
+        self.url = "https://www.youtube.com/watch?v=\(id)"
+    }
+}
+

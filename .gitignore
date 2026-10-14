@@ -8,4 +8,6 @@ DerivedData/
 dist/
 *.bin
 *.part
+*.dmg
+*.textClipping
 Tests/Fixtures/*.txt

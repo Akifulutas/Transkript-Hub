@@ -4,10 +4,11 @@ import AppKit
 @main
 struct TranskriptHubApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var viewModel = AppViewModel()
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(viewModel: viewModel)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
@@ -16,27 +17,28 @@ struct TranskriptHubApp: App {
         }
         
         MenuBarExtra("Transkript Hub", systemImage: "waveform.badge.magnifyingglass") {
-            Button("Pencereyi Aç") {
-                NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows {
-                    window.makeKeyAndOrderFront(nil)
-                }
-            }
-            Divider()
-            Button("Çıkış") {
-                NSApp.terminate(nil)
-            }
+            MenuBarMiniWindow(viewModel: viewModel)
         }
+        .menuBarExtraStyle(.window)
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        DispatchQueue.main.async {
+            for window in NSApp.windows {
+                if !(window is NSPanel) {
+                    window.titlebarAppearsTransparent = true
+                    window.isOpaque = false
+                    window.backgroundColor = .clear
+                }
+            }
+        }
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // According to spec §11: Pencere kapansa bile arka planda devam eder, çıkmaz
+        // Pencere kapansa bile arka planda devam eder, çıkmaz
         return false
     }
 }

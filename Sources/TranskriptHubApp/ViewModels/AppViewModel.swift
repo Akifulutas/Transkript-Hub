@@ -22,25 +22,98 @@ public enum SidebarSection: String, Hashable, CaseIterable, Identifiable {
     }
 }
 
+public enum BatchScopeSelection: Hashable, Sendable {
+    case all
+    case latest5
+    case latest10
+    case latest20
+    case custom(Int)
+    case singleVideoOnly
+}
+
+public struct PendingBatchIngestion: Identifiable, Sendable, Equatable {
+    public var id: String { url }
+    public let url: String
+    public let type: YouTubeLinkType
+    public let title: String
+    public let subtitle: String
+    public let singleVideoID: String?
+    
+    public init(url: String, type: YouTubeLinkType, title: String, subtitle: String, singleVideoID: String? = nil) {
+        self.url = url
+        self.type = type
+        self.title = title
+        self.subtitle = subtitle
+        self.singleVideoID = singleVideoID
+    }
+}
+
 @MainActor
 public final class AppViewModel: ObservableObject {
     // Navigation & Selection
     @Published public var selectedSection: SidebarSection = .queue
-    @Published public var selectedItemID: String? = nil
+    @Published public var selectedItemIDs: Set<String> = []
+    
+    public var selectedItemID: String? {
+        get { selectedItemIDs.first }
+        set {
+            if let val = newValue {
+                selectedItemIDs = [val]
+            } else {
+                selectedItemIDs = []
+            }
+        }
+    }
+    
+    @Published public var showCombinedSessionTranscript: Bool = false
     @Published public var searchQuery: String = ""
     @Published public var transcriptFontSize: Double = 13.0
+    
+    // Density Mode (Standard / Compact)
+    @Published public var densityMode: DensityMode = .standard
+    
+    // Command Palette (⌘K)
+    @Published public var isCommandPalettePresented: Bool = false
+    @Published public var commandPaletteSearch: String = ""
+    
+    // Confirmation & Undo State (8-State Matrix)
+    @Published public var showUndoToast: Bool = false
+    @Published public var undoToastMessage: String = ""
+    private var undoBackupItems: [QueueItem] = []
+    private var undoDismissTask: Task<Void, Never>?
     
     // Unified Active Queue (YouTube links & local audio files)
     @Published public var queueItems: [QueueItem] = []
     @Published public var historyItems: [HistoryItem] = []
+    
+    // Playlist & Channel Batch Ingestion State
+    @Published public var pendingBatchIngestion: PendingBatchIngestion? = nil
+    @Published public var isResolvingBatch: Bool = false
+    @Published public var batchResolutionError: String? = nil
     
     // Quick Add Inputs
     @Published public var quickInputText: String = ""
     @Published public var isDropTargetActive: Bool = false
     
     // Model & Language Selection
-    @Published public var selectedModel: WhisperModel = .tiny
+    @Published public var selectedModel: WhisperModel = .largeV3Turbo
     @Published public var selectedLanguage: String = "auto"
+    
+    public var downloadedModels: [WhisperModel] {
+        modelManager.downloadedModels()
+    }
+    
+    public var selectedModelTitle: String {
+        if downloadedModels.isEmpty {
+            return "Model Yok"
+        }
+        return selectedModel.rawValue.capitalized
+    }
+    
+    // Model Download & Deletion Tracking
+    @Published public var downloadingModel: WhisperModel? = nil
+    @Published public var modelDownloadFraction: Double = 0.0
+    @Published public var modelDownloadStatusText: String = ""
     
     // Processing & Progress
     @Published public var isProcessing: Bool = false
@@ -83,19 +156,131 @@ public final class AppViewModel: ObservableObject {
         folderWatcher.watchedDirectory.path
     }
     
+    // MARK: - Action-Oriented Metrics & 8-State Computed Properties
+    public var successfulCount: Int {
+        queueItems.filter { $0.state == .completed }.count
+    }
+    
+    public var completedCount: Int {
+        successfulCount
+    }
+    
+    public var failedCount: Int {
+        queueItems.filter { $0.state == .failed }.count
+    }
+    
+    public var inProgressCount: Int {
+        queueItems.filter { $0.isInProgress }.count
+    }
+    
+    public var queuedCount: Int {
+        queueItems.filter { $0.state == .queued }.count
+    }
+    
+    public var actionableSummary: String {
+        if queueItems.isEmpty {
+            return isFolderWatching ? "Kuyruk Boş • 1 Yerel Klasör Dinleniyor" : "Kuyruk Boş • Beklemede"
+        }
+        var parts: [String] = []
+        if successfulCount > 0 {
+            parts.append("\(successfulCount) Başarılı")
+        }
+        if inProgressCount > 0 {
+            parts.append("\(inProgressCount) İşleniyor")
+        }
+        if queuedCount > 0 {
+            parts.append("\(queuedCount) Kuyrukta")
+        }
+        if failedCount > 0 {
+            parts.append("\(failedCount) İndirilemeyen (Yeniden Dene)")
+        }
+        if isFolderWatching {
+            parts.append("1 Klasör Dinleniyor")
+        }
+        return parts.joined(separator: " • ")
+    }
+    
+    // Action-Oriented Queue Categorization
+    public var failedItems: [QueueItem] {
+        filteredQueueItems.filter { $0.state == .failed }
+    }
+    
+    public var activeOrQueuedItems: [QueueItem] {
+        filteredQueueItems.filter { $0.state == .queued || $0.isInProgress }
+    }
+    
+    public var completedItems: [QueueItem] {
+        filteredQueueItems.filter { $0.state == .completed }
+    }
+    
+    public var filteredQueueItems: [QueueItem] {
+        if searchQuery.isEmpty {
+            return queueItems
+        }
+        return queueItems.filter {
+            $0.title.localizedCaseInsensitiveContains(searchQuery) ||
+            $0.subtitle.localizedCaseInsensitiveContains(searchQuery) ||
+            ($0.transcript?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+        }
+    }
+    
     public var selectedItem: QueueItem? {
+        guard selectedSection == .queue else { return nil }
         guard let id = selectedItemID else { return queueItems.first }
         return queueItems.first(where: { $0.id == id })
     }
     
+    public var selectedItems: [QueueItem] {
+        guard selectedSection == .queue else { return [] }
+        return queueItems.filter { selectedItemIDs.contains($0.id) }
+    }
+    
+    public var combinedTranscript: String {
+        let itemsToInclude: [QueueItem]
+        let multiSelected = queueItems.filter { selectedItemIDs.contains($0.id) && $0.state == .completed }
+        if multiSelected.count > 1 {
+            itemsToInclude = multiSelected
+        } else {
+            itemsToInclude = queueItems.filter { $0.state == .completed }
+        }
+        
+        return itemsToInclude.enumerated().compactMap { index, item -> String? in
+            guard let t = item.transcript, !t.isEmpty else { return nil }
+            return """
+            ================================================================================
+            🎬 [\(index + 1)/\(itemsToInclude.count)] \(item.title)
+            Kanal/Kaynak: \(item.subtitle)
+            ================================================================================
+            
+            \(t)
+            """
+        }.joined(separator: "\n\n\n")
+    }
+    
+    public func selectAllQueueItems() {
+        selectedItemIDs = Set(queueItems.map(\.id))
+    }
+    
+    public func deselectAllQueueItems() {
+        selectedItemIDs.removeAll()
+    }
+    
     public var selectedHistoryItem: HistoryItem? {
+        guard selectedSection == .history else { return nil }
         guard let id = selectedItemID else { return historyItems.first }
         return historyItems.first(where: { $0.id == id })
     }
     
     public init() {
+        if let bestDownloaded = self.modelManager.downloadedModels().first {
+            self.selectedModel = bestDownloaded
+        }
+        
         self.clipboardMonitor = ClipboardMonitor { [weak self] video in
-            self?.addYouTubeVideo(video)
+            self?.handleClipboardDiscoveredVideo(video)
+        }
+        self.clipboardMonitor.onBatchDetected = { [weak self] linkType in
+            self?.presentBatchIngestion(for: linkType)
         }
         
         self.folderWatcher = FolderWatcher()
@@ -116,6 +301,46 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Zero-Touch Ingestion Handlers
+    private func handleClipboardDiscoveredVideo(_ video: ParsedYouTubeVideo) {
+        guard !queueItems.contains(where: { $0.id == video.videoID }) else { return }
+        let item = QueueItem(
+            id: video.videoID,
+            kind: .youtube(video),
+            title: video.canonicalURL,
+            subtitle: "Pano Otomatik Yakaladı • ID: \(video.videoID)",
+            state: .queued,
+            isNewlyDiscovered: true
+        )
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.append(item)
+            if selectedItemID == nil {
+                selectedItemID = item.id
+            }
+        }
+    }
+    
+    private func handleAutoDiscoveredAudio(_ url: URL) async {
+        guard AudioValidator.isExtensionSupported(url.pathExtension) else { return }
+        guard !queueItems.contains(where: { $0.id == url.path }) else { return }
+        
+        let item = QueueItem(
+            id: url.path,
+            kind: .audioFile(url),
+            title: url.deletingPathExtension().lastPathComponent,
+            subtitle: "Sesli Notlar / iCloud • \(url.pathExtension.uppercased())",
+            state: .queued,
+            isNewlyDiscovered: true
+        )
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.append(item)
+            if selectedItemID == nil {
+                selectedItemID = item.id
+            }
+        }
+        startProcessingQueue()
+    }
+    
     // MARK: - Queue Management
     public func addYouTubeVideo(_ video: ParsedYouTubeVideo) {
         guard !queueItems.contains(where: { $0.id == video.videoID }) else { return }
@@ -126,9 +351,11 @@ public final class AppViewModel: ObservableObject {
             subtitle: "YouTube • ID: \(video.videoID)",
             state: .queued
         )
-        queueItems.append(item)
-        if selectedItemID == nil {
-            selectedItemID = item.id
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.append(item)
+            if selectedItemID == nil {
+                selectedItemID = item.id
+            }
         }
     }
     
@@ -144,9 +371,11 @@ public final class AppViewModel: ObservableObject {
                 subtitle: "Ses Dosyası • \(url.pathExtension.uppercased())",
                 state: .queued
             )
-            queueItems.append(item)
-            if selectedItemID == nil {
-                selectedItemID = item.id
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                queueItems.append(item)
+                if selectedItemID == nil {
+                    selectedItemID = item.id
+                }
             }
         }
     }
@@ -155,13 +384,25 @@ public final class AppViewModel: ObservableObject {
         let trimmed = quickInputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
+        // 1. Check if the input is a single link (playlist, channel, or video)
+        if let detected = URLParser.detectType(trimmed) {
+            switch detected {
+            case .singleVideo(let video):
+                addYouTubeVideo(video)
+            case .playlist, .channel:
+                presentBatchIngestion(for: detected)
+            }
+            quickInputText = ""
+            return
+        }
+        
+        // 2. Fallback to bulk link extraction
         let parsedList = URLParser.parseBulk(trimmed)
         if !parsedList.isEmpty {
             for p in parsedList {
                 addYouTubeVideo(p)
             }
         } else {
-            // Check if it's a file path
             let fileURL = URL(fileURLWithPath: trimmed)
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 addAudioFiles([fileURL])
@@ -172,9 +413,124 @@ public final class AppViewModel: ObservableObject {
     
     public func addFromClipboard() {
         guard let text = NSPasteboard.general.string(forType: .string) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if let detected = URLParser.detectType(trimmed) {
+            switch detected {
+            case .singleVideo(let video):
+                addYouTubeVideo(video)
+            case .playlist, .channel:
+                presentBatchIngestion(for: detected)
+            }
+            return
+        }
+        
         let parsed = URLParser.parseBulk(text)
         for p in parsed {
             addYouTubeVideo(p)
+        }
+    }
+    
+    // MARK: - Batch Ingestion (Playlist & Channel)
+    public func presentBatchIngestion(for linkType: YouTubeLinkType) {
+        NSApp.activate(ignoringOtherApps: true)
+        switch linkType {
+        case .singleVideo(let video):
+            addYouTubeVideo(video)
+        case .playlist(let url, let playlistID, let videoID):
+            self.batchResolutionError = nil
+            self.isResolvingBatch = false
+            self.pendingBatchIngestion = PendingBatchIngestion(
+                url: url,
+                type: linkType,
+                title: "Oynatma Listesi",
+                subtitle: "Liste ID: \(playlistID)",
+                singleVideoID: videoID
+            )
+        case .channel(let url, let channelIdentifier):
+            self.batchResolutionError = nil
+            self.isResolvingBatch = false
+            self.pendingBatchIngestion = PendingBatchIngestion(
+                url: url,
+                type: linkType,
+                title: "YouTube Kanalı",
+                subtitle: channelIdentifier.hasPrefix("@") ? channelIdentifier : "Kanal: \(channelIdentifier)",
+                singleVideoID: nil
+            )
+        }
+    }
+    
+    public func cancelBatchIngestion() {
+        pendingBatchIngestion = nil
+        isResolvingBatch = false
+        batchResolutionError = nil
+    }
+    
+    @MainActor
+    public func resolveAndIngestBatch(selection: BatchScopeSelection, customCount: Int = 10) async {
+        guard let pending = pendingBatchIngestion else { return }
+        
+        if case .singleVideoOnly = selection, let videoID = pending.singleVideoID {
+            let video = ParsedYouTubeVideo(videoID: videoID)
+            addYouTubeVideo(video)
+            pendingBatchIngestion = nil
+            return
+        }
+        
+        isResolvingBatch = true
+        batchResolutionError = nil
+        
+        let maxVideos: Int?
+        switch selection {
+        case .all:
+            maxVideos = nil
+        case .latest5:
+            maxVideos = 5
+        case .latest10:
+            maxVideos = 10
+        case .latest20:
+            maxVideos = 20
+        case .custom:
+            maxVideos = max(1, customCount)
+        case .singleVideoOnly:
+            maxVideos = 1
+        }
+        
+        do {
+            let toolMgr = ToolManager()
+            let ytdlp = YTDLPClient(toolManager: toolMgr)
+            let entries = try await ytdlp.resolvePlaylistOrChannel(url: pending.url, maxVideos: maxVideos)
+            
+            guard !entries.isEmpty else {
+                batchResolutionError = "Bağlantıda video bulunamadı veya liste gizli."
+                isResolvingBatch = false
+                return
+            }
+            
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                for entry in entries {
+                    guard !queueItems.contains(where: { $0.id == entry.id }) else { continue }
+                    let parsed = ParsedYouTubeVideo(videoID: entry.id)
+                    let item = QueueItem(
+                        id: entry.id,
+                        kind: .youtube(parsed),
+                        title: entry.title,
+                        subtitle: "\(pending.title) • ID: \(entry.id)",
+                        state: .queued,
+                        isNewlyDiscovered: true
+                    )
+                    queueItems.append(item)
+                    if selectedItemID == nil {
+                        selectedItemID = item.id
+                    }
+                }
+                statusMessage = "\(entries.count) video kuyruğa eklendi."
+                pendingBatchIngestion = nil
+                isResolvingBatch = false
+            }
+        } catch {
+            batchResolutionError = error.localizedDescription
+            isResolvingBatch = false
         }
     }
     
@@ -185,18 +541,77 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func removeItem(id: String) {
-        queueItems.removeAll(where: { $0.id == id })
-        if selectedItemID == id {
-            selectedItemID = queueItems.first?.id
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.removeAll(where: { $0.id == id })
+            if selectedItemID == id {
+                selectedItemID = queueItems.first?.id
+            }
         }
     }
     
-    public func clearQueue() {
-        queueItems.removeAll()
-        selectedItemID = nil
+    // MARK: - Undo / Confirmation Pattern (8-State Matrix)
+    public func clearQueueWithUndo() {
+        guard !queueItems.isEmpty else { return }
+        undoBackupItems = queueItems
+        let count = queueItems.count
+        
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.removeAll()
+            selectedItemID = nil
+            undoToastMessage = "\(count) işlem kuyruktan kaldırıldı."
+            showUndoToast = true
+        }
+        
+        undoDismissTask?.cancel()
+        undoDismissTask = Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                self.showUndoToast = false
+                self.undoBackupItems.removeAll()
+            }
+        }
     }
     
-    // MARK: - Unified Batch & Audio Processing
+    public func performUndo() {
+        undoDismissTask?.cancel()
+        guard !undoBackupItems.isEmpty else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems = undoBackupItems
+            selectedItemID = queueItems.first?.id
+            undoBackupItems.removeAll()
+            showUndoToast = false
+        }
+    }
+    
+    public func dismissUndoToast() {
+        undoDismissTask?.cancel()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            showUndoToast = false
+            undoBackupItems.removeAll()
+        }
+    }
+    
+    // MARK: - Retry Logic for Failed Items
+    public func retryFailedItems() {
+        for i in 0..<queueItems.count {
+            if queueItems[i].state == .failed {
+                queueItems[i].state = .queued
+                queueItems[i].errorMessage = nil
+            }
+        }
+        startProcessingQueue()
+    }
+    
+    public func retryItem(id: String) {
+        if let idx = queueItems.firstIndex(where: { $0.id == id }) {
+            queueItems[idx].state = .queued
+            queueItems[idx].errorMessage = nil
+            startProcessingQueue()
+        }
+    }
+    
+    // MARK: - Unified Processing Loop
     public func startProcessingQueue() {
         guard !queueItems.isEmpty else { return }
         
@@ -216,8 +631,16 @@ public final class AppViewModel: ObservableObject {
                 try self.modelManager.ensureDirectoryExists()
                 let modelURL: URL
                 if !self.modelManager.isModelDownloaded(model) {
-                    self.statusMessage = "Whisper modeli indiriliyor (\(model.filename))..."
-                    modelURL = try await self.modelManager.downloadModel(model)
+                    if let alternate = self.downloadedModels.first {
+                        self.selectedModel = alternate
+                        modelURL = self.modelManager.localURL(for: alternate)
+                    } else {
+                        self.statusMessage = "İndirilmiş model bulunamadı."
+                        self.errorMessage = "Transkripsiyon için indirilmiş Whisper modeli bulunamadı. Lütfen Ayarlar sekmesinden bir model indirin."
+                        self.selectedSection = .settings
+                        self.isProcessing = false
+                        return
+                    }
                 } else {
                     modelURL = self.modelManager.localURL(for: model)
                 }
@@ -229,15 +652,23 @@ public final class AppViewModel: ObservableObject {
                 try await toolMgr.ensureToolsReady()
                 let ytdlp = YTDLPClient(toolManager: toolMgr)
                 
-                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                defer { try? FileManager.default.removeItem(at: tempDir) }
-                
                 for (index, item) in self.queueItems.enumerated() {
+                    // Skip already completed items
+                    if item.state == .completed {
+                        continue
+                    }
+                    
                     self.statusMessage = "[\(index + 1)/\(totalCount)] \(item.title) işleniyor..."
                     self.selectedItemID = item.id
                     
+                    // Create an isolated workspace directory specifically for this video to avoid file collision
+                    let itemWorkspace = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("transkript_\(item.id)_\(UUID().uuidString)", isDirectory: true)
+                    try FileManager.default.createDirectory(at: itemWorkspace, withIntermediateDirectories: true)
+                    defer { try? FileManager.default.removeItem(at: itemWorkspace) }
+                    
                     var current = item
+                    current.isNewlyDiscovered = false
                     
                     switch item.kind {
                     case .youtube(let video):
@@ -246,7 +677,7 @@ public final class AppViewModel: ObservableObject {
                         self.currentOperation = "YouTube sesi indiriliyor (yt-dlp)..."
                         
                         do {
-                            let media = try await ytdlp.fetch(url: video.canonicalURL, into: tempDir)
+                            let media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
                             current.title = media.metadata.title
@@ -333,7 +764,7 @@ public final class AppViewModel: ObservableObject {
                 
             } catch {
                 self.errorMessage = "İşlem hatası: \(error.localizedDescription)"
-                self.statusMessage = "İşlem başarısız oldu."
+                self.statusMessage = "İşlem tamamlanamadı."
             }
             
             self.isProcessing = false
@@ -404,12 +835,6 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Auto Discovered Audio (Watched Folder)
-    private func handleAutoDiscoveredAudio(_ url: URL) async {
-        addAudioFiles([url])
-        startProcessingQueue()
-    }
-    
     // MARK: - Actions
     public func copyTranscript(text: String?) {
         guard let text = text, !text.isEmpty else { return }
@@ -423,6 +848,12 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public func copySelectedTranscript() {
+        if let currentText = selectedItem?.transcript ?? selectedHistoryItem?.snippet {
+            copyTranscript(text: currentText)
+        }
+    }
+    
     public func openInFinder(path: String) {
         let url = URL(fileURLWithPath: path)
         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -431,6 +862,57 @@ public final class AppViewModel: ObservableObject {
     public func openInBrowser(url: String) {
         if let target = URL(string: url) {
             NSWorkspace.shared.open(target)
+        }
+    }
+    
+    // MARK: - Model Management in Settings
+    public func downloadModelInSettings(_ model: WhisperModel) {
+        guard downloadingModel == nil else { return }
+        downloadingModel = model
+        modelDownloadFraction = 0.0
+        modelDownloadStatusText = "Bağlanılıyor..."
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                _ = try await self.modelManager.downloadModelWithDetails(model) { [weak self] frac, written, total in
+                    Task { @MainActor [weak self] in
+                        guard let self = self else { return }
+                        self.modelDownloadFraction = frac
+                        let writtenMB = Double(written) / (1024 * 1024)
+                        let totalMB = Double(total) / (1024 * 1024)
+                        let pct = Int(frac * 100)
+                        if totalMB > 0 {
+                            self.modelDownloadStatusText = String(format: "%%%d • %.1f MB / %.1f MB", pct, writtenMB, totalMB)
+                        } else {
+                            self.modelDownloadStatusText = String(format: "%.1f MB indirildi", writtenMB)
+                        }
+                    }
+                }
+                self.downloadingModel = nil
+                self.modelDownloadFraction = 1.0
+                self.modelDownloadStatusText = ""
+                self.objectWillChange.send()
+            } catch {
+                self.downloadingModel = nil
+                self.modelDownloadStatusText = ""
+                self.errorMessage = "Model indirme hatası: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    public func deleteModelInSettings(_ model: WhisperModel) {
+        do {
+            try modelManager.deleteModel(model)
+            let remaining = modelManager.downloadedModels()
+            if selectedModel == model {
+                if let next = remaining.first {
+                    selectedModel = next
+                }
+            }
+            objectWillChange.send()
+        } catch {
+            errorMessage = "Model silinemedi: \(error.localizedDescription)"
         }
     }
 }

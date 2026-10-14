@@ -21,8 +21,9 @@ echo "3. İkili ve kütüphaneler kopyalanıyor..."
 cp "$BUILD_DIR/TranskriptHubApp" "$APP_DIR/Contents/MacOS/TranskriptHub"
 chmod +x "$APP_DIR/Contents/MacOS/TranskriptHub"
 
-# Copy whisper.framework
+# Copy whisper.framework and AppIcon
 cp -R "$PROJECT_DIR/Frameworks/whisper.xcframework/macos-arm64_x86_64/whisper.framework" "$APP_DIR/Contents/Frameworks/"
+cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 echo "4. RPATH ve dinamik bağlayıcı yapılandırılıyor..."
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
@@ -39,6 +40,10 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
     <string>com.akifulutas.TranskriptHub</string>
     <key>CFBundleName</key>
     <string>Transkript Hub</string>
+    <key>CFBundleDisplayName</key>
+    <string>Transkript Hub</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

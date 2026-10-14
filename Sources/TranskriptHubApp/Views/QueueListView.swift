@@ -5,19 +5,17 @@ import TranskriptHubCore
 struct QueueListView: View {
     @ObservedObject var viewModel: AppViewModel
     
-    var filteredItems: [QueueItem] {
-        if viewModel.searchQuery.isEmpty {
-            return viewModel.queueItems
-        }
-        return viewModel.queueItems.filter {
-            $0.title.localizedCaseInsensitiveContains(viewModel.searchQuery) ||
-            $0.subtitle.localizedCaseInsensitiveContains(viewModel.searchQuery)
-        }
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
-            // Quick Add Input Box
+            // Actionable Status Header (First 2 Seconds Rule)
+            actionableHeader
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.6))
+            
+            Divider()
+            
+            // Quick Add Input Bar (Liquid Glass Capsule)
             quickAddBar
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
@@ -25,60 +23,86 @@ struct QueueListView: View {
             
             Divider()
             
-            // Queue List or Empty State
+            // Queue Content (Empty State or Grouped List)
             if viewModel.queueItems.isEmpty {
                 emptyQueueView
             } else {
-                List(selection: $viewModel.selectedItemID) {
-                    ForEach(filteredItems) { item in
-                        QueueItemRow(item: item, isSelected: viewModel.selectedItemID == item.id)
-                            .tag(item.id)
-                            .contextMenu {
-                                if let transcript = item.transcript {
-                                    Button("Metni Kopyala") {
-                                        viewModel.copyTranscript(text: transcript)
+                List(selection: $viewModel.selectedItemIDs) {
+                    // 1. Müdahale Gerekiyor Group (Pinned to Top with Amber Glow)
+                    if !viewModel.failedItems.isEmpty {
+                        Section {
+                            ForEach(viewModel.failedItems) { item in
+                                queueRow(for: item)
+                                    .tag(item.id)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedItemID = item.id
                                     }
-                                }
-                                if let output = item.outputURL {
-                                    Button("Finder'da Göster") {
-                                        viewModel.openInFinder(path: output.path)
-                                    }
-                                }
-                                if let url = item.canonicalURL {
-                                    Button("Tarayıcıda Aç") {
-                                        viewModel.openInBrowser(url: url)
-                                    }
-                                }
-                                Divider()
-                                Button("Kuyruktan Çıkar", role: .destructive) {
-                                    viewModel.removeItem(id: item.id)
-                                }
                             }
+                        } header: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 11))
+                                Text("MÜDAHALE GEREKİYOR (\(viewModel.failedItems.count))")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.orange)
+                                Spacer()
+                                Button("Tümünü Yeniden Dene") {
+                                    viewModel.retryFailedItems()
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.accentColor)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    
+                    // 2. İşleniyor ve Kuyrukta Olanlar
+                    if !viewModel.activeOrQueuedItems.isEmpty {
+                        Section {
+                            ForEach(viewModel.activeOrQueuedItems) { item in
+                                queueRow(for: item)
+                                    .tag(item.id)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedItemID = item.id
+                                    }
+                            }
+                        } header: {
+                            Text("İŞLENİYOR & KUYRUK (\(viewModel.activeOrQueuedItems.count))")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 4)
+                        }
+                    }
+                    
+                    // 3. Tamamlananlar (Sakin Nötr Tonlar)
+                    if !viewModel.completedItems.isEmpty {
+                        Section {
+                            ForEach(viewModel.completedItems) { item in
+                                queueRow(for: item)
+                                    .tag(item.id)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedItemID = item.id
+                                    }
+                            }
+                        } header: {
+                            Text("TAMAMLANANLAR (\(viewModel.completedItems.count))")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 4)
+                        }
                     }
                 }
                 .listStyle(.inset)
                 
                 Divider()
                 
-                // Bottom Queue Summary Bar
-                HStack {
-                    Text("\(viewModel.queueItems.count) İşlem Kuyrukta")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Button("Tümünü Temizle") {
-                        viewModel.clearQueue()
-                    }
-                    .font(.system(size: 11))
-                    .buttonStyle(.plain)
-                    .foregroundColor(.secondary)
-                    .disabled(viewModel.isProcessing)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.windowBackgroundColor))
+                // Bottom Bar with Density Toggle & Clear with Undo
+                bottomActionBar
             }
         }
         .navigationTitle("Kuyruk")
@@ -87,15 +111,44 @@ struct QueueListView: View {
         }
     }
     
-    // MARK: - Quick Add Bar
+    // MARK: - Actionable Header (No AI Slop, First 2 Seconds Rule)
+    private var actionableHeader: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(viewModel.isProcessing ? Color.purple : (viewModel.failedCount > 0 ? Color.orange : Color.green))
+                .frame(width: 8, height: 8)
+            
+            Text(viewModel.actionableSummary)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+            
+            Spacer()
+            
+            if viewModel.failedCount > 0 {
+                Button(action: { viewModel.retryFailedItems() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Yeniden Dene")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .foregroundColor(.orange)
+            }
+        }
+    }
+    
+    // MARK: - Quick Add Bar (Liquid Glass Capsule)
     private var quickAddBar: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: "link.badge.plus")
                     .foregroundColor(.accentColor)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                 
-                TextField("YouTube linki veya yerel ses dosyası ekleyin...", text: $viewModel.quickInputText)
+                TextField("YouTube linki veya ses dosyası...", text: $viewModel.quickInputText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .onSubmit {
@@ -111,86 +164,145 @@ struct QueueListView: View {
                     .controlSize(.small)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .liquidGlassCapsule(glowColor: .white.opacity(0.8), material: .ultraThinMaterial)
             
-            // Quick Action Buttons
+            // Quick Ingestion Pill Buttons (H / 2 Capsule Rule)
             HStack(spacing: 12) {
                 Button(action: { viewModel.addFromClipboard() }) {
-                    Label("Panodan Yapıştır", systemImage: "doc.on.clipboard")
-                        .font(.system(size: 11))
+                    Label("Panodan (⌘V)", systemImage: "doc.on.clipboard")
+                        .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
                 
                 Button(action: { selectLocalAudioFiles() }) {
-                    Label("Ses Dosyası Seç...", systemImage: "waveform")
-                        .font(.system(size: 11))
+                    Label("Ses Dosyası...", systemImage: "waveform")
+                        .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
                 
                 Spacer()
-                
-                Button(action: { viewModel.addSampleYouTube() }) {
-                    Label("Örnek Link", systemImage: "sparkles")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
             }
+            .padding(.horizontal, 4)
         }
     }
     
-    // MARK: - Empty Queue View
+    // MARK: - Row Dispatcher (Compact vs Standard)
+    @ViewBuilder
+    private func queueRow(for item: QueueItem) -> some View {
+        if viewModel.densityMode == .compact {
+            CompactQueueRow(item: item, isSelected: viewModel.selectedItemID == item.id)
+                .contextMenu { rowContextMenu(item: item) }
+        } else {
+            StandardQueueRow(item: item, isSelected: viewModel.selectedItemID == item.id)
+                .contextMenu { rowContextMenu(item: item) }
+        }
+    }
+    
+    @ViewBuilder
+    private func rowContextMenu(item: QueueItem) -> some View {
+        if item.state == .failed {
+            Button("Tekrar Dene") {
+                viewModel.retryItem(id: item.id)
+            }
+        }
+        if let transcript = item.transcript {
+            Button("Metni Kopyala (⌘⇧C)") {
+                viewModel.copyTranscript(text: transcript)
+            }
+        }
+        if let output = item.outputURL {
+            Button("Finder'da Göster") {
+                viewModel.openInFinder(path: output.path)
+            }
+        }
+        if let url = item.canonicalURL {
+            Button("Tarayıcıda Aç") {
+                viewModel.openInBrowser(url: url)
+            }
+        }
+        Divider()
+        Button("Kuyruktan Çıkar", role: .destructive) {
+            viewModel.removeItem(id: item.id)
+        }
+    }
+    
+    // MARK: - Bottom Action Bar (Density + Clear with Undo)
+    private var bottomActionBar: some View {
+        HStack(spacing: 8) {
+            // Density Mode Toggle
+            Picker("", selection: $viewModel.densityMode) {
+                ForEach(DensityMode.allCases) { mode in
+                    Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 140)
+            .controlSize(.mini)
+            
+            // Select All / Selection Indicator
+            if !viewModel.queueItems.isEmpty {
+                Button(action: {
+                    if viewModel.selectedItemIDs.count == viewModel.queueItems.count {
+                        viewModel.deselectAllQueueItems()
+                    } else {
+                        viewModel.selectAllQueueItems()
+                    }
+                }) {
+                    Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? "Seçimi Kaldır" : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "Tümünü Seç (⌘A)"))
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(viewModel.selectedItemIDs.count > 1 ? .accentColor : .secondary)
+            }
+            
+            Spacer()
+            
+            Button("Kuyruğu Temizle") {
+                viewModel.clearQueueWithUndo()
+            }
+            .font(.system(size: 11))
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+            .disabled(viewModel.isProcessing)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Empty State (8-State Matrix)
     private var emptyQueueView: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             Spacer()
             
             ZStack {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.08))
-                    .frame(width: 80, height: 80)
+                    .fill(Color.accentColor.opacity(0.12))
+                    .frame(width: 52, height: 52)
                 
-                Image(systemName: "arrow.down.doc.fill")
-                    .font(.system(size: 34))
+                Image(systemName: "tray")
+                    .font(.system(size: 22))
                     .foregroundColor(.accentColor)
             }
             
-            Text("Kuyruk Boş")
-                .font(.system(size: 15, weight: .semibold))
-            
-            Text("YouTube linklerini buraya yapıştırabilir veya bilgisayarınızdaki ses dosyalarını pencereye sürükleyip bırakabilirsiniz.")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-                .lineSpacing(2)
-            
-            HStack(spacing: 12) {
-                Button("Ses Dosyası Seç...") {
-                    selectLocalAudioFiles()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            VStack(spacing: 3) {
+                Text("Kuyruk Boş")
+                    .font(.system(size: 14, weight: .semibold))
                 
-                Button("Örnek Video Ekle") {
-                    viewModel.addSampleYouTube()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                Text("Panodaki linki almak için ⌘V tuşlayın veya dosyaları sağdaki stüdyo alanına sürükleyin.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 240)
+                    .lineSpacing(2)
             }
-            .padding(.top, 4)
             
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(20)
     }
     
@@ -208,7 +320,6 @@ struct QueueListView: View {
     
     private func handleUniversalDrop(providers: [NSItemProvider]) -> Bool {
         for provider in providers {
-            // Check for file URLs
             if provider.hasItemConformingToTypeIdentifier("public.file-url") {
                 provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
                     guard let data = item as? Data,
@@ -217,9 +328,7 @@ struct QueueListView: View {
                         viewModel.addAudioFiles([url])
                     }
                 }
-            }
-            // Check for plain text (URLs)
-            else if provider.hasItemConformingToTypeIdentifier("public.text") {
+            } else if provider.hasItemConformingToTypeIdentifier("public.text") {
                 provider.loadItem(forTypeIdentifier: "public.text", options: nil) { item, _ in
                     guard let str = item as? String else { return }
                     DispatchQueue.main.async {
@@ -235,103 +344,160 @@ struct QueueListView: View {
     }
 }
 
-// MARK: - Row View
-struct QueueItemRow: View {
+// MARK: - Standard View Row (13pt Desktop Hierarchy, Anti-AI Slop)
+struct StandardQueueRow: View {
     let item: QueueItem
     let isSelected: Bool
     
     var body: some View {
         HStack(spacing: 10) {
-            // Icon
+            // Kind Icon
             ZStack {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(item.isYouTube ? Color.red.opacity(0.12) : Color.purple.opacity(0.12))
                     .frame(width: 32, height: 32)
                 
                 Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
                     .foregroundColor(item.isYouTube ? .red : .purple)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
             }
             
-            // Text Info
+            // Text Details
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(item.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    
+                    if item.isNewlyDiscovered {
+                        Text("Yeni")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(0.2))
+                            .foregroundColor(.accentColor)
+                            .clipShape(Capsule())
+                    }
+                }
                 
                 HStack(spacing: 6) {
                     Text(item.subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
+                    
+                    if let err = item.errorMessage {
+                        Text("• \(err)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
+                            .lineLimit(1)
+                    }
                 }
             }
             
             Spacer()
             
-            // Status Pill
-            statusPill(state: item.state)
+            // Liquid Glass Status Pill (H / 2 Capsule Rule)
+            LiquidStatusPill(state: item.state)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
     }
+}
+
+// MARK: - Compact View Row (Dense Table Hierarchy)
+struct CompactQueueRow: View {
+    let item: QueueItem
+    let isSelected: Bool
     
-    @ViewBuilder
-    private func statusPill(state: QueueItemState) -> some View {
-        switch state {
-        case .queued:
-            Text(state.rawValue)
-                .font(.system(size: 10, weight: .medium))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.12))
-                .foregroundColor(.secondary)
-                .clipShape(Capsule())
-        case .fetching:
-            HStack(spacing: 4) {
-                ProgressView().controlSize(.mini)
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: item.isYouTube ? "play.tv" : "waveform")
+                .foregroundColor(item.isYouTube ? .red : .purple)
+                .font(.system(size: 11))
+                .frame(width: 16)
+            
+            Text(item.title)
+                .font(.system(size: 12, weight: .regular))
+                .lineLimit(1)
+            
+            Spacer()
+            
+            LiquidStatusPill(state: item.state, compact: true)
+        }
+        .padding(.vertical, 1)
+    }
+}
+
+// MARK: - Liquid Glass Status Pill (Strict H / 2 Capsule Rule)
+struct LiquidStatusPill: View {
+    let state: QueueItemState
+    var compact: Bool = false
+    
+    var body: some View {
+        Group {
+            switch state {
+            case .queued:
                 Text(state.rawValue)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: compact ? 9 : 10, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, compact ? 5 : 8)
+                    .padding(.vertical, compact ? 1 : 3)
+                    .liquidGlassCapsule(glowColor: .secondary.opacity(0.4), material: .ultraThinMaterial)
+                
+            case .fetching:
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.mini)
+                    if !compact {
+                        Text(state.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .foregroundColor(.blue)
+                .padding(.horizontal, compact ? 5 : 8)
+                .padding(.vertical, compact ? 1 : 3)
+                .liquidGlassCapsule(glowColor: .blue, material: .ultraThinMaterial)
+                
+            case .transcribing:
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.mini)
+                    if !compact {
+                        Text(state.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .foregroundColor(.purple)
+                .padding(.horizontal, compact ? 5 : 8)
+                .padding(.vertical, compact ? 1 : 3)
+                .liquidGlassCapsule(glowColor: .purple, material: .ultraThinMaterial)
+                
+            case .completed:
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .bold))
+                    if !compact {
+                        Text(state.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .foregroundColor(.green)
+                .padding(.horizontal, compact ? 5 : 8)
+                .padding(.vertical, compact ? 1 : 3)
+                .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
+                
+            case .failed:
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 8))
+                    if !compact {
+                        Text(state.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .foregroundColor(.orange)
+                .padding(.horizontal, compact ? 5 : 8)
+                .padding(.vertical, compact ? 1 : 3)
+                .liquidGlassCapsule(glowColor: .orange, material: .ultraThinMaterial)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.blue.opacity(0.14))
-            .foregroundColor(.blue)
-            .clipShape(Capsule())
-        case .transcribing:
-            HStack(spacing: 4) {
-                ProgressView().controlSize(.mini)
-                Text(state.rawValue)
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.purple.opacity(0.14))
-            .foregroundColor(.purple)
-            .clipShape(Capsule())
-        case .completed:
-            HStack(spacing: 3) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .bold))
-                Text(state.rawValue)
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.green.opacity(0.14))
-            .foregroundColor(.green)
-            .clipShape(Capsule())
-        case .failed:
-            HStack(spacing: 3) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 9))
-                Text(state.rawValue)
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.red.opacity(0.14))
-            .foregroundColor(.red)
-            .clipShape(Capsule())
         }
     }
 }

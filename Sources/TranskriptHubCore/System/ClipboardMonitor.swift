@@ -9,6 +9,7 @@ public final class ClipboardMonitor: ObservableObject {
     private var timer: Timer?
     private var lastChangeCount: Int = NSPasteboard.general.changeCount
     private let onURLDetected: (ParsedYouTubeVideo) -> Void
+    public var onBatchDetected: ((YouTubeLinkType) -> Void)?
     
     public init(onURLDetected: @escaping (ParsedYouTubeVideo) -> Void) {
         self.onURLDetected = onURLDetected
@@ -58,8 +59,25 @@ public final class ClipboardMonitor: ObservableObject {
         }
         
         guard let text = pasteboard.string(forType: .string) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Parse YouTube videos from pasted text
+        // First check if the text is a direct playlist, channel or single video link
+        if let detected = URLParser.detectType(trimmed) {
+            switch detected {
+            case .singleVideo(let video):
+                lastCapturedURL = video.canonicalURL
+                onURLDetected(video)
+                return
+            case .playlist, .channel:
+                lastCapturedURL = trimmed
+                if let onBatch = onBatchDetected {
+                    onBatch(detected)
+                    return
+                }
+            }
+        }
+        
+        // Fallback to bulk parsing for multi-line or mixed text
         let parsedVideos = URLParser.parseBulk(text)
         for video in parsedVideos {
             lastCapturedURL = video.canonicalURL

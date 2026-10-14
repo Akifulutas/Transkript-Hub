@@ -10,31 +10,39 @@ struct WatchedFolderView: View {
                 // Header Banner
                 HStack(spacing: 16) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.accentColor.opacity(0.12))
-                            .frame(width: 52, height: 52)
+                            .frame(width: 50, height: 50)
                         Image(systemName: "folder.badge.gearshape")
-                            .font(.system(size: 26))
+                            .font(.system(size: 24))
                             .foregroundColor(.accentColor)
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Otomatik Klasör ve Sesli Notlar İzleme")
-                            .font(.system(size: 16, weight: .bold))
-                        Text("iCloud Drive veya belirlediğiniz yerel klasöre yeni bir ses dosyası eklendiğinde otomatik olarak yazıya çevrilir.")
+                            .font(.system(size: 15, weight: .bold))
+                        Text("iCloud Drive veya belirlediğiniz yerel klasöre yeni sesler düştüğünde sıfır temasla transkript edilir.")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
                 
-                // Status Card
+                // Status Card (Liquid Glass)
                 VStack(spacing: 14) {
                     HStack {
                         HStack(spacing: 8) {
-                            Circle()
-                                .fill(viewModel.isFolderWatching ? Color.green : Color.gray)
-                                .frame(width: 10, height: 10)
+                            ZStack {
+                                Circle()
+                                    .fill(viewModel.isFolderWatching ? Color.green : Color.gray)
+                                    .frame(width: 9, height: 9)
+                                if viewModel.isFolderWatching {
+                                    Circle()
+                                        .stroke(Color.green.opacity(0.4), lineWidth: 2)
+                                        .frame(width: 15, height: 15)
+                                }
+                            }
+                            
                             Text(viewModel.isFolderWatching ? "Klasör İzleme Aktif (Arka Planda Dinleniyor)" : "Klasör İzleme Devre Dışı")
                                 .font(.system(size: 13, weight: .semibold))
                         }
@@ -71,14 +79,9 @@ struct WatchedFolderView: View {
                     }
                 }
                 .padding(16)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                .liquidGlass(cornerRadius: 14, glowColor: viewModel.isFolderWatching ? .green.opacity(0.6) : .white, material: .ultraThinMaterial)
                 
-                // Tips / Guide Card
+                // Tips / Guide Card (Liquid Glass)
                 VStack(alignment: .leading, spacing: 10) {
                     Label("iPhone Sesli Notlar (Voice Memos) Entegrasyonu", systemImage: "iphone")
                         .font(.system(size: 13, weight: .semibold))
@@ -87,17 +90,16 @@ struct WatchedFolderView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     
-                    Text("2. iPhone veya Apple Watch'unuzdan aldığınız bir ses kaydını iCloud Drive üzerindeki **Transkript** klasörüne paylaştığınızda Mac'iniz kaydı saniyeler içinde yazıya döker.")
+                    Text("2. iPhone veya Apple Watch'tan aldığınız ses kaydını iCloud Drive üzerindeki **Transkript** klasörüne paylaştığınızda Mac'iniz kaydı anında metne döker.")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     
-                    Text("3. Uygulama açık olduğu sürece (menü çubuğunda simgesi görünür), pencere kapalı olsa dahi yeni sesler arka planda sessizce işlenir.")
+                    Text("3. Uygulama açık olduğu sürece (menü çubuğu simgesi), pencere kapalı olsa dahi yeni sesler arka planda sessizce işlenir.")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
                 .padding(16)
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                .cornerRadius(12)
+                .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.5), material: .ultraThinMaterial)
                 
                 Spacer()
             }
