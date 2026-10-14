@@ -106,12 +106,15 @@ public final class TranscriptPostProcessor: Sendable {
     }
     
     private func cleanNoiseTags(_ text: String) -> String {
-        let pattern = #"(\[(blank_audio|music|applause|laughter|\.\.\.)\]|\((müzik|alkış|gülüş)\))"#
-        let cleaned = text.replacingOccurrences(
+        let pattern = #"((\[|\(|\*|♪)\s*(blank_audio|music|applause|laughter|müzik|alkış|gülüş|gülüşmeler|kahkaha|sessizlik|silence|neşeli müzik|\.\.\.)\s*(\]|\)|\*|♪)|♪+)"#
+        var cleaned = text.replacingOccurrences(
             of: pattern,
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
+        while cleaned.contains("  ") {
+            cleaned = cleaned.replacingOccurrences(of: "  ", with: " ")
+        }
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     

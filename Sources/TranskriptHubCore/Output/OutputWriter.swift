@@ -68,8 +68,8 @@ public final class OutputWriter: Sendable {
             sanitized = sanitized.replacingOccurrences(of: "--", with: "-")
         }
         
-        // Trim whitespace and dots
-        sanitized = sanitized.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".")))
+        // Trim whitespace, dots and hyphens from ends
+        sanitized = sanitized.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".-")))
         
         // Max 150 characters
         if sanitized.count > 150 {
