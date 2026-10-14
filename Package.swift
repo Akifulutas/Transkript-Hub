@@ -16,7 +16,9 @@ let package = Package(
             targets: ["transkripthub-cli"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0")
+    ],
     targets: [
         .binaryTarget(
             name: "whisper",
@@ -25,7 +27,8 @@ let package = Package(
         .target(
             name: "TranskriptHubCore",
             dependencies: [
-                "whisper"
+                "whisper",
+                .product(name: "GRDB", package: "GRDB.swift")
             ],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")

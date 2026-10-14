@@ -18,6 +18,8 @@ struct TranskriptHubCLI {
             await handleTranscribe(arguments: Array(args.dropFirst(2)))
         case "youtube":
             await handleYouTube(arguments: Array(args.dropFirst(2)))
+        case "batch":
+            await handleBatch(arguments: Array(args.dropFirst(2)))
         case "tools":
             await handleTools(arguments: Array(args.dropFirst(2)))
         case "models":
@@ -38,18 +40,109 @@ struct TranskriptHubCLI {
         Transkript Hub CLI v1.0 — Apple Silicon Yerel Transkripsiyon
         
         Kullanım:
+          transkripthub-cli batch <url1> <url2> ... [seçenekler]
           transkripthub-cli youtube <youtube_url> [seçenekler]
           transkripthub-cli transcribe <ses_dosyasi> [seçenekler]
           transkripthub-cli tools [install | status]
           transkripthub-cli models [download <model_adi> | list]
           transkripthub-cli version
         
-        YouTube & Transcribe Seçenekleri:
+        Batch Seçenekleri:
+          --file <dosya>    İçinde YouTube linkleri olan bir metin dosyası
           --model <ad>      Model (tiny, base, small, medium, large-v3-turbo, large-v3-turbo-q5_0) [Varsayılan: tiny]
-          --lang <kod>      Dil kodu (tr, de, en, veya auto) [Varsayılan: auto]
-          --output <yol>    Özel çıktı TXT dosyası yolu [Varsayılan: Başlık.txt]
-          --timestamps      Paragraf başlarına [HH:MM:SS] zaman damgası ekler
+          --lang <kod>      Dil kodu (tr, de, en veya auto) [Varsayılan: auto]
         """)
+    }
+    
+    static func handleBatch(arguments: [String]) async {
+        var rawURLs: [String] = []
+        var modelName = "tiny"
+        var language: String? = nil
+        
+        var i = 0
+        while i < arguments.count {
+            let arg = arguments[i]
+            if arg == "--file", i + 1 < arguments.count {
+                let filePath = arguments[i + 1]
+                if let content = try? String(contentsOfFile: filePath, encoding: .utf8) {
+                    let parsed = URLParser.parseBulk(content)
+                    rawURLs.append(contentsOf: parsed.map(\.canonicalURL))
+                } else {
+                    print("Hata: Belirtilen dosya okunamadı: \(filePath)")
+                }
+                i += 2
+            } else if arg == "--model", i + 1 < arguments.count {
+                modelName = arguments[i + 1]
+                i += 2
+            } else if arg == "--lang", i + 1 < arguments.count {
+                language = arguments[i + 1]
+                i += 2
+            } else if !arg.hasPrefix("-") {
+                if let parsed = URLParser.parseSingle(arg) {
+                    rawURLs.append(parsed.canonicalURL)
+                } else {
+                    print("Uyarı: Geçersiz URL atlandı: \(arg)")
+                }
+                i += 1
+            } else {
+                i += 1
+            }
+        }
+        
+        guard !rawURLs.isEmpty else {
+            print("Hata: İşlenecek geçerli bir video linki bulunamadı.")
+            printUsage()
+            return
+        }
+        
+        guard let selectedModel = WhisperModel(rawValue: modelName) else {
+            print("Geçersiz model: \(modelName).")
+            return
+        }
+        
+        print("=== Transkript Hub — Toplu Batch İşlemi Başlatılıyor ===")
+        print("Toplam Video Sayısı: \(rawURLs.count)")
+        print("Model: \(selectedModel.rawValue)")
+        print("Dil: \(language ?? "Otomatik")")
+        
+        do {
+            let database = try AppDatabase.makeShared()
+            let jobManager = JobManager(database: database)
+            
+            // 1. Recover state
+            try await jobManager.recoverState()
+            
+            // 2. Create batch
+            let batch = try await jobManager.createYouTubeBatch(urls: rawURLs, language: language)
+            print("Batch oluşturuldu (ID: \(batch.id))")
+            
+            // 3. Process with live updates
+            let totalCount = rawURLs.count
+            let result = try await jobManager.processBatch(batchID: batch.id, model: selectedModel) { job in
+                let titleStr = job.title ?? job.externalID ?? "Bilinmiyor"
+                print(" -> [Video \(job.sequence)/\(totalCount)] \(titleStr): \(job.state.uppercased())")
+            }
+            
+            switch result {
+            case .assembled(let outputURL, let isPartial):
+                print("\n=======================================================")
+                if isPartial {
+                    print("⚠️ Kısmi Başarı: Bazı videolar indirilemedi ancak başarılı tüm videolar birleştirildi!")
+                } else {
+                    print("🎉 Başarılı: Tüm videolar eksiksiz birleştirildi!")
+                }
+                print("Birleşik Çıktı Dosyası: \(outputURL.path)")
+                print("Geçici ses dosyaları temizlendi.")
+                print("=======================================================")
+            case .waiting(let count):
+                print("İşlem henüz bitmedi, bekleyen video sayısı: \(count)")
+            case .empty:
+                print("Hata: Birleştirilecek hiçbir video kaydı bulunamadı.")
+            }
+            
+        } catch {
+            print("\nBatch çalıştırma hatası: \(error.localizedDescription)")
+        }
     }
     
     static func handleTools(arguments: [String]) async {
