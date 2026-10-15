@@ -60,6 +60,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     @Published public private(set) var isScrubbing: Bool = false
     private var wasPlayingBeforeScrub: Bool = false
     private var inFlightSeekTime: Double? = nil
+    private var seekGeneration: Int = 0
     
     // MARK: - Internal AVPlayer & Observers
     private var player: AVPlayer?
@@ -93,7 +94,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
             }
             
             let seconds = durationCM.seconds
-            guard seconds.isFinite && seconds > 0 else {
+            guard seconds.isFinite && !seconds.isNaN && seconds > 0 else {
                 let err = AudioPlayerError.unplayable("Geçersiz ses süresi (0 sn).")
                 status = .failed(err.localizedDescription)
                 throw err
@@ -109,6 +110,10 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
             self.currentTime = 0.0
             self.isPlaying = false
             self.status = .ready
+            self.inFlightSeekTime = nil
+            self.isScrubbing = false
+            self.wasPlayingBeforeScrub = false
+            self.seekGeneration += 1
             
             attachTimeObserver()
             attachEndObserver(for: item)
@@ -149,26 +154,44 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     }
     
     public func skipForward(by seconds: Double = 5.0) {
+        guard !seconds.isNaN && seconds.isFinite else { return }
         seek(to: currentTime + seconds)
     }
     
     public func skipBackward(by seconds: Double = 5.0) {
+        guard !seconds.isNaN && seconds.isFinite else { return }
         seek(to: currentTime - seconds)
     }
     
     public func seek(to time: Double) {
+        guard let player = player, player.currentItem != nil,
+              status == .ready || status == .playing || status == .paused || status == .ended else {
+            self.inFlightSeekTime = nil
+            return
+        }
+        
         guard !time.isNaN else { return }
-        let clampedTime = max(0.0, min(time, duration))
-        self.currentTime = clampedTime
-        self.inFlightSeekTime = clampedTime
         
-        guard let player = player else { return }
-        let cmTime = CMTime(seconds: clampedTime, preferredTimescale: 1000)
+        let safeTime: Double
+        if time <= 0.0 || time == -.infinity {
+            safeTime = 0.0
+        } else if time >= duration || time == .infinity {
+            safeTime = duration
+        } else {
+            safeTime = time
+        }
         
+        self.currentTime = safeTime
+        self.inFlightSeekTime = safeTime
+        
+        seekGeneration += 1
+        let targetGeneration = seekGeneration
+        
+        let cmTime = CMTime(seconds: safeTime, preferredTimescale: 1000)
         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                if self.inFlightSeekTime == clampedTime {
+                if self.seekGeneration == targetGeneration {
                     self.inFlightSeekTime = nil
                 }
             }
@@ -177,18 +200,40 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     
     @discardableResult
     public func seek(to time: Double, tolerance: CMTime) async -> Bool {
+        guard let player = player, player.currentItem != nil,
+              status == .ready || status == .playing || status == .paused || status == .ended else {
+            self.inFlightSeekTime = nil
+            return false
+        }
+        
         guard !time.isNaN else { return false }
-        let clampedTime = max(0.0, min(time, duration))
-        self.currentTime = clampedTime
-        self.inFlightSeekTime = clampedTime
         
-        guard let player = player else { return false }
-        let cmTime = CMTime(seconds: clampedTime, preferredTimescale: 1000)
+        let safeTime: Double
+        if time <= 0.0 || time == -.infinity {
+            safeTime = 0.0
+        } else if time >= duration || time == .infinity {
+            safeTime = duration
+        } else {
+            safeTime = time
+        }
         
+        self.currentTime = safeTime
+        self.inFlightSeekTime = safeTime
+        
+        seekGeneration += 1
+        let targetGeneration = seekGeneration
+        
+        let cmTime = CMTime(seconds: safeTime, preferredTimescale: 1000)
         return await withCheckedContinuation { continuation in
             player.seek(to: cmTime, toleranceBefore: tolerance, toleranceAfter: tolerance) { [weak self] finished in
                 Task { @MainActor [weak self] in
-                    self?.inFlightSeekTime = nil
+                    guard let self = self else {
+                        continuation.resume(returning: finished)
+                        return
+                    }
+                    if self.seekGeneration == targetGeneration {
+                        self.inFlightSeekTime = nil
+                    }
                     continuation.resume(returning: finished)
                 }
             }
@@ -212,6 +257,16 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
         duration = 0.0
         status = .idle
         currentURL = nil
+        isScrubbing = false
+        wasPlayingBeforeScrub = false
+        inFlightSeekTime = nil
+        seekGeneration += 1
+    }
+    
+    // MARK: - Teardown & Lifecycle
+    
+    isolated deinit {
+        stop()
     }
     
     // MARK: - Scrubbing Ergonomics (Anti-Jitter)
@@ -248,12 +303,17 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
             forInterval: timeUpdateInterval,
             queue: .main
         ) { [weak self] time in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self = self else { return }
                 guard !self.isScrubbing, self.inFlightSeekTime == nil else { return }
                 let sec = time.seconds
-                if sec.isFinite && sec >= 0 {
+                if sec.isFinite && !sec.isNaN && sec >= 0 {
                     self.currentTime = sec
+                    if sec >= self.duration - 0.02 && self.isPlaying {
+                        self.isPlaying = false
+                        self.status = .ended
+                        self.currentTime = self.duration
+                    }
                 }
             }
         }
@@ -265,7 +325,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
             object: item,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self = self else { return }
                 self.isPlaying = false
                 self.status = .ended
@@ -277,7 +337,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     // MARK: - Formatting Helpers
     
     nonisolated public static func formatTime(_ seconds: Double) -> String {
-        guard seconds.isFinite && seconds >= 0 else { return "00:00" }
+        guard seconds.isFinite && !seconds.isNaN && seconds >= 0 else { return "00:00" }
         let total = Int(seconds)
         let s = total % 60
         let m = (total / 60) % 60
@@ -291,7 +351,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     }
     
     nonisolated public static func formatTimeWithMilliseconds(_ seconds: Double) -> String {
-        guard seconds.isFinite && seconds >= 0 else { return "00:00.00" }
+        guard seconds.isFinite && !seconds.isNaN && seconds >= 0 else { return "00:00.00" }
         let roundedHundredths = Int((seconds * 100.0).rounded())
         let ms = roundedHundredths % 100
         let totalSeconds = roundedHundredths / 100

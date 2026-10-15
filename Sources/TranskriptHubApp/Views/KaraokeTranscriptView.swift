@@ -8,7 +8,7 @@ public struct KaraokeTranscriptView: View {
     public var fontSize: CGFloat
     
     @State private var isAutoScrollPaused: Bool = false
-    @State private var lastManualScrollTime: Date = Date.distantPast
+    @State private var lastScrolledSegmentId: String? = nil
     
     public init(
         segments: [Segment],
@@ -37,9 +37,19 @@ public struct KaraokeTranscriptView: View {
                                 isActiveSegment: index == activeSegmentIndex,
                                 fontSize: fontSize,
                                 onWordClicked: { word in
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        isAutoScrollPaused = false
+                                    }
                                     player.seek(to: word.start)
                                     if !player.isPlaying {
                                         player.play()
+                                    }
+                                    if let idx = segments.firstIndex(where: { word.start >= $0.start && word.start <= $0.end }) {
+                                        let segId = segments[idx].id
+                                        lastScrolledSegmentId = segId
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            proxy.scrollTo(segId, anchor: .center)
+                                        }
                                     }
                                 }
                             )
@@ -49,32 +59,50 @@ public struct KaraokeTranscriptView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 20)
                 }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 5).onChanged { _ in
+                .background(
+                    ScrollEventDetector {
                         if player.isPlaying && !isAutoScrollPaused {
-                            withAnimation(.easeInOut(duration: 0.2)) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 isAutoScrollPaused = true
                             }
                         }
                     }
                 )
-                .onChange(of: player.currentTime) { _, _ in
-                    guard player.isPlaying, !isAutoScrollPaused else { return }
-                    if let activeIndex = activeSegmentIndex {
-                        let activeId = segments[activeIndex].id
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(activeId, anchor: .center)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 5).onChanged { _ in
+                        if player.isPlaying && !isAutoScrollPaused {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isAutoScrollPaused = true
+                            }
                         }
                     }
+                )
+                .onChange(of: activeSegmentIndex) { _, newIndex in
+                    guard player.isPlaying, !isAutoScrollPaused else { return }
+                    guard let newIndex = newIndex, newIndex < segments.count else { return }
+                    let segmentId = segments[newIndex].id
+                    guard segmentId != lastScrolledSegmentId else { return }
+                    lastScrolledSegmentId = segmentId
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        proxy.scrollTo(segmentId, anchor: .center)
+                    }
+                }
+                .onChange(of: segments) { _, _ in
+                    isAutoScrollPaused = false
+                    lastScrolledSegmentId = nil
                 }
                 
-                // Floating "Takip Et (Resume Auto-Scroll)" Pill
+                // Floating "Oynatılan Yere Dön (Resume Auto-Scroll)" Pill
                 if isAutoScrollPaused && player.isPlaying {
                     Button(action: {
-                        isAutoScrollPaused = false
-                        if let activeIndex = activeSegmentIndex {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isAutoScrollPaused = false
+                        }
+                        if let activeIndex = activeSegmentIndex, activeIndex < segments.count {
+                            let segId = segments[activeIndex].id
+                            lastScrolledSegmentId = segId
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                proxy.scrollTo(segments[activeIndex].id, anchor: .center)
+                                proxy.scrollTo(segId, anchor: .center)
                             }
                         }
                     }) {
@@ -278,3 +306,79 @@ public struct WordFlowLayout: Layout {
         }
     }
 }
+
+// MARK: - Native AppKit Scroll Event Detector
+
+private struct ScrollEventDetector: NSViewRepresentable {
+    let onUserScroll: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onUserScroll: onUserScroll)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = ScrollEventView()
+        view.coordinator = context.coordinator
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onUserScroll = onUserScroll
+    }
+    
+    @MainActor
+    final class Coordinator {
+        var onUserScroll: () -> Void
+        init(onUserScroll: @escaping () -> Void) {
+            self.onUserScroll = onUserScroll
+        }
+    }
+    
+    @MainActor
+    private final class ScrollEventView: NSView {
+        weak var coordinator: Coordinator?
+        private var monitor: Any?
+        
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window != nil {
+                startMonitoring()
+            } else {
+                stopMonitoring()
+            }
+        }
+        
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            super.viewWillMove(toWindow: newWindow)
+            if newWindow == nil {
+                stopMonitoring()
+            }
+        }
+        
+        private func startMonitoring() {
+            stopMonitoring()
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .leftMouseDragged]) { [weak self] event in
+                guard let self = self, let window = self.window, event.window == window else { return event }
+                let location = self.convert(event.locationInWindow, from: nil)
+                if self.bounds.contains(location) {
+                    if event.type == .scrollWheel {
+                        if abs(event.scrollingDeltaY) > 1.0 || abs(event.scrollingDeltaX) > 1.0 || abs(event.deltaY) > 0.1 {
+                            self.coordinator?.onUserScroll()
+                        }
+                    } else if event.type == .leftMouseDragged {
+                        self.coordinator?.onUserScroll()
+                    }
+                }
+                return event
+            }
+        }
+        
+        private func stopMonitoring() {
+            if let monitor = monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+    }
+}
+

@@ -175,13 +175,14 @@ public struct WaveformVisualizerView: View {
                 HStack(spacing: 14) {
                     // Jump -5s
                     Button(action: {
-                        player.seek(to: max(0.0, player.currentTime - 5.0))
+                        player.skipBackward(by: 5.0)
                     }) {
                         Image(systemName: "gobackward.5")
                             .font(.system(size: 14, weight: .medium))
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.primary)
+                    .keyboardShortcut(.leftArrow, modifiers: .command)
                     .help("5 saniye geri (⌘←)")
                     
                     // Circular Play / Pause
@@ -205,13 +206,14 @@ public struct WaveformVisualizerView: View {
                     
                     // Jump +5s
                     Button(action: {
-                        player.seek(to: min(player.duration, player.currentTime + 5.0))
+                        player.skipForward(by: 5.0)
                     }) {
                         Image(systemName: "goforward.5")
                             .font(.system(size: 14, weight: .medium))
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.primary)
+                    .keyboardShortcut(.rightArrow, modifiers: .command)
                     .help("5 saniye ileri (⌘→)")
                 }
                 

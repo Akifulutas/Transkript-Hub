@@ -137,10 +137,10 @@ public struct ContentView: View {
                     viewModel.audioPlayer.togglePlayPause()
                 },
                 onCommandLeft: {
-                    viewModel.audioPlayer.seek(to: max(0.0, viewModel.audioPlayer.currentTime - 5.0))
+                    viewModel.audioPlayer.skipBackward(by: 5.0)
                 },
                 onCommandRight: {
-                    viewModel.audioPlayer.seek(to: min(viewModel.audioPlayer.duration, viewModel.audioPlayer.currentTime + 5.0))
+                    viewModel.audioPlayer.skipForward(by: 5.0)
                 }
             )
         )
@@ -451,10 +451,24 @@ private final class KeyInterceptingView: NSView {
             return true
         }
         if flags == .command && (event.keyCode == 123 || chars == "\u{f702}") {
+            if let responder = window?.firstResponder as? NSTextView {
+                responder.moveToBeginningOfLine(nil)
+                return true
+            }
+            if let responder = window?.firstResponder, responder is NSTextField {
+                return super.performKeyEquivalent(with: event)
+            }
             onCommandLeft?()
             return true
         }
         if flags == .command && (event.keyCode == 124 || chars == "\u{f703}") {
+            if let responder = window?.firstResponder as? NSTextView {
+                responder.moveToEndOfLine(nil)
+                return true
+            }
+            if let responder = window?.firstResponder, responder is NSTextField {
+                return super.performKeyEquivalent(with: event)
+            }
             onCommandRight?()
             return true
         }
