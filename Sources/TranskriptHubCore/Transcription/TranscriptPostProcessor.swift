@@ -11,8 +11,8 @@ public struct PostProcessorOptions: Sendable {
         removeNoiseTags: Bool = true,
         deduplicateRepetitions: Bool = true,
         insertTimestamps: Bool = false,
-        paragraphSilenceThreshold: Double = 1.5,
-        maxParagraphLength: Int = 600
+        paragraphSilenceThreshold: Double = 2.5,
+        maxParagraphLength: Int = 650
     ) {
         self.removeNoiseTags = removeNoiseTags
         self.deduplicateRepetitions = deduplicateRepetitions
@@ -74,7 +74,7 @@ public final class TranscriptPostProcessor: Sendable {
             let isSentenceEnding = segment.text.hasSuffix(".") || segment.text.hasSuffix("?") || segment.text.hasSuffix("!")
             
             let shouldBreak = !currentParagraphWords.isEmpty && (
-                silence >= options.paragraphSilenceThreshold ||
+                (silence >= options.paragraphSilenceThreshold && (currentLength >= 140 || isSentenceEnding)) ||
                 (currentLength >= options.maxParagraphLength && isSentenceEnding)
             )
             

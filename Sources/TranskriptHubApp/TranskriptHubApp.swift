@@ -91,6 +91,19 @@ struct TranskriptHubApp: App {
                 }
                 .keyboardShortcut("a", modifiers: .command)
             }
+            
+            CommandMenu(viewModel.t("settings_language")) {
+                ForEach(AppLanguage.allCases) { lang in
+                    Button(action: { viewModel.appLanguage = lang }) {
+                        HStack {
+                            Text(lang.displayName)
+                            if viewModel.appLanguage == lang {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         MenuBarExtra("Transkript Hub", systemImage: "waveform.badge.magnifyingglass") {

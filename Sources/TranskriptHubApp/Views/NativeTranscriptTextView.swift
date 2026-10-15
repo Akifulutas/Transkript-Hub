@@ -5,11 +5,13 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
     let text: String
     let fontSize: CGFloat
     let searchHighlight: String
+    let autoScrollToEnd: Bool
     
-    public init(text: String, fontSize: CGFloat = 13, searchHighlight: String = "") {
+    public init(text: String, fontSize: CGFloat = 13, searchHighlight: String = "", autoScrollToEnd: Bool = false) {
         self.text = text
         self.fontSize = fontSize
         self.searchHighlight = searchHighlight
+        self.autoScrollToEnd = autoScrollToEnd
     }
     
     public func makeNSView(context: Context) -> NSScrollView {
@@ -55,10 +57,17 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
     }
     
     private func updateTextView(_ textView: NSTextView) {
+        // Sanitize redundant consecutive newlines (collapse 3+ newlines into 2)
+        var cleanText = text.replacingOccurrences(of: "\r\n", with: "\n")
+        while cleanText.contains("\n\n\n") {
+            cleanText = cleanText.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+        
         let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 6
-        paragraphStyle.paragraphSpacing = 14
+        paragraphStyle.lineSpacing = 4
+        // Since paragraphs are already separated by empty lines (\n\n), paragraphSpacing is set to 0 to prevent giant white gaps
+        paragraphStyle.paragraphSpacing = 0
         
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -66,11 +75,11 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
             .paragraphStyle: paragraphStyle
         ]
         
-        let attributed = NSMutableAttributedString(string: text, attributes: attributes)
+        let attributed = NSMutableAttributedString(string: cleanText, attributes: attributes)
         
         // Highlight search query if provided
         if !searchHighlight.isEmpty {
-            let nsText = text as NSString
+            let nsText = cleanText as NSString
             var range = nsText.range(of: searchHighlight, options: .caseInsensitive)
             while range.location != NSNotFound {
                 attributed.addAttribute(.backgroundColor, value: NSColor.systemYellow.withAlphaComponent(0.35), range: range)
@@ -83,16 +92,20 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
             }
         }
         
-        if textView.string != text || textView.font?.pointSize != fontSize {
+        if textView.string != cleanText || textView.font?.pointSize != fontSize {
             let currentSelection = textView.selectedRange()
             textView.textStorage?.setAttributedString(attributed)
-            if currentSelection.location + currentSelection.length <= text.count {
+            if currentSelection.location + currentSelection.length <= cleanText.count {
                 textView.setSelectedRange(currentSelection)
             }
         }
         
         if let container = textView.textContainer, let layoutManager = textView.layoutManager {
             layoutManager.ensureLayout(for: container)
+        }
+        
+        if autoScrollToEnd {
+            textView.scrollToEndOfDocument(nil)
         }
     }
 }

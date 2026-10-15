@@ -57,7 +57,8 @@ public actor WhisperCppEngine: TranscriptionEngine {
     public func transcribe(
         _ audio: PreparedAudio,
         options: TranscriptionOptions,
-        progress: (@Sendable (Double) -> Void)? = nil
+        progress: (@Sendable (Double) -> Void)? = nil,
+        onSegment: (@Sendable (Segment) -> Void)? = nil
     ) async throws -> TranscriptResult {
         let context = contextBox.pointer
         guard !audio.samples.isEmpty else {
@@ -76,22 +77,44 @@ public actor WhisperCppEngine: TranscriptionEngine {
         wparams.translate = false
         wparams.no_timestamps = false
         
-        // Progress callback wrapper
-        final class ProgressBox: @unchecked Sendable {
-            let callback: (@Sendable (Double) -> Void)?
-            init(_ callback: (@Sendable (Double) -> Void)?) { self.callback = callback }
+        // Stream callback wrapper for progress and live segments
+        final class StreamCallbackBox: @unchecked Sendable {
+            let progress: (@Sendable (Double) -> Void)?
+            let onSegment: (@Sendable (Segment) -> Void)?
+            init(progress: (@Sendable (Double) -> Void)?, onSegment: (@Sendable (Segment) -> Void)?) {
+                self.progress = progress
+                self.onSegment = onSegment
+            }
         }
-        let progressBox = ProgressBox(progress)
+        let streamBox = StreamCallbackBox(progress: progress, onSegment: onSegment)
+        let retainedBox = Unmanaged.passRetained(streamBox)
+        defer { retainedBox.release() }
         
         wparams.progress_callback = { ctx, state, progressInt, userData in
             guard let ptr = userData else { return }
-            let box = Unmanaged<ProgressBox>.fromOpaque(ptr).takeUnretainedValue()
+            let box = Unmanaged<StreamCallbackBox>.fromOpaque(ptr).takeUnretainedValue()
             let ratio = Double(progressInt) / 100.0
-            box.callback?(ratio)
+            box.progress?(ratio)
         }
-        let retainedBox = Unmanaged.passRetained(progressBox)
         wparams.progress_callback_user_data = retainedBox.toOpaque()
-        defer { retainedBox.release() }
+        
+        if onSegment != nil {
+            wparams.new_segment_callback = { ctx, state, n_new, userData in
+                guard let ptr = userData, let ctx = ctx else { return }
+                let box = Unmanaged<StreamCallbackBox>.fromOpaque(ptr).takeUnretainedValue()
+                let total = whisper_full_n_segments(ctx)
+                let start = max(0, total - n_new)
+                for i in start..<total {
+                    let t0 = Double(whisper_full_get_segment_t0(ctx, i)) / 100.0
+                    let t1 = Double(whisper_full_get_segment_t1(ctx, i)) / 100.0
+                    let textPtr = whisper_full_get_segment_text(ctx, i)
+                    let text = textPtr != nil ? String(cString: textPtr!) : ""
+                    let segment = Segment(start: t0, end: t1, text: text)
+                    box.onSegment?(segment)
+                }
+            }
+            wparams.new_segment_callback_user_data = retainedBox.toOpaque()
+        }
         
         // Language
         var langCString: UnsafeMutablePointer<CChar>? = nil

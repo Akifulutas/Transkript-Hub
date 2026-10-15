@@ -65,6 +65,29 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    // Interface Language (Türkçe, English, Deutsch)
+    @Published public var appLanguage: AppLanguage = .turkish {
+        didSet {
+            UserDefaults.standard.set(appLanguage.rawValue, forKey: "appInterfaceLanguage")
+        }
+    }
+    
+    public func t(_ key: String, _ args: CVarArg...) -> String {
+        let format = L10n.tr(key, lang: appLanguage)
+        if args.isEmpty { return format }
+        return String(format: format, arguments: args)
+    }
+    
+    public func updateItemProgress(id: String, progress: Double) {
+        guard let index = queueItems.firstIndex(where: { $0.id == id }) else { return }
+        queueItems[index].progress = progress
+    }
+    
+    public func updateItemLiveTranscript(id: String, transcript: String) {
+        guard let index = queueItems.firstIndex(where: { $0.id == id }) else { return }
+        queueItems[index].transcript = transcript
+    }
+    
     public func openSettings() {
         selectedSection = .settings
         bringMainWindowToFront()
@@ -195,25 +218,35 @@ public final class AppViewModel: ObservableObject {
         queueItems.filter { $0.state == .queued }.count
     }
     
+    public func localizedState(_ state: QueueItemState) -> String {
+        switch state {
+        case .queued: return t("status_queued")
+        case .fetching: return t("status_fetching")
+        case .transcribing: return t("status_transcribing")
+        case .completed: return t("status_completed")
+        case .failed: return t("status_failed")
+        }
+    }
+    
     public var actionableSummary: String {
         if queueItems.isEmpty {
-            return isFolderWatching ? "Kuyruk Boş • 1 Yerel Klasör Dinleniyor" : "Kuyruk Boş • Beklemede"
+            return isFolderWatching ? "\(t("action_empty_queue_title")) • 1 \(t("section_watched_folder"))" : "\(t("action_empty_queue_title")) • \(t("status_ready"))"
         }
         var parts: [String] = []
         if successfulCount > 0 {
-            parts.append("\(successfulCount) Başarılı")
+            parts.append("\(successfulCount) \(t("status_completed"))")
         }
         if inProgressCount > 0 {
-            parts.append("\(inProgressCount) İşleniyor")
+            parts.append("\(inProgressCount) \(t("status_transcribing"))")
         }
         if queuedCount > 0 {
-            parts.append("\(queuedCount) Kuyrukta")
+            parts.append("\(queuedCount) \(t("status_queued"))")
         }
         if failedCount > 0 {
-            parts.append("\(failedCount) İndirilemeyen (Yeniden Dene)")
+            parts.append("\(failedCount) \(t("status_failed")) (\(t("action_retry")))")
         }
         if isFolderWatching {
-            parts.append("1 Klasör Dinleniyor")
+            parts.append("1 \(t("section_watched_folder"))")
         }
         return parts.joined(separator: " • ")
     }
@@ -290,6 +323,9 @@ public final class AppViewModel: ObservableObject {
     }
     
     public init() {
+        let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
+        self.appLanguage = AppLanguage(rawValue: savedLang) ?? .turkish
+        
         if let bestDownloaded = self.modelManager.downloadedModels().first {
             self.selectedModel = bestDownloaded
         }
@@ -753,11 +789,30 @@ public final class AppViewModel: ObservableObject {
                             current.durationSec = media.metadata.duration
                             
                             current.state = .transcribing
+                            current.transcript = ""
                             self.updateItem(current)
-                            self.currentOperation = "Apple Silicon GPU Metal ile transkript ediliyor..."
+                            self.currentOperation = self.t("status_metal_active")
                             
                             let prepared = try audioDecoder.decode(fileURL: media.localAudioURL)
-                            let result = try await whisperEngine.transcribe(prepared, options: TranscriptionOptions(language: lang))
+                            let collector = SegmentCollector()
+                            let itemId = current.id
+                            let result = try await whisperEngine.transcribe(
+                                prepared,
+                                options: TranscriptionOptions(language: lang),
+                                progress: { [weak self] p in
+                                    Task { @MainActor in
+                                        self?.progressFraction = p
+                                        self?.updateItemProgress(id: itemId, progress: p)
+                                    }
+                                },
+                                onSegment: { [weak self] seg in
+                                    let currentSegments = collector.append(seg)
+                                    let liveText = postProcessor.process(segments: currentSegments)
+                                    Task { @MainActor in
+                                        self?.updateItemLiveTranscript(id: itemId, transcript: liveText)
+                                    }
+                                }
+                            )
                             let formatted = postProcessor.process(segments: result.segments)
                             
                             current.transcript = formatted
@@ -791,13 +846,32 @@ public final class AppViewModel: ObservableObject {
                         
                     case .audioFile(let fileURL):
                         current.state = .transcribing
+                        current.transcript = ""
                         self.updateItem(current)
                         self.currentOperation = "Yerel ses çözümleniyor ve transkript ediliyor..."
                         
                         do {
                             _ = try AudioValidator.validate(fileURL: fileURL)
                             let prepared = try audioDecoder.decode(fileURL: fileURL)
-                            let result = try await whisperEngine.transcribe(prepared, options: TranscriptionOptions(language: lang))
+                            let collector = SegmentCollector()
+                            let itemId = current.id
+                            let result = try await whisperEngine.transcribe(
+                                prepared,
+                                options: TranscriptionOptions(language: lang),
+                                progress: { [weak self] p in
+                                    Task { @MainActor in
+                                        self?.progressFraction = p
+                                        self?.updateItemProgress(id: itemId, progress: p)
+                                    }
+                                },
+                                onSegment: { [weak self] seg in
+                                    let currentSegments = collector.append(seg)
+                                    let liveText = postProcessor.process(segments: currentSegments)
+                                    Task { @MainActor in
+                                        self?.updateItemLiveTranscript(id: itemId, transcript: liveText)
+                                    }
+                                }
+                            )
                             let formatted = postProcessor.process(segments: result.segments)
                             
                             current.transcript = formatted
@@ -1018,3 +1092,17 @@ public final class AppViewModel: ObservableObject {
         }
     }
 }
+
+// MARK: - Thread-Safe Live Segment Collector
+private final class SegmentCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var segments: [Segment] = []
+    
+    func append(_ segment: Segment) -> [Segment] {
+        lock.lock()
+        defer { lock.unlock() }
+        segments.append(segment)
+        return segments
+    }
+}
+

@@ -9,12 +9,31 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                // Whisper Models Section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Whisper Yapay Zeka Modelleri")
+                // Interface Language Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(viewModel.t("settings_language"))
                         .font(.system(size: 14, weight: .bold))
                     
-                    Text("Modeller yerel olarak Mac'inizde saklanır ve Apple Silicon Metal GPU hızlandırıcısını doğrudan kullanır.")
+                    Text(viewModel.t("settings_language_desc"))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    
+                    Picker("", selection: $viewModel.appLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(14)
+                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
+                }
+                
+                // Whisper Models Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(viewModel.t("settings_whisper_models"))
+                        .font(.system(size: 14, weight: .bold))
+                    
+                    Text(viewModel.t("settings_whisper_desc"))
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     
@@ -33,7 +52,7 @@ struct SettingsView: View {
                 
                 // Storage Section
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Çıktı Dizini")
+                    Text(viewModel.t("settings_output_dir"))
                         .font(.system(size: 14, weight: .bold))
                     
                     HStack {
@@ -48,7 +67,7 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        Button("Klasörü Aç") {
+                        Button(viewModel.t("settings_open_folder")) {
                             NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: viewModel.outputWriter.defaultOutputDirectory.path)
                         }
                         .font(.system(size: 11))
@@ -61,7 +80,7 @@ struct SettingsView: View {
                 
                 // Hardware / Engine Info
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Donanım ve Hızlandırma")
+                    Text(viewModel.t("settings_hardware"))
                         .font(.system(size: 14, weight: .bold))
                     
                     HStack(spacing: 12) {
@@ -70,9 +89,9 @@ struct SettingsView: View {
                             .foregroundColor(.accentColor)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple Silicon Metal Hızlandırması: Aktif")
+                            Text(viewModel.t("settings_metal_active"))
                                 .font(.system(size: 12, weight: .semibold))
-                            Text("Cihaz içi yerel motor (whisper.cpp v1.9.2 Metal framework)")
+                            Text(viewModel.t("settings_metal_desc"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
@@ -94,7 +113,7 @@ struct SettingsView: View {
             }
             .padding(20)
         }
-        .navigationTitle("Ayarlar")
+        .navigationTitle(viewModel.t("section_settings"))
     }
     
     private func modelRow(model: WhisperModel, name: String, size: String, desc: String) -> some View {
@@ -110,7 +129,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                     
                     if viewModel.selectedModel == model {
-                        Text("Aktif")
+                        Text(viewModel.t("settings_active"))
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.accentColor)
                             .padding(.horizontal, 6)
@@ -132,7 +151,7 @@ struct SettingsView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.system(size: 12))
-                        Text("İndirildi")
+                        Text(viewModel.t("settings_downloaded"))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.secondary)
                     }
@@ -161,7 +180,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
             } else {
-                Button("İndir") {
+                Button(viewModel.t("settings_download")) {
                     viewModel.downloadModelInSettings(model)
                 }
                 .font(.system(size: 11, weight: .medium))

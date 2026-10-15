@@ -139,13 +139,13 @@ public struct ContentView: View {
     private var mainToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
             Picker("", selection: $viewModel.selectedSection) {
-                Label(viewModel.queueItems.isEmpty ? "Kuyruk" : "Kuyruk (\(viewModel.queueItems.count))", systemImage: "tray.full.fill")
+                Label(viewModel.queueItems.isEmpty ? viewModel.t("section_queue") : "\(viewModel.t("section_queue")) (\(viewModel.queueItems.count))", systemImage: "tray.full.fill")
                     .tag(SidebarSection.queue)
-                Label(viewModel.historyItems.isEmpty ? "Geçmiş" : "Geçmiş (\(viewModel.historyItems.count))", systemImage: "clock.arrow.circlepath")
+                Label(viewModel.historyItems.isEmpty ? viewModel.t("section_history") : "\(viewModel.t("section_history")) (\(viewModel.historyItems.count))", systemImage: "clock.arrow.circlepath")
                     .tag(SidebarSection.history)
-                Label("İzlenen Klasör", systemImage: "folder.badge.gearshape")
+                Label(viewModel.t("section_watched_folder"), systemImage: "folder.badge.gearshape")
                     .tag(SidebarSection.watchedFolder)
-                Label("Ayarlar", systemImage: "gearshape")
+                Label(viewModel.t("section_settings"), systemImage: "gearshape")
                     .tag(SidebarSection.settings)
             }
             .pickerStyle(.segmented)
@@ -238,7 +238,7 @@ public struct ContentView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(viewModel.isClipboardMonitoring ? .accentColor : .secondary)
                     
-                    Text(viewModel.isClipboardMonitoring ? "Pano İzleniyor" : "Pano İzle: Kapalı")
+                    Text(viewModel.isClipboardMonitoring ? viewModel.t("action_clipboard_monitoring") : viewModel.t("action_clipboard_off"))
                         .font(.system(size: 11, weight: viewModel.isClipboardMonitoring ? .semibold : .medium))
                         .foregroundColor(viewModel.isClipboardMonitoring ? .primary : .secondary)
                     
@@ -290,7 +290,7 @@ public struct ContentView: View {
                         Image(systemName: "play.fill")
                             .font(.system(size: 10))
                     }
-                    Text(viewModel.isProcessing ? "İşleniyor..." : "Transkripte Yolla")
+                    Text(viewModel.isProcessing ? viewModel.t("status_transcribing") : viewModel.t("action_transcribe_queue"))
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .padding(.horizontal, 10)

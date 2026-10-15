@@ -50,7 +50,16 @@ struct TranscriptDetailView: View {
             Divider()
             
             // Body: Processing Card or Full Transcript
-            if item.state == .transcribing || item.state == .fetching {
+            if item.state == .transcribing {
+                if let text = transcript, !text.isEmpty {
+                    VStack(spacing: 0) {
+                        liveTranscriptionBanner(item: item)
+                        transcriptReader(text: text, isLive: true)
+                    }
+                } else {
+                    activeProcessingCard(title: item.title, state: item.state)
+                }
+            } else if item.state == .fetching {
                 activeProcessingCard(title: item.title, state: item.state)
             } else if let text = transcript, !text.isEmpty {
                 transcriptReader(text: text)
@@ -180,7 +189,7 @@ struct TranscriptDetailView: View {
                             }
                         }) {
                             Label(
-                                viewModel.showCombinedSessionTranscript ? "Tekil Video" : "Birleşik Oturum (\(viewModel.completedCount))",
+                                viewModel.showCombinedSessionTranscript ? viewModel.t("detail_single_video") : String(format: viewModel.t("detail_session_combined"), viewModel.completedCount),
                                 systemImage: viewModel.showCombinedSessionTranscript ? "doc.plaintext" : "rectangle.stack.fill"
                             )
                             .font(.system(size: 11, weight: .medium))
@@ -192,7 +201,7 @@ struct TranscriptDetailView: View {
                     
                     // Copy
                     Button(action: { viewModel.copyTranscript(text: transcript) }) {
-                        Label(viewModel.copiedToast ? "Kopyalandı!" : "Kopyala (⌘⇧C)", systemImage: viewModel.copiedToast ? "checkmark" : "doc.on.doc")
+                        Label(viewModel.copiedToast ? viewModel.t("action_copied") : "\(viewModel.t("action_copy")) (⌘⇧C)", systemImage: viewModel.copiedToast ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 11, weight: .medium))
                     }
                     .buttonStyle(.bordered)
@@ -207,7 +216,7 @@ struct TranscriptDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .help("Finder'da Göster")
+                        .help(viewModel.t("action_open_finder"))
                     }
                     
                     // Browser
@@ -218,7 +227,7 @@ struct TranscriptDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .help("Tarayıcıda Aç")
+                        .help(viewModel.t("action_open_browser"))
                     }
                 }
             }
@@ -229,7 +238,7 @@ struct TranscriptDetailView: View {
                     let wordCount = text.split(separator: " ").count
                     let charCount = text.count
                     
-                    Text("\(wordCount) kelime")
+                    Text("\(wordCount) \(viewModel.t("action_words"))")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.secondary)
                     
@@ -237,7 +246,7 @@ struct TranscriptDetailView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                     
-                    Text("\(charCount) karakter")
+                    Text("\(charCount) \(viewModel.t("action_chars"))")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.secondary)
                     
@@ -248,7 +257,7 @@ struct TranscriptDetailView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                             .font(.system(size: 10))
-                        TextField("Metinde ara...", text: $searchInText)
+                        TextField(viewModel.t("action_search_text"), text: $searchInText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 11))
                             .frame(width: 130)
@@ -300,8 +309,8 @@ struct TranscriptDetailView: View {
         
         return VStack(spacing: 0) {
             inspectorHeader(
-                title: "Toplu Oturum Transkripti (\(completedCount) Video)",
-                subtitle: viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) video seçildi ve birleştirildi" : "Kuyruktaki tüm videolar tek bir transkript olarak birleştirildi",
+                title: String(format: viewModel.t("detail_combined_title"), completedCount),
+                subtitle: viewModel.selectedItemIDs.count > 1 ? String(format: viewModel.t("detail_combined_desc_selected"), viewModel.selectedItemIDs.count) : viewModel.t("detail_combined_desc_all"),
                 duration: nil,
                 transcript: text.isEmpty ? nil : text,
                 outputURL: viewModel.lastOutputURL,
@@ -318,7 +327,7 @@ struct TranscriptDetailView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 36))
                         .foregroundColor(.secondary)
-                    Text("Henüz tamamlanan transkript bulunmuyor.")
+                    Text(viewModel.t("detail_no_transcript"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -328,11 +337,64 @@ struct TranscriptDetailView: View {
     }
     
     // MARK: - Native Kinetic Transcript Reader (Full ⌘A, ⌘C, Smooth Scaling)
-    private func transcriptReader(text: String) -> some View {
+    private func transcriptReader(text: String, isLive: Bool = false) -> some View {
         NativeTranscriptTextView(
             text: text,
             fontSize: CGFloat(viewModel.transcriptFontSize),
-            searchHighlight: searchInText
+            searchHighlight: searchInText,
+            autoScrollToEnd: isLive
+        )
+    }
+    
+    // MARK: - Live Transcription Banner
+    private func liveTranscriptionBanner(item: QueueItem) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.18))
+                    .frame(width: 28, height: 28)
+                
+                Image(systemName: "waveform")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.purple)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(viewModel.t("status_live_stream_header"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    let currentProgress = item.progress > 0 ? item.progress : viewModel.progressFraction
+                    let percent = Int(currentProgress * 100)
+                    Text("%\(percent)")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(.purple)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.purple.opacity(0.15)))
+                }
+                
+                Text(viewModel.t("status_live_stream_desc"))
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            let currentProgress = item.progress > 0 ? item.progress : viewModel.progressFraction
+            ProgressView(value: currentProgress)
+                .progressViewStyle(.linear)
+                .frame(width: 130)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .background(Color.purple.opacity(0.06))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color.purple.opacity(0.2)),
+            alignment: .bottom
         )
     }
     
@@ -388,16 +450,16 @@ struct TranscriptDetailView: View {
                 .font(.system(size: 38))
                 .foregroundColor(.accentColor.opacity(0.8))
             
-            Text("İşleme Hazır")
+            Text(viewModel.t("detail_ready_title"))
                 .font(.system(size: 15, weight: .semibold))
             
-            Text("Transkript işlemini başlatmak için ⌘Return tuşlayabilir veya araç çubuğundaki butona basabilirsiniz.")
+            Text(viewModel.t("detail_ready_desc"))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)
             
-            Button("Şimdi Başlat (⌘Return)") {
+            Button("\(viewModel.t("action_start_now")) (⌘Return)") {
                 viewModel.requestStartQueue()
             }
             .buttonStyle(.borderedProminent)
@@ -425,7 +487,7 @@ struct TranscriptDetailView: View {
             }
             
             VStack(spacing: 6) {
-                Text("İndirme / Transkript Hatası")
+                Text(viewModel.t("detail_error_title"))
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.orange)
                 
@@ -450,7 +512,7 @@ struct TranscriptDetailView: View {
             .frame(maxWidth: 380)
             .liquidGlass(cornerRadius: 10, glowColor: .orange.opacity(0.5), material: .ultraThinMaterial)
             
-            Button("Tek Tıkla Yeniden Dene") {
+            Button(viewModel.t("detail_retry_btn")) {
                 viewModel.retryItem(id: item.id)
             }
             .buttonStyle(.borderedProminent)

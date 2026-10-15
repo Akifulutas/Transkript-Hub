@@ -40,11 +40,11 @@ struct QueueListView: View {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
                                     .font(.system(size: 11))
-                                Text("MÜDAHALE GEREKİYOR (\(viewModel.failedItems.count))")
+                                Text("\(viewModel.t("status_attention_required")) (\(viewModel.failedItems.count))")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.orange)
                                 Spacer()
-                                Button("Tümünü Yeniden Dene") {
+                                Button(viewModel.t("action_retry_all")) {
                                     viewModel.retryFailedItems()
                                 }
                                 .font(.system(size: 11, weight: .semibold))
@@ -63,7 +63,7 @@ struct QueueListView: View {
                                     .tag(item.id)
                             }
                         } header: {
-                            Text("İŞLENİYOR & KUYRUK (\(viewModel.activeOrQueuedItems.count))")
+                            Text("\(viewModel.t("status_processing_queue")) (\(viewModel.activeOrQueuedItems.count))")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.secondary)
                                 .padding(.vertical, 4)
@@ -78,7 +78,7 @@ struct QueueListView: View {
                                     .tag(item.id)
                             }
                         } header: {
-                            Text("TAMAMLANANLAR (\(viewModel.completedItems.count))")
+                            Text("\(viewModel.t("status_completed")) (\(viewModel.completedItems.count))")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.secondary)
                                 .padding(.vertical, 4)
@@ -97,7 +97,7 @@ struct QueueListView: View {
                                     viewModel.selectAllQueueItems()
                                 }
                             }) {
-                                Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? "Seçimi Kaldır" : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "Tümünü Seç (⌘A)"))
+                                Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? viewModel.t("action_deselect") : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "\(viewModel.t("action_select_all")) (⌘A)"))
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(.secondary)
                             }
@@ -110,7 +110,7 @@ struct QueueListView: View {
                                 HStack(spacing: 5) {
                                     Image(systemName: "trash")
                                         .font(.system(size: 11))
-                                    Text("Kuyruğu Temizle")
+                                    Text(viewModel.t("action_clear_queue"))
                                         .font(.system(size: 11, weight: .medium))
                                 }
                                 .foregroundColor(.secondary)
@@ -127,7 +127,7 @@ struct QueueListView: View {
                 .listStyle(.inset)
             }
         }
-        .navigationTitle("Kuyruk")
+        .navigationTitle(viewModel.t("section_queue"))
         .onDrop(of: [.fileURL, .text], isTargeted: $viewModel.isDropTargetActive) { providers in
             handleUniversalDrop(providers: providers)
         }
@@ -151,7 +151,7 @@ struct QueueListView: View {
                 Button(action: { viewModel.retryFailedItems() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
-                        Text("Yeniden Dene")
+                        Text(viewModel.t("action_retry"))
                     }
                     .font(.system(size: 10, weight: .semibold))
                 }
@@ -170,7 +170,7 @@ struct QueueListView: View {
                     .foregroundColor(.accentColor)
                     .font(.system(size: 13))
                 
-                TextField("YouTube linki veya ses dosyası...", text: $viewModel.quickInputText)
+                TextField(viewModel.t("action_quick_add_placeholder"), text: $viewModel.quickInputText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .onSubmit {
@@ -179,7 +179,7 @@ struct QueueListView: View {
                 
                 if !viewModel.quickInputText.isEmpty {
                     Button(action: { viewModel.addFromQuickInput() }) {
-                        Text("Ekle")
+                        Text(viewModel.t("action_add"))
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .buttonStyle(.borderedProminent)
@@ -193,14 +193,14 @@ struct QueueListView: View {
             // Quick Ingestion Pill Buttons (H / 2 Capsule Rule)
             HStack(spacing: 12) {
                 Button(action: { viewModel.addFromClipboard() }) {
-                    Label("Panodan (⌘V)", systemImage: "doc.on.clipboard")
+                    Label("\(viewModel.t("action_paste_clipboard")) (⌘V)", systemImage: "doc.on.clipboard")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
                 
                 Button(action: { selectLocalAudioFiles() }) {
-                    Label("Ses Dosyası...", systemImage: "waveform")
+                    Label(viewModel.t("action_audio_file"), systemImage: "waveform")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
@@ -218,6 +218,7 @@ struct QueueListView: View {
         StandardQueueRow(
             item: item,
             isSelected: viewModel.selectedItemID == item.id,
+            statusTitle: viewModel.localizedState(item.state),
             onRemove: { viewModel.removeItem(id: item.id) }
         )
         .contextMenu { rowContextMenu(item: item) }
@@ -226,27 +227,27 @@ struct QueueListView: View {
     @ViewBuilder
     private func rowContextMenu(item: QueueItem) -> some View {
         if item.state == .failed {
-            Button("Tekrar Dene") {
+            Button(viewModel.t("action_retry")) {
                 viewModel.retryItem(id: item.id)
             }
         }
         if let transcript = item.transcript {
-            Button("Metni Kopyala (⌘⇧C)") {
+            Button("\(viewModel.t("action_copy")) (⌘⇧C)") {
                 viewModel.copyTranscript(text: transcript)
             }
         }
         if let output = item.outputURL {
-            Button("Finder'da Göster") {
+            Button(viewModel.t("action_open_finder")) {
                 viewModel.openInFinder(path: output.path)
             }
         }
         if let url = item.canonicalURL {
-            Button("Tarayıcıda Aç") {
+            Button(viewModel.t("action_open_browser")) {
                 viewModel.openInBrowser(url: url)
             }
         }
         Divider()
-        Button("Kuyruktan Çıkar", role: .destructive) {
+        Button(viewModel.t("action_remove_item"), role: .destructive) {
             viewModel.removeItem(id: item.id)
         }
     }
@@ -267,10 +268,10 @@ struct QueueListView: View {
             }
             
             VStack(spacing: 3) {
-                Text("Kuyruk Boş")
+                Text(viewModel.t("action_empty_queue_title"))
                     .font(.system(size: 14, weight: .semibold))
                 
-                Text("Panodaki linki almak için ⌘V tuşlayın veya dosyaları sağdaki stüdyo alanına sürükleyin.")
+                Text(viewModel.t("action_empty_queue_desc"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -325,6 +326,7 @@ struct QueueListView: View {
 struct StandardQueueRow: View {
     let item: QueueItem
     let isSelected: Bool
+    var statusTitle: String? = nil
     var onRemove: (() -> Void)? = nil
     @State private var isHovered: Bool = false
     
@@ -378,7 +380,7 @@ struct StandardQueueRow: View {
             }
             
             // Liquid Glass Status Pill
-            LiquidStatusPill(state: item.state)
+            LiquidStatusPill(state: item.state, title: statusTitle)
         }
         .padding(.vertical, 3)
         .onHover { hovering in
@@ -432,13 +434,18 @@ struct StandardQueueRow: View {
 // MARK: - Liquid Glass Status Pill (Strict H / 2 Capsule Rule)
 struct LiquidStatusPill: View {
     let state: QueueItemState
+    var title: String? = nil
     var compact: Bool = false
+    
+    private var displayTitle: String {
+        title ?? state.rawValue
+    }
     
     var body: some View {
         Group {
             switch state {
             case .queued:
-                Text(state.rawValue)
+                Text(displayTitle)
                     .font(.system(size: compact ? 9 : 10, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(.horizontal, compact ? 5 : 8)
@@ -449,7 +456,7 @@ struct LiquidStatusPill: View {
                 HStack(spacing: 4) {
                     ProgressView().controlSize(.mini)
                     if !compact {
-                        Text(state.rawValue)
+                        Text(displayTitle)
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
@@ -462,7 +469,7 @@ struct LiquidStatusPill: View {
                 HStack(spacing: 4) {
                     ProgressView().controlSize(.mini)
                     if !compact {
-                        Text(state.rawValue)
+                        Text(displayTitle)
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
@@ -476,7 +483,7 @@ struct LiquidStatusPill: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: 8, weight: .bold))
                     if !compact {
-                        Text(state.rawValue)
+                        Text(displayTitle)
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
@@ -490,7 +497,7 @@ struct LiquidStatusPill: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 8))
                     if !compact {
-                        Text(state.rawValue)
+                        Text(displayTitle)
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
