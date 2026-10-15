@@ -106,14 +106,20 @@ struct MenuBarMiniWindow: View {
             // Bottom Controls
             HStack {
                 Button("Ana Pencereyi Aç") {
-                    NSApp.activate(ignoringOtherApps: true)
-                    for window in NSApp.windows {
-                        window.makeKeyAndOrderFront(nil)
-                    }
+                    viewModel.bringMainWindowToFront()
                 }
                 .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
+                
+                Spacer()
+                
+                Button("Ayarlar") {
+                    viewModel.openSettings()
+                }
+                .font(.system(size: 11, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
                 
                 Spacer()
                 

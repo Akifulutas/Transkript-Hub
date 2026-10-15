@@ -65,6 +65,20 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public func openSettings() {
+        selectedSection = .settings
+        bringMainWindowToFront()
+    }
+    
+    public func bringMainWindowToFront() {
+        DispatchQueue.main.async {
+            if let window = NSApp.windows.first(where: { !($0 is NSPanel) }) {
+                window.makeKeyAndOrderFront(nil)
+            }
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+    
     @Published public var showCombinedSessionTranscript: Bool = false
     @Published public var searchQuery: String = ""
     @Published public var transcriptFontSize: Double = 13.0
