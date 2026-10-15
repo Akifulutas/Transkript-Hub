@@ -173,7 +173,7 @@ public actor TranscriptCacheManager {
                 return nil
             }
         } catch {
-            Log.error("Önbellek arama hatası: \(error.localizedDescription)")
+            Log.error("Transcript cache lookup error: \(error.localizedDescription)")
             return nil
         }
     }
@@ -214,7 +214,7 @@ public actor TranscriptCacheManager {
                 )
             }
         } catch {
-            Log.error("Önbellek kayıt hatası: \(error.localizedDescription)")
+            Log.error("Transcript cache save error: \(error.localizedDescription)")
         }
     }
     

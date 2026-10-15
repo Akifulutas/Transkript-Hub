@@ -30,6 +30,6 @@ public final class CleanupManager: Sendable {
             try db.execute(sql: "UPDATE batch SET cleaned_at = ? WHERE id = ?", arguments: [now, batchID])
         }
         
-        Log.info("Batch temizliği tamamlandı: \(batchID) (Geçici ses dosyaları silindi).")
+        Log.info("Batch cleanup completed: \(batchID) (Temporary audio files removed).")
     }
 }

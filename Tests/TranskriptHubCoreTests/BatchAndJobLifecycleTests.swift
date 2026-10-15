@@ -3,10 +3,10 @@ import Testing
 import GRDB
 @testable import TranskriptHubCore
 
-@Suite("İş Kuyruğu ve SQLite Yaşam Döngüsü (Batch & Job Lifecycle) Test Paketi")
+@Suite("Batch and Job Lifecycle Test Suite")
 struct BatchAndJobLifecycleTests {
     
-    @Test("İş kuyruğunda kesinti sonrası kurtarma (Crash Recovery)")
+    @Test("Crash recovery mechanism")
     func testCrashRecoveryMechanism() async throws {
         let appDb = try AppDatabase.makeInMemory()
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -14,9 +14,9 @@ struct BatchAndJobLifecycleTests {
         let jobManager = JobManager(database: appDb, outputWriter: writer)
         
         let batchID = "BATCH-CRASH-TEST"
-        let batch = BatchRecord(id: batchID, expectedCount: 2, state: .active, language: "tr")
+        let batch = BatchRecord(id: batchID, expectedCount: 2, state: .active, language: "en")
         
-        // Uygulama aniden kapandığında 'fetching' veya 'transcribing' durumunda kalan işler
+        // Jobs left in 'fetching' or 'transcribing' state when the app was abruptly killed
         let job1 = JobRecord(
             id: "job-stuck-fetch",
             batchID: batchID,
@@ -41,7 +41,7 @@ struct BatchAndJobLifecycleTests {
             try job2.insert(db)
         }
         
-        // Uygulama yeniden başlatıldığında recoverState() çağrılır
+        // recoverState() is executed when app relaunches
         try await jobManager.recoverState()
         
         let recoveredJobs = try await appDb.dbQueue.read { db in
@@ -54,22 +54,22 @@ struct BatchAndJobLifecycleTests {
         #expect(recoveredJobs[1].state == JobState.fetched.rawValue)
     }
     
-    @Test("Kısmi başarı durumunda hata raporu ve başarılı transkriptlerin birleştirilmesi")
+    @Test("Partial failure batch assembly and error reporting")
     func testPartialFailureBatchAssembly() async throws {
         let appDb = try AppDatabase.makeInMemory()
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let writer = OutputWriter(customOutputDirectory: tempDir)
         
         let batchID = "BATCH-PARTIAL-FAIL"
-        let batch = BatchRecord(id: batchID, expectedCount: 3, state: .active, language: "tr")
+        let batch = BatchRecord(id: batchID, expectedCount: 3, state: .active, language: "en")
         
         let job1 = JobRecord(
             id: "j1",
             batchID: batchID,
             sequence: 1,
             sourceURL: "https://www.youtube.com/watch?v=aaaaa111111",
-            title: "Başarılı Bölüm 1",
-            creator: "Yazar A",
+            title: "Successful Chapter 1",
+            creator: "Author A",
             durationSec: 120,
             state: .completed
         )
@@ -79,8 +79,8 @@ struct BatchAndJobLifecycleTests {
             batchID: batchID,
             sequence: 2,
             sourceURL: "https://www.youtube.com/watch?v=bbbbb222222",
-            title: "Gizli / Engelli Video",
-            creator: "Yazar B",
+            title: "Private / Restricted Video",
+            creator: "Author B",
             durationSec: 0,
             state: .failed,
             errorKind: "videoUnavailable",
@@ -92,8 +92,8 @@ struct BatchAndJobLifecycleTests {
             batchID: batchID,
             sequence: 3,
             sourceURL: "https://www.youtube.com/watch?v=ccccc333333",
-            title: "Başarılı Bölüm 2",
-            creator: "Yazar A",
+            title: "Successful Chapter 2",
+            creator: "Author A",
             durationSec: 180,
             state: .completed
         )
@@ -104,40 +104,40 @@ struct BatchAndJobLifecycleTests {
             try job2.insert(db)
             try job3.insert(db)
             
-            // Başarılı olanların transkript kayıtları
+            // Completed transcript records
             try TranscriptSectionRecord(
                 jobID: "j1",
-                text: "Bu birinci bölümün konuşma metnidir."
+                text: "This is the transcript content of chapter one."
             ).insert(db)
             
             try TranscriptSectionRecord(
                 jobID: "j3",
-                text: "Bu üçüncü bölümün konuşma metnidir."
+                text: "This is the transcript content of chapter three."
             ).insert(db)
         }
         
         let assembler = BatchAssembler(database: appDb, outputWriter: writer)
-        let result = try await assembler.assembleBatch(batchID: batchID)
+        let result = try assembler.assembleBatch(batchID: batchID)
         
         switch result {
         case .assembled(let fileURL, let isPartial):
-            #expect(isPartial == true, "3 videodan 1'i başarısız olduğu için isPartial true olmalıydı")
+            #expect(isPartial == true, "isPartial should be true when 1 of 3 videos failed")
             #expect(FileManager.default.fileExists(atPath: fileURL.path))
             
             let content = try String(contentsOf: fileURL, encoding: .utf8)
             
-            // Başarılı içerikler metinde yer almalı
-            #expect(content.contains("Başarılı Bölüm 1"))
-            #expect(content.contains("Bu birinci bölümün konuşma metnidir."))
-            #expect(content.contains("Başarılı Bölüm 2"))
-            #expect(content.contains("Bu üçüncü bölümün konuşma metnidir."))
+            // Successful sections must be present in content
+            #expect(content.contains("Successful Chapter 1"))
+            #expect(content.contains("This is the transcript content of chapter one."))
+            #expect(content.contains("Successful Chapter 2"))
+            #expect(content.contains("This is the transcript content of chapter three."))
             
-            // Başarısız videonun uyarısı ve gerekçesi raporda açıkça yer almalı
+            // Failed video reason must be reported
             #expect(content.contains("Failed: 1"))
             #expect(content.contains("STATUS: İŞLENEMEDİ — HTTP 403: Forbidden"))
             
         default:
-            Issue.record("Beklenen .assembled sonucu alınamadı")
+            Issue.record("Expected .assembled outcome was not received")
         }
     }
 }

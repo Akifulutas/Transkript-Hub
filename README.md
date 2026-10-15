@@ -1,50 +1,100 @@
 # Transkript Hub 🎙️⚡
 
-**Apple Silicon Mac'ler için Tamamen Yerel, Çevrimdışı ve Sıfır Bağımlılıklı Transkripsiyon Uygulaması.**
+**Fully Local, Offline, Zero-Dependency Audio & Video Transcription Studio for Apple Silicon Macs.**
 
-Transkript Hub; YouTube videolarını (tekil veya toplu) ve ses dosyalarını (Voice Memos, M4A, MP3, WAV vb.) Mac'inizin kendi GPU çipini (Metal) doğrudan kullanarak **hiçbir harici sunucuya ses göndermeden** ve **Buzz, Python, FFmpeg veya Terminal gerektirmeden** yüksek hızda metne dönüştürür.
-
----
-
-## ✨ Özellikler
-
-- **⚡ Apple Silicon Metal Hızlandırması:** `whisper.cpp` resmi C/C++ motoru doğrudan Mac GPU'nuzda çalışır (gerçek zamanın 10-20 katı hızında transkripsiyon).
-- **🚫 Sıfır Harici Kurulum:** Buzz, Homebrew, Python, FFmpeg veya Terminal komutları kurmak **gerekmez**. Tek bir DMG indirip çalıştırın.
-- **🛡️ Dayanıklı Toplu İşlem (22/25 Resiliency):** 25 videoluk bir listede bazı videolar 403 veya üyelik hatası verse bile sistem durmaz; tamamlanan tüm videolar sırasıyla tek bir temiz TXT dosyasında birleştirilir.
-- **📋 Akıllı Pano İzleyici (Clipboard Monitor):** Safari veya Chrome'da bir YouTube linki kopyaladığınız anda arka planda algılanır ve oturum listesine eklenir. Şifre yöneticilerini (1Password vb.) rahatsız etmez.
-- **📁 İzlenen Klasörler (Folder Watcher):** iCloud Drive veya belirlenen bir klasöre iPhone'dan ya da Mac'ten ses kaydı düştüğü anda otomatik algılayıp arka planda transkript eder.
-- **💾 Atomik ve Çakışmasız Çıktı:** Tekil videolarda doğrudan `Başlık.txt` üretir; asla mevcut dosyaların üzerine yazmaz (`Başlık (2).txt`).
-- **🔒 %100 Gizlilik:** Sesleriniz asla harici bir bulut sunucusuna gönderilmez; tamamen Mac'inizde işlenir.
+Transkript Hub transcribes YouTube videos (individual links, playlists, channels) and local audio files (Voice Memos, M4A, MP3, WAV, AAC, etc.) by leveraging your Mac's Apple Silicon GPU (Metal) directly. It sends **no audio to external servers** and requires **zero external installations** — no Buzz, Python, FFmpeg, Homebrew, or Terminal setup.
 
 ---
 
-## 🚀 Kurulum
+## ✨ Features
 
-1. [GitHub Releases](../../releases) sayfasından en son **`TranskriptHub.dmg`** dosyasını indirin.
-2. DMG dosyasını açın ve **Transkript Hub** uygulamasını **Applications** klasörüne sürükleyin.
-3. Uygulamayı ilk kez açarken:
-   - macOS Gatekeeper uyarısı verirse: Uygulamaya sağ tıklayıp **Aç (Open)** deyin veya *Sistem Ayarları -> Gizlilik ve Güvenlik* altından izin verin.
-4. Hepsi bu kadar!
+- **⚡ Apple Silicon Metal Acceleration:** Runs the official `whisper.cpp` C/C++ engine directly on the Mac GPU with Unified Memory architecture (10x–20x real-time transcription speeds).
+- **🚫 Zero External Dependencies:** No Python, Homebrew, FFmpeg, or command-line tools required. Download a single DMG and run.
+- **🛡️ Resilient Batch Processing (22/25 Resiliency):** In a playlist of 25 videos, if 3 fail due to regional or membership restrictions (e.g., HTTP 403), the process never aborts. All successful transcripts are automatically merged and formatted into a unified document or saved as individual files.
+- **👁️ Real-Time Live Streaming Preview:** Words decoded via the Metal GPU are displayed live as transcription progresses, rather than waiting for completion.
+- **🧠 Smart Deduplication & Duration Matching:** Never wastes time re-transcribing files. Identifies previously transcribed files through database cache matching file name, audio duration ($\pm1.0$s tolerance), and external YouTube IDs.
+- **📋 Smart Clipboard Monitor:** Automatically detects YouTube links copied to your macOS clipboard (Safari, Chrome, Arc, etc.) and offers zero-touch queueing without interfering with password managers.
+- **📁 Watched Folders & Cloud Sync:** Monitors designated local folders and iCloud Drive (`Transkript`). Automatically detects `.icloud` dateless placeholders and initiates immediate background downloads.
+- **🎙️ Voice Memos & Apple Ecosystem Support:** Seamlessly integrates with iPhone and Apple Watch Voice Memos with macOS Full Disk Access auto-detection.
+- **🔍 In-App Whisper Model Catalog:** Search, manage, and download official whisper.cpp models (`large-v3-turbo`, `medium`, `small`, `base`, `tiny`) with a single click.
+- **💾 Atomic & Collision-Free Output:** Transcripts are written atomically (`Title.txt`). Existing files are never overwritten (`Title (2).txt`).
+- **🌐 Multilingual UI:** Native support for English, German, and Turkish.
+- **🔒 100% On-Device Privacy:** All audio decoding, downloading, and transcription runs strictly on your local machine.
 
 ---
 
-## 🛠️ Mimari ve Bileşenler
+## 🚀 Getting Started
+
+### Installation
+
+1. Download the latest **`TranskriptHub.dmg`** from the [GitHub Releases](../../releases) page.
+2. Open the DMG and drag **Transkript Hub** into your **Applications** folder.
+3. Launch **Transkript Hub**.
+   - If macOS Gatekeeper displays a prompt: Right-click the app and choose **Open**, or allow it under *System Settings > Privacy & Security*.
+4. You are ready to transcribe!
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| <kbd>⌘</kbd> + <kbd>Return</kbd> | Start Queue Transcription |
+| <kbd>⌘</kbd> + <kbd>V</kbd> | Paste Link from Clipboard |
+| <kbd>⌘</kbd> + <kbd>O</kbd> | Open Audio / Video File Picker |
+| <kbd>⌘</kbd> + <kbd>K</kbd> | Open Command Palette |
+| <kbd>⌘</kbd> + <kbd>,</kbd> | Open Settings |
+| <kbd>⌘</kbd> + <kbd>1</kbd> | Switch to Queue View |
+| <kbd>⌘</kbd> + <kbd>2</kbd> | Switch to History View |
+| <kbd>⌘</kbd> + <kbd>3</kbd> | Switch to Watched Folder View |
+| <kbd>⌘</kbd> + <kbd>A</kbd> | Select All Queue Items |
+| <kbd>⇧</kbd> + <kbd>⌘</kbd> + <kbd>B</kbd> | Toggle Clipboard Monitoring |
+
+---
+
+## 🏗️ Architecture
 
 ```
 TranskriptHub
-├── TranskriptHubApp (SwiftUI Arayüzü & Menü Çubuğu)
-└── TranskriptHubCore (Çekirdek Kütüphane)
-    ├── Audio (AVFoundation ses çözücü & doğrulayıcı)
-    ├── Transcription (whisper.cpp xcframework, Metal GPU motoru, ModelManager)
-    ├── Tools (İzole yt-dlp & Deno istemcisi)
-    ├── Database (GRDB.swift SQLite kalıcı iş kuyruğu & kurtarma)
+├── TranskriptHubApp (SwiftUI 6 Interface, Menu Bar Mini Window & Settings)
+└── TranskriptHubCore (Pure Swift Core Library)
+    ├── Audio (AVFoundation 16kHz mono Float32 decoder & audio validator)
+    ├── Transcription (whisper.xcframework Metal GPU engine & ModelManager)
+    ├── Cache (TranscriptCacheManager smart deduplication & recovery)
+    ├── Tools (Self-contained, sandboxed yt-dlp & Deno process runners)
+    ├── Database (GRDB.swift SQLite persistent state machine & crash recovery)
     ├── Batch (BatchAssembler, OutputFormatter Format-Version 1)
+    ├── Permissions (FullDiskAccessHelper multi-probe inspection)
     └── System (ClipboardMonitor, FolderWatcher)
 ```
 
 ---
 
-## 📄 Lisans
+## 🛠️ Building from Source
 
-Bu proje [MIT Lisansı](LICENSE) ile lisanslanmıştır.
-Kullanılan alt bileşenler (`whisper.cpp`, `GRDB.swift`, `yt-dlp`, `Deno`) kendi açık kaynak lisanslarına tabidir.
+### Prerequisites
+
+- macOS 14.0+ (Sonoma or Sequoia)
+- Apple Silicon Mac (M1 / M2 / M3 / M4)
+- Xcode 16+ or Swift 6 toolchain
+
+### Build Commands
+
+```bash
+# Clone the repository
+git clone https://github.com/Akifulutas/Transkript-Hub.git
+cd Transkript-Hub
+
+# Run the test suite (36 unit tests)
+swift test
+
+# Build release binaries and bundle DMG
+./scripts/package_dmg.sh
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+Third-party components (`whisper.cpp`, `GRDB.swift`, `yt-dlp`, `Deno`) remain subject to their respective open-source licenses.

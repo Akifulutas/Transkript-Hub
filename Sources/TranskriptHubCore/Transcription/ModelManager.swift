@@ -62,7 +62,7 @@ public final class ModelManager: Sendable {
         let destination = localURL(for: model)
         if FileManager.default.fileExists(atPath: destination.path) {
             try FileManager.default.removeItem(at: destination)
-            Log.info("Model silindi: \(destination.path)")
+            Log.info("Model deleted: \(destination.path)")
         }
     }
     
@@ -77,7 +77,7 @@ public final class ModelManager: Sendable {
             return destination
         }
         
-        Log.info("Model indiriliyor: \(model.filename) -> \(destination.path)")
+        Log.info("Downloading model: \(model.filename) -> \(destination.path)")
         
         let delegate = DownloadProgressDelegate()
         delegate.onProgress = onProgress
@@ -96,7 +96,7 @@ public final class ModelManager: Sendable {
             try FileManager.default.removeItem(at: destination)
         }
         try FileManager.default.moveItem(at: tempURL, to: destination)
-        Log.info("Model başarıyla kaydedildi: \(destination.path)")
+        Log.info("Model successfully saved: \(destination.path)")
         onProgress?(1.0, 1, 1)
         return destination
     }

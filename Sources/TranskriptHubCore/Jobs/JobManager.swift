@@ -72,7 +72,7 @@ public actor JobManager {
             // 2. Reset transcribing -> fetched (audio is kept, only re-transcribe)
             try db.execute(sql: "UPDATE job SET state = 'fetched' WHERE state = 'transcribing'")
         }
-        Log.info("Veritabanı kurtarma kontrolü tamamlandı.")
+        Log.info("Database crash recovery check completed.")
     }
     
     /// Processes an entire batch with resilient failure handling (22/25 partial assembly).
@@ -149,7 +149,7 @@ public actor JobManager {
                     onJobUpdate?(currentJob)
                     
                 } catch {
-                    Log.error("Video indirme hatası (\(currentJob.sequence)): \(error.localizedDescription)")
+                    Log.error("Video download error (\(currentJob.sequence)): \(error.localizedDescription)")
                     try await markJobFailed(jobID: currentJob.id, error: error)
                     currentJob.state = JobState.failed.rawValue
                     currentJob.errorMessage = error.localizedDescription
@@ -192,7 +192,7 @@ public actor JobManager {
                     onJobUpdate?(currentJob)
                     
                 } catch {
-                    Log.error("Transkripsiyon hatası (\(currentJob.sequence)): \(error.localizedDescription)")
+                    Log.error("Transcription error (\(currentJob.sequence)): \(error.localizedDescription)")
                     try await markJobFailed(jobID: currentJob.id, error: error)
                     currentJob.state = JobState.failed.rawValue
                     currentJob.errorMessage = error.localizedDescription

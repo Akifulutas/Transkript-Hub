@@ -9,15 +9,15 @@ DIST_DIR="$PROJECT_DIR/dist"
 APP_DIR="$DIST_DIR/$BUNDLE_NAME"
 DMG_PATH="$DIST_DIR/TranskriptHub.dmg"
 
-echo "=== Transkript Hub DMG Paketleyici ==="
-echo "1. Release ikilileri derleniyor..."
+echo "=== Transkript Hub DMG Packager ==="
+echo "1. Building release binaries..."
 swift build -c release
 
-echo "2. Paket dizini hazırlanıyor..."
+echo "2. Preparing distribution directory..."
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR" "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Frameworks" "$APP_DIR/Contents/Resources"
 
-echo "3. İkili ve kütüphaneler kopyalanıyor..."
+echo "3. Copying binaries and dependencies..."
 cp "$BUILD_DIR/TranskriptHubApp" "$APP_DIR/Contents/MacOS/TranskriptHub"
 chmod +x "$APP_DIR/Contents/MacOS/TranskriptHub"
 
@@ -25,10 +25,10 @@ chmod +x "$APP_DIR/Contents/MacOS/TranskriptHub"
 cp -R "$PROJECT_DIR/Frameworks/whisper.xcframework/macos-arm64_x86_64/whisper.framework" "$APP_DIR/Contents/Frameworks/"
 cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
-echo "4. RPATH ve dinamik bağlayıcı yapılandırılıyor..."
+echo "4. Configuring RPATH and dynamic linker..."
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
 
-echo "5. Info.plist oluşturuluyor..."
+echo "5. Generating Info.plist..."
 cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -64,21 +64,21 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 </plist>
 EOF
 
-echo "6. Kod imzalama ve Gatekeeper temizliği..."
+echo "6. Code signing and Gatekeeper quarantine cleanup..."
 xattr -cr "$APP_DIR" || true
 codesign --force --deep -s - "$APP_DIR"
 
-echo "7. DMG hazırlama dizini oluşturuluyor..."
+echo "7. Creating DMG staging layout..."
 DMG_STAGING="$DIST_DIR/dmg_staging"
 rm -rf "$DMG_STAGING"
 mkdir -p "$DMG_STAGING"
 cp -R "$APP_DIR" "$DMG_STAGING/"
 ln -s /Applications "$DMG_STAGING/Applications"
 
-echo "8. DMG oluşturuluyor (hdiutil)..."
+echo "8. Creating DMG archive (hdiutil)..."
 rm -f "$DMG_PATH"
 hdiutil create -volname "Transkript Hub" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
 rm -rf "$DMG_STAGING"
 
-echo "✅ Başarılı! DMG dosyası hazır:"
+echo "✅ Success! DMG file ready:"
 ls -lh "$DMG_PATH"

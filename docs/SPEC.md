@@ -1,122 +1,137 @@
-# Transkript Hub — Master Spesifikasyon (v1)
+# Transkript Hub — Master Specification (v1)
 
-Aşağıdaki metnin tamamını kodlama yapan yapay zekaya (ör. Claude Code) tek parça ver. Repo açıldığında `docs/SPEC.md` olarak da kaydedilsin. Metin bağlayıcı karar listesidir; "öneri" değil.
+This specification defines the binding architecture and operational contracts for Transkript Hub. It is also preserved under `docs/SPEC.md`. Every architectural rule, state transition, and operational constraint is binding.
 
-### 0. Rol ve çalışma kuralları (AI için)
+---
 
-- Sen bu projenin baş geliştiricisisin. Bu spesifikasyondaki kararlar kesindir; değiştirmek gerekiyorsa kod yazmadan önce gerekçesiyle sor.
-- Her milestone'u ayrı bitir. Bir milestone'un kabul kriterleri geçmeden sonrakine geçme.
-- Önce `TranskriptHubCore` (UI'sız Swift package) yaz; UI en son gelir. Core'daki her public tip test edilebilir olsun.
-- Tüm kod Swift 6, strict concurrency açık. Kod içi isimler İngilizce; UI metinleri `Localizable.xcstrings` içinde Türkçe (varsayılan) + Almanca + İngilizce.
-- Harici bağımlılık sadece şunlar: whisper.cpp (xcframework), GRDB.swift, Sparkle 2. Başka paket ekleme; gerekiyorsa sor.
-- Legacy shell scriptleri (`docs/legacy-reference/`) davranış referansıdır; kod kopyalama, davranışı yeniden uygula.
-- Her işlem idempotent olsun: bir adım yarıda kesilip tekrar çalıştırılırsa aynı sonucu versin.
-- Asla kullanıcının orijinal dosyasını silme, taşıma veya değiştirme (yalnız açık ayarla, bkz. §8.5).
+### 0. Role and Operational Principles
 
-### 1. Ürün tanımı
+- You are the Lead Architect and Core Engineer for this project. Decisions in this specification are binding; if a revision is necessary, justify and confirm before writing code.
+- Complete each milestone independently. Do not proceed to the next milestone until acceptance criteria are satisfied.
+- First build `TranskriptHubCore` (UI-free pure Swift package); the UI layer depends entirely on the core. Every public type in Core must be fully testable.
+- All code must target Swift 6 with strict concurrency enabled. Internal code identifiers, types, comments, and logging must be in English. User-facing strings support English (default), German, and Turkish.
+- External dependencies are strictly limited to: `whisper.cpp` (xcframework), `GRDB.swift`, and Sparkle 2. Do not add unapproved dependencies.
+- Legacy shell scripts (`docs/legacy-reference/`) serve solely as behavioral references; do not copy shell scripts, reimplement cleanly in native Swift.
+- Every operation must be strictly idempotent: interrupting a step and re-running it must produce the exact same deterministic outcome.
+- Never delete, move, or modify original user media files unless explicitly configured by the user (§8.5).
 
-**Transkript Hub**, Apple Silicon Mac'te çalışan, sesleri tamamen yerel olarak metne çeviren tek bir macOS uygulamasıdır. Kullanıcı YouTube linklerini toplar (pano veya yapıştırma) ya da ses dosyası verir; uygulama sesi indirir/okur, whisper.cpp ile transkript eder ve sonucu tek bir düz metin (TXT) dosyası olarak çıktı klasörüne yazar. İşlem bitince geriye yalnız TXT kalır. Kullanıcı Terminal, Homebrew, Python, Buzz, FFmpeg veya yt-dlp kurmaz.
+---
 
-Ana kullanım: "Araştırma için 5–50 YouTube videosu seç → tek birleşik transkript dosyası al."
+### 1. Product Definition
 
-### 2. Kapsam
+**Transkript Hub** is a self-contained, native macOS application built for Apple Silicon Macs that converts audio into text entirely on-device. Users collect YouTube links (via clipboard or direct paste) or supply local audio files; the application downloads/extracts audio, transcribes it locally using `whisper.cpp` on the Metal GPU, and formats the output into clean plain text (`.txt`) documents in the designated output folder. When processing finishes, only clean `.txt` files remain. Users never need to install or run Terminal, Homebrew, Python, Buzz, FFmpeg, or yt-dlp.
 
-**v1 (bu spesifikasyonun konusu)**
-- macOS 14+ (Sonoma ve üzeri), yalnız Apple Silicon (arm64).
-- YouTube: tek link, çoklu link (yapıştır), pano yakalama (yalnız uygulama açıkken ve yakalama aktifken).
-- Yerel dosya: sürükle-bırak, dosya seçici. Formatlar: AVFoundation'ın açabildiği her şey (m4a, mp3, wav, aac, caf, aiff, mp4/mov ses izi).
-- İzlenen klasörler (watched folders), iCloud Drive klasörleri dahil (dataless dosya indirme desteğiyle).
-- whisper.cpp + large-v3-turbo + Silero VAD v6.2.0, dil: otomatik veya seçilen.
-- Batch: çok kaynak → tek birleşik TXT. Tek kaynak → başlık adlı TXT.
-- SQLite durum, crash recovery, otomatik temizlik, uyku engelleme.
-- Menü çubuğu ikonu; pencere kapanınca iş arka planda sürer.
-- ToolManager: yt-dlp ve Deno'yu indirir, doğrular, günceller.
-- ModelManager: modeli indirir, doğrular.
-- Sparkle 2 ile uygulama güncellemesi, Developer ID imza + notarization.
+Primary use case: *"Select 5–50 YouTube videos for research → obtain a single consolidated, formatted transcript document."*
 
-**v1.1 (şimdi yapma, ama mimari engellemesin)**
-- Voice Memos Share Extension; Voice Memos Group Container otomatik izleme (experimental, Full Disk Access).
-- SRT/VTT/JSON çıktı, RSS/podcast kaynakları, FFmpeg fallback, Apple SpeechAnalyzer motoru, Core ML encoder.
+---
 
-**Kapsam dışı**
-- Windows/Linux/iOS, bulut transkripsiyon, LLM özetleme, konuşmacı ayrımı (diarization), çeviri, hesap/abonelik, YouTube kanal/oynatma listesi otomatik takibi, Mac App Store, Intel Mac.
+### 2. Scope
 
-### 3. Kesin teknoloji kararları
+**v1 (Current Scope)**
+- macOS 14+ (Sonoma and Sequoia), Apple Silicon (arm64) only.
+- YouTube: single video, bulk multi-link paste, smart clipboard monitoring (when application is running and capture is enabled).
+- Local files: drag-and-drop, native open file panel. Supported formats: any audio/video container readable by AVFoundation (`m4a`, `mp3`, `wav`, `aac`, `caf`, `aiff`, `mp4`, `mov`).
+- Watched folders, including iCloud Drive directories (with automatic dateless `.icloud` placeholder download handling).
+- `whisper.cpp` + `large-v3-turbo` + Silero VAD v6.2.0; language: automatic detection or user-specified.
+- Batch modes: multi-source → single merged `.txt`, or individual `.txt` titled after each item, or both.
+- SQLite persistence, crash recovery, automatic cleanup, sleep prevention during transcription.
+- Menu Bar icon helper: processing continues seamlessly in the background when the main window is closed.
+- `ToolManager`: downloads, validates, and manages isolated `yt-dlp` and `Deno` binaries.
+- `ModelManager`: downloads and verifies Whisper models locally.
+- Sparkle 2 updater, Developer ID signing, and notarization compatibility.
 
-| Konu | Karar |
-| --- | --- |
-| Dil / UI | Swift 6, SwiftUI; gerektiğinde AppKit (NSPasteboard, NSStatusItem, NSApp activation policy) |
-| Dağıtım | Developer ID imzalı, Hardened Runtime, notarize edilmiş DMG. App Sandbox **kapalı**. |
-| Transkripsiyon | whisper.cpp resmi `whisper.xcframework` (sabit sürüm, ör. v1.8.3 veya testten geçen son sürüm), Metal açık, Core ML kapalı |
-| Model | `ggml-large-v3-turbo.bin` (f16, 1,62 GB) RAM ≥ 16 GB ise; `ggml-large-v3-turbo-q5_0.bin` (574 MB) RAM < 16 GB ise. VAD: `ggml-silero-v6.2.0.bin`. Kaynak: Hugging Face `ggerganov/whisper.cpp` ve `ggml-org/whisper-vad`. SHA-256 değerleri kodda sabit. |
-| Ses çözme | AVFoundation (`AVAudioFile` / `AVAssetReader`) → 16 kHz mono Float32 PCM, bellekte. FFmpeg yok. |
-| YouTube | Resmi `yt-dlp_macos` executable'ı + Deno, ToolManager ile `~/Library/Application Support/<bundle-id>/Tools/` altına indirilir. Process ile çağrılır. |
-| Veritabanı | SQLite, GRDB.swift, WAL modu, `DatabaseMigrator` |
-| Log | `os.Logger` (subsystem = bundle id) + dönen dosya log (`Logs/app.log`, 5 MB × 3) |
-| Arka plan | Ayrı helper yok. Tek süreç; pencere kapanınca `NSApp.setActivationPolicy(.accessory)`. Login'de başlatma: `SMAppService.mainApp`. |
-| Uyku | Batch aktifken `ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason:)` |
-| Güncelleme | Uygulama: Sparkle 2 (EdDSA). Araçlar: ToolManager. Model: ModelManager. |
-| Bundle ID | `com.<geliştirici>.TranskriptHub` (yer tutucu; kullanıcıya sor) |
+**v1.1 (Future Considerations)**
+- Voice Memos Share Extension; Voice Memos Group Container direct watcher with Full Disk Access.
+- SRT / VTT / JSON structured export formats, RSS / podcast feeds, Core ML encoder acceleration.
 
-### 4. Modüller ve sorumluluklar
+**Out of Scope**
+- Windows / Linux / iOS, cloud-based transcription, remote LLM summarization, speaker diarization, automated translation, account authentication / paywalls, Mac App Store sandboxed distribution, Intel Macs.
+
+---
+
+### 3. Core Architectural Decisions
+
+| Topic | Decision |
+|---|---|
+| **Language & UI** | Swift 6, SwiftUI; AppKit where necessary (`NSPasteboard`, `NSStatusItem`, `NSApp` activation policy) |
+| **Distribution** | Developer ID signed, Hardened Runtime, notarized DMG. App Sandbox **disabled**. |
+| **Transcription Engine** | Official `whisper.xcframework` (C/C++ runtime), Metal GPU acceleration enabled, Core ML disabled |
+| **Model** | `ggml-large-v3-turbo.bin` (f16, 1.62 GB) for RAM ≥ 16 GB; `ggml-large-v3-turbo-q5_0.bin` (574 MB) for RAM < 16 GB. VAD: `ggml-silero-v6.2.0.bin`. Source: Hugging Face `ggerganov/whisper.cpp` & `ggml-org/whisper-vad`. Fixed SHA-256 manifests. |
+| **Audio Decoding** | AVFoundation (`AVAudioFile` / `AVAssetReader`) → 16 kHz mono Float32 PCM in-memory. Zero FFmpeg dependency. |
+| **YouTube Fetch** | Official `yt-dlp_macos` executable + Deno managed by `ToolManager` under `~/Library/Application Support/<bundle-id>/Tools/`. Executed via `Process`. |
+| **Database** | SQLite via GRDB.swift, WAL mode, strictly ordered `DatabaseMigrator`. |
+| **Logging** | `os.Logger` (subsystem = bundle ID) + rolling file log (`Logs/app.log`, 5 MB × 3). |
+| **Background Execution** | Single-process architecture; window closure sets `NSApp.setActivationPolicy(.accessory)`. Login item: `SMAppService.mainApp`. |
+| **Sleep Prevention** | While batches are active: `ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason:)`. |
+| **Updates** | Application: Sparkle 2 (EdDSA). Tools: `ToolManager`. Models: `ModelManager`. |
+
+---
+
+### 4. Modules and Responsibilities
 
 ```
 TranskriptHub (Xcode app target)
-├── App/            TranskriptHubApp, AppDelegate (menü çubuğu, activation policy), DependencyContainer
-├── Features/       Capture, Processing, History, Settings, Onboarding (SwiftUI)
-└── TranskriptHubCore (Swift package, UI yok)
-    ├── Database/        AppDatabase (GRDB), migrations, kayıt tipleri
-    ├── Jobs/            JobManager (actor, orkestratör), JobState, geçiş kuralları
-    ├── Sources/         SourceInput, URLParser, YouTubeAdapter, LocalFileAdapter, FolderWatcher
+├── App/            TranskriptHubApp, AppDelegate (menu bar, activation policy), AppViewModel
+├── DesignSystem/   LiquidGlass, VisualEffectView, responsive layout modifiers
+├── Models/         QueueItem, HistoryItem, BatchScopeSelection
+├── Views/          ContentView, SidebarView, QueueListView, HistoryListView, WatchedFolderView, FloatingSettingsSheet
+└── TranskriptHubCore (Pure Swift package, no UI dependencies)
+    ├── Database/        AppDatabase (GRDB), migrations, database record types
+    ├── Jobs/            JobManager (actor orchestrator), JobState, transition rules
+    ├── Sources/         SourceInput, URLParser, YouTubeMetadataResolver, FolderWatcher
     ├── Tools/           ToolManager (yt-dlp, Deno), YTDLPClient
-    ├── Audio/           AudioDecoder (AVFoundation → PCM), AudioValidator
-    ├── Transcription/   TranscriptionEngine (protokol), WhisperCppEngine, ModelManager, TranscriptPostProcessor
+    ├── Audio/           AudioDecoder (AVFoundation → PCM), AudioValidator, PreparedAudio
+    ├── Transcription/   TranscriptionEngine (protocol), WhisperCppEngine, ModelManager, TranscriptPostProcessor, WhisperModelCatalog
+    ├── Cache/           TranscriptCacheManager (smart deduplication by title, duration, external ID)
     ├── Batch/           BatchAssembler, OutputFormatter (Format-Version 1)
-    ├── Output/          OutputWriter (atomik yazım, ad sanitizasyonu, çakışma)
+    ├── Output/          OutputWriter (atomic write, filename sanitization, collision handling)
     ├── Cleanup/         CleanupManager
-    ├── System/          SleepGuard, DiskSpaceChecker, ClipboardMonitor, Notifications
+    ├── Permissions/     FullDiskAccessHelper
+    ├── System/          ClipboardMonitor, SleepGuard, DiskSpaceChecker
     └── Logging/         Log, DiagnosticsExporter
 ```
 
-Ana protokoller:
+Core Protocols:
 
 ```swift
-protocol SourceAdapter: Sendable {
+public protocol SourceAdapter: Sendable {
     func canHandle(_ input: SourceInput) -> Bool
-    func resolve(_ input: SourceInput) async throws -> ResolvedSource      // metadata
+    func resolve(_ input: SourceInput) async throws -> ResolvedSource
 }
 
-protocol MediaFetcher: Sendable {
+public protocol MediaFetcher: Sendable {
     func fetch(_ source: ResolvedSource, into workspace: URL,
-               progress: @Sendable (Double) -> Void) async throws -> URL   // yerel ses dosyası
+               progress: @Sendable (Double) -> Void) async throws -> URL
 }
 
-protocol TranscriptionEngine: Sendable {
+public protocol TranscriptionEngine: Sendable {
     func transcribe(_ audio: PreparedAudio, options: TranscriptionOptions,
                     progress: @Sendable (Double) -> Void) async throws -> TranscriptResult
 }
 
-struct TranscriptionOptions: Sendable {
-    var language: String?        // nil = auto
-    var useVAD: Bool             // varsayılan true
-    var threads: Int             // varsayılan: performans çekirdeği sayısı
-    var initialPrompt: String?   // isteğe bağlı terim listesi
+public struct TranscriptionOptions: Sendable {
+    public var language: String?        // nil = auto
+    public var useVAD: Bool             // default true
+    public var threads: Int             // default: performance core count
+    public var initialPrompt: String?   // optional terminology hints
 }
 
-struct TranscriptResult: Sendable {
-    var segments: [Segment]      // start, end (saniye), text
-    var detectedLanguage: String?
+public struct TranscriptResult: Sendable {
+    public var segments: [Segment]      // start, end (seconds), text
+    public var detectedLanguage: String?
 }
 ```
 
-### 5. Veri modeli (SQLite)
+---
+
+### 5. Data Model (SQLite)
 
 ```sql
 CREATE TABLE batch (
   id              TEXT PRIMARY KEY,           -- UUID
   created_at      TEXT NOT NULL,              -- ISO-8601
   kind            TEXT NOT NULL,              -- 'youtube' | 'files' | 'mixed'
-  expected_count  INTEGER NOT NULL,           -- oluşturulurken sabitlenir, sonradan hesaplanmaz
+  expected_count  INTEGER NOT NULL,           -- Fixed at creation
   state           TEXT NOT NULL,              -- active | assembling | completed | completedWithErrors | cancelled
   language        TEXT,                       -- NULL = auto
   output_path     TEXT,
@@ -126,11 +141,11 @@ CREATE TABLE batch (
 CREATE TABLE job (
   id              TEXT PRIMARY KEY,           -- UUID
   batch_id        TEXT NOT NULL REFERENCES batch(id) ON DELETE CASCADE,
-  sequence        INTEGER NOT NULL,           -- 1..N, kullanıcının gördüğü sıra
+  sequence        INTEGER NOT NULL,           -- 1..N sequence observed by user
   source_type     TEXT NOT NULL,              -- youtube | localFile | watchedFolder
   source_url      TEXT,
   source_path     TEXT,
-  external_id     TEXT,                       -- YouTube video id
+  external_id     TEXT,                       -- YouTube video ID or unique hash
   title           TEXT,
   creator         TEXT,
   duration_sec    REAL,
@@ -148,11 +163,22 @@ CREATE TABLE job (
 
 CREATE TABLE transcript_section (
   job_id     TEXT PRIMARY KEY REFERENCES job(id) ON DELETE CASCADE,
-  text       TEXT NOT NULL,                   -- post-process edilmiş paragraflı metin
-  segments   TEXT                             -- JSON (zaman damgaları için)
+  text       TEXT NOT NULL,                   -- Post-processed paragraph text
+  segments   TEXT                             -- JSON serialized segments with timestamps
 );
 
-CREATE TABLE session_item (                   -- pano/yapıştırma ile toplanan, henüz gönderilmemiş linkler
+CREATE TABLE transcript_cache (
+  id              TEXT PRIMARY KEY,
+  external_id     TEXT,
+  title           TEXT NOT NULL,
+  duration_sec    REAL,
+  text            TEXT NOT NULL,
+  segments_json   TEXT,
+  detected_lang   TEXT,
+  created_at      TEXT NOT NULL
+);
+
+CREATE TABLE session_item (
   id          TEXT PRIMARY KEY,
   position    INTEGER NOT NULL,
   url         TEXT NOT NULL,
@@ -162,7 +188,7 @@ CREATE TABLE session_item (                   -- pano/yapıştırma ile toplanan
   added_at    TEXT NOT NULL
 );
 
-CREATE TABLE history (                         -- medya içermeyen hafif geçmiş, ayarla kapatılabilir
+CREATE TABLE history (
   external_id TEXT PRIMARY KEY,
   title       TEXT,
   output_path TEXT,
@@ -175,140 +201,103 @@ CREATE TABLE watched_folder (
 );
 ```
 
-### 6. Job durum makinesi
+---
 
-Durumlar: `queued → fetching → fetched → transcribing → transcribed → completed`; hata yolu: `retryWaiting`, `failed`; kullanıcı: `cancelled`.
+### 6. Job State Machine
 
-Kurallar:
-- Geçişler yalnız `JobManager` actor'ü içinde ve DB transaction'ı ile yapılır. İzin verilmeyen geçiş = programlama hatası (assert + log).
-- `fetched`: ses dosyası workspace'te ve doğrulanmış. `transcribed`: `transcript_section` satırı yazılmış.
-- Terminal durumlar: `completed`, `failed`, `cancelled`.
-- Batch, tüm job'ları terminal olduğunda `assembling` olur → final dosya yazılır → `completed` (hiç failed yoksa) veya `completedWithErrors`.
-- Her aşamanın zaman aşımı var (§12). Aşılırsa hata = `timeout`, retry tablosuna göre.
+Lifecycle states: `queued → fetching → fetched → transcribing → transcribed → completed`; error paths: `retryWaiting`, `failed`; user intervention: `cancelled`.
 
-Recovery (uygulama başlarken, UI'dan önce):
-- `fetching` → workspace'teki yarım dosyayı sil, `queued`.
-- `fetched` → olduğu gibi kalır (yeniden indirilmez).
-- `transcribing` → `fetched` (transkripsiyon baştan; kısmi sonuç tutulmaz).
-- `transcribed` → olduğu gibi kalır.
-- `assembling` batch → yeniden assemble.
-- DB'de olmayan workspace klasörleri ve `.partial` dosyaları → sil.
+Rules:
+- State transitions are executed exclusively within the `JobManager` actor inside SQLite database transactions. Invalid transitions raise assertions and error logs.
+- `fetched`: media file verified in local workspace. `transcribed`: `transcript_section` committed to SQLite.
+- Terminal states: `completed`, `failed`, `cancelled`.
+- When all jobs within a batch reach terminal states, the batch transitions to `assembling` → output written to disk → `completed` (if 0 failures) or `completedWithErrors`.
 
-### 7. İşlem hattı ve eşzamanlılık
+Crash Recovery:
+- `fetching` → workspace partial files removed, reset to `queued`.
+- `fetched` → retained as-is (never re-downloaded).
+- `transcribing` → reset to `fetched` (re-transcribed from scratch).
+- `transcribed` → retained as-is.
+- `assembling` batch → re-assembled.
+- Unreferenced workspace folders and `.partial` files are purged.
+
+---
+
+### 7. Pipeline and Concurrency
 
 ```
-[queued] --(FetchQueue, max 2 paralel YouTube / 4 yerel)--> [fetched]
-[fetched] --(TranscribeQueue, tek seferde 1)--> [transcribed]
-tüm job'lar terminal --> BatchAssembler --> OutputWriter --> CleanupManager
+[queued] --(FetchQueue: max 2 concurrent YouTube / 4 local)--> [fetched]
+[fetched] --(TranscribeQueue: strictly 1 at a time on Metal GPU)--> [transcribed]
+All jobs terminal --> BatchAssembler --> OutputWriter --> CleanupManager
 ```
 
-- İndirme ve transkripsiyon birbirini beklemez: video 1 transkript edilirken video 2–3 iner (Buzz'a "hepsini bırak" davranışının native karşılığı).
-- TranscribeQueue sırası: önce `sequence` küçük olan, batch'ler arasında FIFO.
-- whisper context'i bir kez yüklenir ve batch boyunca yeniden kullanılır; 10 dk boşta kalırsa bellekten atılır.
-- YouTube istekleri arasında 1–3 sn rastgele bekleme.
-- Yeni batch, aktif batch sürerken eklenebilir; kuyruğa girer.
+- Ingestion and transcription run asynchronously: video 1 transcribes while videos 2–3 download in parallel.
+- Transcription queue order: ascending `sequence`, FIFO across batches.
+- Single Whisper context instance maintained on Metal GPU during batch runs; freed after 10 minutes of inactivity.
+- YouTube network calls include randomized 1–3s jitter intervals.
 
-### 8. Modül detayları
+---
 
-**8.1 URLParser**
-- `URLComponents` kullan, regex değil. Kabul edilen hostlar: `youtube.com`, `www.youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`, `www.youtube-nocookie.com`.
-- Yollar: `/watch?v=ID`, `youtu.be/ID`, `/shorts/ID`, `/live/ID`, `/embed/ID`. ID = tam 11 karakter `[A-Za-z0-9_-]`.
-- `list=` parametresi yok sayılır (oynatma listesi genişletme v1'de yok); `t=` yok sayılır.
-- Kanonik URL: `https://www.youtube.com/watch?v=ID`.
-- Bir metin içinde birden fazla link varsa hepsini çıkar (çoklu yapıştırma).
-- Unit test: en az 25 geçerli + 15 geçersiz örnek (alan adı taklidi `youtube.com.evil.com`, 10/12 karakter ID, boş, `?v=` başka sitede vb.).
+### 8. Module Specifications
 
-**8.2 ClipboardMonitor**
-- Yalnız ana pencere açıkken ve "Yakalama" anahtarı açıkken çalışır; 0,75 sn'de bir `NSPasteboard.general.changeCount` kontrol eder.
-- Değişiklik varsa: tür listesinde `org.nspasteboard.ConcealedType` veya `org.nspasteboard.TransientType` varsa hiç okuma (şifre yöneticileri).
-- macOS 15.4+ ise önce `detect` API'si ile URL olasılığına bak; yoksa okuma. Varsa `string(forType: .string)` oku.
-- `accessBehavior` "her zaman reddet" ise yakalama alanında açıklama + "Sistem Ayarlarını Aç" butonu göster.
-- Bulunan her geçerli ID `session_item`'a eklenir (aynı ID ikinci kez eklenmez, kısa "zaten listede" bildirimi). Liste uygulama kapanıp açılsa da korunur.
-- Eklenen link için arka planda hafif metadata çekilir (başlık, süre) ve listede gösterilir; başarısızsa link yine eklenir, başlık "Bilinmiyor".
+#### 8.1 URLParser
+- Uses `URLComponents` parsing (not brittle regex). Valid hosts: `youtube.com`, `www.youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`, `www.youtube-nocookie.com`.
+- Recognized paths: `/watch?v=ID`, `youtu.be/ID`, `/shorts/ID`, `/live/ID`, `/embed/ID`. ID must match exactly 11 characters `[A-Za-z0-9_-]`.
+- Extracts multiple URLs from arbitrary text bodies (bulk paste).
+- Canonical URL format: `https://www.youtube.com/watch?v=ID`.
 
-**8.3 ToolManager**
-- Yönetilen araçlar: `yt-dlp` (GitHub `yt-dlp/yt-dlp` releases, `yt-dlp_macos` dosyası, doğrulama: aynı release'teki `SHA2-256SUMS`) ve `deno` (GitHub `denoland/deno` releases, `deno-aarch64-apple-darwin.zip`, release'teki `.sha256sum` dosyası). Yükleme yeri: `Tools/<araç>/<sürüm>/`, aktif sürüm `Tools/<araç>/current` sembolik linki.
-- İlk açılışta (onboarding) indirilir. Sonra: uygulama açılışında en fazla günde 1 kez sürüm kontrolü; yeni sürüm varsa sessizce indir, doğrula, `current`'ı atomik değiştir, eski sürümün 1 tanesini geri dönüş için sakla.
-- yt-dlp çağrısı `--js-runtimes deno:<deno yolu>` ile yapılır (yt-dlp'nin resmi EJS dokümantasyonuna göre; sürüm değişirse güncel bayrağı kontrol et).
-- YouTube çıkarma hatası (`extractorError`, "Sign in to confirm", 403) alındığında: son 6 saatte güncelleme kontrolü yapılmadıysa hemen güncelle, sonra job'u 1 kez tekrar dene.
-- Settings'te: araç sürümleri, son kontrol, "Şimdi güncelle", "Önceki sürüme dön".
-- İndirme kaynakları ve doğrulama yöntemi kodda tek yerde tanımlı olsun (gelecekte değiştirilebilir).
+#### 8.2 ClipboardMonitor
+- Runs on a 0.75s polling timer tracking `NSPasteboard.general.changeCount`.
+- Ignores entries containing `org.nspasteboard.ConcealedType` or `org.nspasteboard.TransientType` (protecting password managers).
+- Resolves lightweight video metadata asynchronously and adds entries to the queue.
 
-**8.4 YTDLPClient (YouTube fetch)**
-- Tek çağrı, metadata + indirme birlikte:
+#### 8.3 ToolManager
+- Manages standalone `yt-dlp` and `Deno` binaries under `~/Library/Application Support/<bundle-id>/Tools/`.
+- Verifies SHA-256 checksums against official upstream release manifests before deployment.
+- Calls `yt-dlp` with `--js-runtimes deno:<path>`.
+- Auto-updates tools on extraction failures (`extractorError`, HTTP 403) if not checked within 6 hours.
 
-```text
-yt-dlp --no-playlist --newline --socket-timeout 30 --retries 3 \
-  -f "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/18" \
-  -o "<workspace>/input.%(ext)s" \
-  --no-simulate --print "%(.{id,title,channel,duration,ext})#j" \
-  --progress --progress-template "download:%(progress._percent_str)s" \
-  --js-runtimes deno:<deno yolu> <url>
-```
+#### 8.4 YTDLPClient (YouTube Audio Ingestion)
+- Executes command:
+  ```bash
+  yt-dlp --no-playlist --newline --socket-timeout 30 --retries 3 \
+    -f "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/18" \
+    -o "<workspace>/input.%(ext)s" \
+    --no-simulate --print "%(.{id,title,channel,duration,ext})#j" \
+    --progress --progress-template "download:%(progress._percent_str)s" \
+    --js-runtimes deno:<deno_path> <url>
+  ```
+- Parses JSON metadata and progress percentage strings from standard output.
+- Classifies errors into structured categories: `videoUnavailable`, `ageRestricted`, `botCheck`, `network`, `noAudioFormat`, `unknown`.
 
-- stdout satırları ayrıştırılır: JSON satırı = metadata, yüzde satırları = ilerleme. stderr log'a yazılır (URL'ler log'da kalabilir, transcript asla). Bayrak kombinasyonu M2'de gerçek çıktıyla doğrulanır.
-- Format 18 seçilirse (mp4 video+ses) AVFoundation ses izini okur; ek dönüşüm yok.
-- Süreç zaman aşımı: 15 dk veya (süre × 0,5), hangisi büyükse; aşılırsa süreci SIGTERM, 5 sn sonra SIGKILL.
-- Çıkış kodu + stderr içeriğine göre hata sınıflandır: `videoUnavailable` (private/silinmiş), `ageRestricted`, `botCheck`, `network`, `noAudioFormat`, `unknown`.
-- Ayarlarda gelişmiş seçenek: "IPv4 zorla" (`-4`).
+#### 8.5 LocalFileAdapter & FolderWatcher
+- Uses APFS `clonefile` for instantaneous, zero-copy local file ingestion.
+- `FolderWatcher` monitors via `FSEventStreamCreate` and scans on launch.
+- Handles iCloud dataless placeholder files (`.icloud`) via `FileManager.startDownloadingUbiquitousItem(at:)`.
+- Validates file stability across 3-second measurement windows.
 
-**8.5 LocalFileAdapter ve FolderWatcher**
-- Sürükle-bırak/seçilen dosya workspace'e **kopyalanır** (APFS'te `clonefile` ile anında). Orijinal salt okunur.
-- FolderWatcher: FSEvents (`FSEventStreamCreate`, file-level events). Uygulama açılışında da klasör bir kez taranır (kaçan olaylar için).
-- Yeni dosya kabul kuralları (legacy iCloud scriptinin native karşılığı):
-  1. Uzantı izin listesinde mi (varsayılan: m4a, mp3, wav, aac, caf, aiff, mp4, mov)?
-  2. Gizli dosya, `.part`, `.download`, `.icloud` ise atla.
-  3. iCloud dataless ise (`URLResourceValues.ubiquitousItemDownloadingStatus != .current`) → `FileManager.startDownloadingUbiquitousItem(at:)` çağır, tamamlanınca tekrar değerlendir.
-  4. Boyut stabil mi: 2 ölçüm arası 3 sn, boyut aynı ve > 0.
-  5. Workspace'e kopyala (`input.<ext>.partial` → rename).
-  6. `AudioValidator` ile aç: ses izi var mı, süre > 1 sn mi.
-  7. Job oluştur. Aynı dosya (yol + boyut + değişiklik tarihi) için ikinci job açma.
-- İzlenen klasördeki her dosya tek kaynaklı batch olur ve kendi adıyla TXT üretir. Eşleştirme her zaman job ID ile, asla dosya adı önekiyle.
-- "Başarılı transkriptten sonra orijinali sil" ayarı klasör başına, varsayılan **kapalı**. Açıksa silme yalnız final TXT doğrulandıktan ve boş olmadığı kontrol edildikten sonra, dosyayı Çöp Kutusu'na taşıyarak (`FileManager.trashItem`), kalıcı silme değil.
+#### 8.6 AudioDecoder
+- Uses `AVAudioFile` and `AVAudioConverter` to convert arbitrary audio containers into 16 kHz mono Float32 PCM arrays.
+- Splits recordings longer than 3 hours into 30-minute processing chunks with time-offset aggregation.
 
-**8.6 AudioDecoder**
-- Girdi: workspace'teki dosya. Çıktı: `PreparedAudio { samples: [Float] (16 kHz mono), duration }`.
-- `AVAudioFile` + `AVAudioConverter` ile 16 kHz mono Float32'ye çevir. Çözülemezse `unsupportedMedia`.
-- 3 saati aşan seslerde 30 dk'lık parçalar halinde ver (2 sn örtüşme yok; VAD sınırları yeterli) ve `TranscriptResult`'ları zaman ofsetiyle birleştir.
+#### 8.7 WhisperCppEngine
+- Initialized with `whisper_init_from_file_with_params` (Metal GPU enabled).
+- Utilizes Silero VAD v6.2.0 for precise silence suppression.
+- Reports real-time token progress via `progress_callback` and streaming decoded segments to the UI.
 
-**8.7 WhisperCppEngine**
-- `whisper_init_from_file_with_params` (use_gpu = true), parametreler: `WHISPER_SAMPLING_GREEDY` yerine beam search 5 (Buzz/CLI varsayılanına yakın kalite için; Milestone 1'de iki seçenek ölçülüp karar verilir), `language` = seçilen veya `"auto"`, `translate = false`, `no_timestamps = false`, `print_*` = false, VAD açık + `vad_model_path`, thread sayısı = performans çekirdeği sayısı.
-- `progress_callback` ile yüzde, `abort_callback` ile iptal desteği.
-- Context tek bir actor içinde; aynı anda tek transkripsiyon.
-- Çıktı segmentleri `TranscriptPostProcessor`'a gider.
+#### 8.8 TranscriptPostProcessor
+- Cleans whitespace and strips hallucinated noise tags (`[BLANK_AUDIO]`, `[Music]`, `(applause)`).
+- Repetition loop break: detects identical consecutive segment repeats ($\ge 3$ iterations) and suppresses hallucinations.
+- Paragraph formatting: breaks into structured paragraphs based on $\ge 1.5$s silence boundaries or ~600 character sentence thresholds.
 
-**8.8 TranscriptPostProcessor**
-- Baş/son boşlukları temizle, `[BLANK_AUDIO]`, `[Music]`, `(müzik)` gibi etiket satırlarını kaldır (ayarla kapatılabilir).
-- Tekrar döngüsü tespiti: aynı normalize edilmiş segment metni art arda ≥ 3 kez geliyorsa ilkini tut, diğerlerini at ve log'a uyarı yaz.
-- Paragraflama: segmentler arasında ≥ 1,5 sn sessizlik veya paragraf ~600 karakteri geçtiyse ve segment cümle sonu ile bitiyorsa yeni paragraf.
-- İsteğe bağlı: her paragrafın başına `[HH:MM:SS]` (ayar, varsayılan kapalı).
+#### 8.9 OutputWriter & Format-Version 1
+- Writes output atomically: creates `.<filename>.partial`, flushes via `FileHandle.synchronize()`, validates UTF-8 content, and atomically renames.
+- Filename sanitization: replaces invalid characters (`/ : \ * ? " < > |`) with hyphens, trims whitespace, limits length to 150 graphemes.
+- Non-destructive collision handling: appends `(2)`, `(3)` if target filename exists. Never overwrites user files.
 
-**8.9 BatchAssembler + OutputFormatter**
-- Bölümler `ORDER BY sequence`. Başarısız job'lar da bölüm olarak yer alır.
-- Format kesin olarak §9'daki gibi.
+---
 
-**8.10 OutputWriter**
-- Çıktı klasörü varsayılan: `~/Library/Mobile Documents/com~apple~CloudDocs/Transkript/` (yoksa oluştur; iCloud Drive kapalıysa `~/Documents/Transkript/`). Ayarlardan değiştirilebilir.
-- Dosya adı: tek kaynak → `<başlık>.txt`; çoklu → `YouTube - <N> Video - <YYYY-MM-DD>.txt` (yerel dosya batch'inde `Ses - <N> Dosya - <YYYY-MM-DD>.txt`).
-- Sanitizasyon: `/ : \ * ? " < > |` ve kontrol karakterleri → `-`; baş/son boşluk ve nokta temizlenir; ardışık boşluk teke iner; en fazla 150 karakter (uzantı hariç, Unicode grapheme bazlı kesim); boşsa `Transkript`.
-- Çakışma: dosya varsa ` (2)`, ` (3)`… eki; **asla üzerine yazma** (yeniden üretim hariç: aynı batch'in "tekrar dene" sonrası kendi dosyası değiştirilir).
-- Atomik yazım: aynı klasörde `.<ad>.partial` → `FileHandle.synchronize()` → geri oku ve uzunluk/UTF-8 doğrula → `rename`. Encoding UTF-8 (BOM yok), satır sonu `\n`.
-- Yazım hatası (`outputWriteFailure`): dosya Application Support'taki `Outbox/` klasörüne yazılır, kullanıcıya bildirim ve "Kaydet…" seçeneği; temizlik yapılmaz.
-
-**8.11 CleanupManager**
-- Sıra (değiştirilemez): final yazıldı ve doğrulandı → DB'de batch `completed`/`completedWithErrors` → job workspace klasörleri silinir → `transcript_section` satırları silinir (ayar "geçmişte metni tut" kapalıysa) → batch `cleaned_at` set.
-- Başarısız job'ların workspace'i de silinir (ses tutulmaz) ama `job` satırı hata bilgisiyle 7 gün kalır (Retry için yeniden indirir).
-- Uygulama açılışında: 7 günden eski terminal batch'ler ve job'lar silinir; sahipsiz workspace'ler silinir.
-- Hedef: başarılı batch sonrası `Jobs/` klasörü boş.
-
-**8.12 SleepGuard, DiskSpaceChecker, Notifications**
-- SleepGuard: aktif job varken activity açık, kuyruk boşalınca kapanır.
-- DiskSpaceChecker: indirme öncesi `volumeAvailableCapacityForImportantUsage` ≥ tahmini boyut (yoksa süre × 1 MB/dk) + 1 GB; değilse job `retryWaiting` (insufficientDiskSpace) + bildirim.
-- Bildirimler (UserNotifications): batch bitti (dosyayı aç aksiyonu), batch hatalarla bitti, araç güncellemesi başarısız, bot tespiti nedeniyle duraklatıldı.
-
-### 9. Çıktı formatı (Format-Version 1)
-
-Çoklu batch:
+### 9. Output Format Specification (Format-Version 1)
 
 ```
 TRANSKRIPT HUB EXPORT
@@ -324,163 +313,29 @@ Model: large-v3-turbo (f16), VAD: on, Language: auto
 ====================================================================
 VIDEO 1 / 5
 ====================================================================
-TITLE: …
-CHANNEL: …
+TITLE: Machine Learning Lecture 1
+CHANNEL: Stanford Online
 DURATION: 15:14
 URL: https://www.youtube.com/watch?v=…
-LANGUAGE: tr
+LANGUAGE: en
 
 TRANSCRIPT
 
-<paragraflar, aralarında boş satır>
+<Formatted paragraphs separated by blank lines>
 
 ====================================================================
 VIDEO 2 / 5
 ====================================================================
-TITLE: …
-URL: …
-STATUS: İŞLENEMEDİ — Video kullanılamıyor (silinmiş veya gizli)
+TITLE: Private Research Briefing
+URL: https://www.youtube.com/watch?v=…
+STATUS: FAILED — Video unavailable (deleted or private)
 ```
 
-- Tek kaynakta da aynı başlık bloğu + tek bölüm kullanılır (dosya adı başlıktır).
-- Yerel dosyada `VIDEO` yerine `ITEM`, `CHANNEL/URL` yerine `FILE: <orijinal ad>`.
-- Legacy fixture'daki `VIDEO x / N` düzeni korunur; regresyon testi bunu kontrol eder.
+---
 
-### 10. Dosya sistemi yerleşimi
+### 10. Privacy & Security Guarantees
 
-```
-~/Library/Application Support/<bundle-id>/
-├── Database/jobs.sqlite (+ -wal, -shm)
-├── Models/ggml-large-v3-turbo.bin, ggml-silero-v6.2.0.bin
-├── Tools/yt-dlp/<sürüm>/, Tools/deno/<sürüm>/, current linkleri
-├── Jobs/<job-uuid>/input.m4a (yalnız işlem sırasında)
-├── Outbox/ (yalnız çıktı klasörü yazılamazsa)
-└── Logs/app.log
-```
-
-- Teknik durum asla iCloud'a yazılmaz. iCloud'a yalnız final TXT gider.
-
-### 11. Kullanıcı arayüzü
-
-**Ana pencere (tek pencere, iki sekme: "Linkler" ve "Dosyalar")**
-- Linkler: üstte yakalama anahtarı ("Panoyu izle", açık/kapalı göstergesi) + çok satırlı yapıştırma alanı. Altta oturum listesi: sıra no, başlık, kanal, süre, kaldır butonu, sürükle-bırak ile yeniden sıralama. Altta: dil seçimi (Otomatik / Türkçe / Almanca / İngilizce / diğer…), "Listeyi temizle", birincil buton "N videoyu transkript et".
-- Dosyalar: büyük bırakma alanı + "Dosya seç". Bırakılan dosyalar hemen tek tek job olur (ayar: "birden fazla dosyayı tek TXT'de birleştir", varsayılan kapalı).
-- Alt şeritte işlem durumu: aktif batch'ler, her job için durum + ilerleme yüzdesi, tahmini kalan süre (son 3 job'un gerçek zamanlı oranından).
-- "Gönder" sonrası davranış (ayar): Pencereyi kapat ve arka planda devam et (varsayılan) / Pencereyi açık tut. Ek ayar: "Kuyruk bitince uygulamadan çık" (varsayılan açık: legacy davranış "worker kapandı").
-
-**Menü çubuğu**
-- İkon: boşta sade, iş varken ilerleme göstergesi. Menü: aktif batch özeti, "Pencereyi aç", "Duraklat/Devam", son 5 çıktı (tıkla = aç), "Çık" (iş varsa onay: "Devam eden işler kaydedildi, sonra devam eder").
-
-**Geçmiş**
-- Son batch'ler: tarih, öğe sayısı, durum, "Aç", "Finder'da göster", hatalı batch'te "Başarısızları tekrar dene".
-
-**Onboarding (ilk açılış, 4 adım)**
-1. Kısa tanıtım + kullanım koşulu onayı: "Yalnız indirme ve transkripsiyon hakkın olan içerikleri işle."
-2. Çıktı klasörü seçimi (varsayılan iCloud Drive/Transkript).
-3. Model + araç indirme (ilerleme çubuğu, toplam boyut gösterilir; RAM'e göre model önerisi, değiştirilebilir).
-4. Bildirim izni. (Pano izni macOS sorduğunda kullanıcıya ne seçmesi gerektiğini anlatan kısa not.)
-
-**Ayarlar**
-- Genel: çıktı klasörü, gönder sonrası davranış, kuyruk bitince çık, login'de başlat.
-- Transkripsiyon: model (f16 / q8_0 / q5_0), varsayılan dil, VAD, zaman damgaları, müzik/etiket satırlarını kaldır, başlangıç ipucu (terim listesi).
-- YouTube: paralel indirme (1–3, varsayılan 2), IPv4 zorla, aynı video başka batch'te: Sor / İzin ver / Atla (varsayılan Sor).
-- Kaynaklar: izlenen klasörler listesi (ekle/kaldır/aç-kapa, uzantılar, orijinali çöpe taşı).
-- Gizlilik ve temizlik: geçmişi tut (açık), transkript metnini geçmişte tut (kapalı), "Tüm geçici verileri şimdi temizle".
-- Araçlar ve modeller: sürümler, güncelle, geri dön, disk kullanımı.
-- Tanılama: "Tanılama paketi oluştur" (log + hata özetleri + sistem bilgisi; transcript metni ve URL'ler maskelenmiş).
-
-### 12. Hata modeli ve yeniden deneme
-
-| error_kind | Örnek | Yeniden deneme | Kullanıcıya |
-| --- | --- | --- | --- |
-| invalidURL | YouTube olmayan link | Yok | Listeye hiç eklenmez |
-| videoUnavailable | Silinmiş/gizli video | Yok | TXT'de "İŞLENEMEDİ" |
-| ageRestricted | Yaş kısıtlı | Yok | TXT'de "İŞLENEMEDİ — yaş kısıtlı" |
-| botCheck | "Sign in to confirm…", 429 | Araç güncelle → 1 deneme; tekrar olursa tüm YouTube indirmeleri 10 dk duraklat, sonra 1 deneme | Bildirim |
-| network | Zaman aşımı, bağlantı yok | 3 deneme: 5 sn, 30 sn, 2 dk | Gerekirse bildirim |
-| noAudioFormat | Uygun ses formatı yok | Yok | TXT'de |
-| unsupportedMedia | AVFoundation açamıyor | Yok | Dosya için bildirim |
-| insufficientDiskSpace | — | Yer açılınca, 5 dk aralıkla kontrol | Bildirim |
-| modelUnavailable | Model eksik/bozuk | ModelManager yeniden indirir → 1 deneme | Bildirim |
-| transcriptionFailure | whisper hata kodu | 1 deneme | TXT'de |
-| timeout | Aşama süresi aşıldı | 1 deneme | TXT'de |
-| outputWriteFailure | Klasör yok/izin yok | Outbox'a yaz | Bildirim + "Kaydet…" |
-
-Zaman aşımları: indirme §8.4; transkripsiyon = max(10 dk, ses süresi × 2); assemble = 2 dk.
-
-### 13. İzinler, imza, Info.plist
-
-- Hardened Runtime açık. Entitlement gerekmez (sandbox yok, JIT yok; Deno ayrı süreç ve bundle dışında).
-- Info.plist: `LSMinimumSystemVersion` 14.0, `LSApplicationCategoryType` productivity, gerekli `NS…UsageDescription` metinleri (Masaüstü/Belgeler/İndirilenler klasörleri için; izlenen klasör eklenirken macOS sorabilir).
-- `LSUIElement` kullanma; activation policy runtime'da değişir.
-- ToolManager'ın indirdiği dosyalar uygulamanın kendisi tarafından yazıldığı için quarantine almaz; yine de çalıştırmadan önce `com.apple.quarantine` xattr'ı varsa kaldır ve SHA-256'yı her güncellemede doğrula.
-- Release pipeline: `xcodebuild archive` → Developer ID ile imza (xcframework dahil) → `notarytool submit --wait` → `stapler staple` → DMG (imzalı + notarize) → Sparkle appcast.
-
-### 14. Gizlilik
-
-- Ses ve transcript hiçbir sunucuya gönderilmez. Ağ yalnız: YouTube indirme, model indirme, araç/uygulama güncelleme kontrolü.
-- Analytics yok, telemetri yok.
-- Log'lara transcript metni asla yazılmaz. Başlık ve URL log'da olabilir; tanılama paketinde maskelenir.
-
-### 15. Test planı
-
-**Unit (Core, ağsız)**
-- URLParser (≥ 40 örnek), dosya adı sanitizasyonu ve çakışma, OutputFormatter (legacy 5-video fixture ile birebir başlık/bölüm düzeni), durum geçiş tablosu (izinli/izinsiz tüm geçişler), recovery kuralları, TranscriptPostProcessor (tekrar döngüsü, paragraflama), CleanupManager sırası, retry/backoff hesapları, yt-dlp stdout/stderr ayrıştırma ve hata sınıflandırma (kaydedilmiş gerçek çıktı örnekleriyle).
-
-**Entegrasyon (fixture dosyalarıyla)**
-- Sahte `MediaFetcher` (yerel HTTP veya dosya kopyası) ile 1, 5, 20, 50 öğelik batch; sıra 1…50 doğru, tek TXT, workspace boş.
-- Gerçek whisper ile: 30 sn Türkçe, 30 sn Almanca, 30 sn İngilizce, 2 dk sessizlik + konuşma, 10 sn müzik (halüsinasyon kontrolü).
-- Arıza enjeksiyonu: indirme ortasında süreç öldürme, transkripsiyon ortasında uygulamayı öldürme (recovery), disk dolu simülasyonu, çıktı klasörü silinmiş, model dosyası bozuk (SHA uyuşmazlığı), aynı video iki kez, 20 videodan 1'i başarısız.
-
-**Manuel (gerçek YouTube, CI'da değil)**
-- 1, 5, 20 video; uyku/uyanma sırasında batch; yeniden başlatma sonrası devam; iCloud dataless dosya.
-
-### 16. Milestone'lar ve kabul kriterleri
-
-**M0 — Referansı dondur (kod yok)**
-- Golden Snapshot (düzeltilmiş sürüm) alınır, repo `docs/legacy-reference/` altına konur, 5-video ve tek video çıktıları `Tests/Fixtures/` altına.
-- Kabul: snapshot'taki finalizer kaynak kodu tam; SHA-256 manifest var.
-
-**M1 — Buzz'sız ilk transcript (CLI)**
-- `transkripthub-cli transcribe sample.m4a` → `sample.txt`. ModelManager + AudioDecoder + WhisperCppEngine + PostProcessor.
-- Kabul: aynı 3 test dosyasında Buzz çıktısına göre kelime hata farkı ≤ %2 puan; işlem süresi Buzz'ın ≤ 1,1 katı; tepe bellek f16'da ≤ 4 GB; greedy vs beam karşılaştırması belgelendi.
-
-**M2 — YouTube tek video (CLI)**
-- ToolManager + YTDLPClient + OutputWriter. `transkripthub-cli youtube <url>` → `Başlık.txt`, workspace boş.
-- Kabul: 10 farklı gerçek videoda (shorts, live arşiv, uzun 1 saat+ dahil) başarı; silinmiş video doğru hata; araç güncelleme ve geri dönüş çalışıyor.
-
-**M3 — Batch + DB + recovery (CLI)**
-- GRDB şeması, JobManager, kuyruklar, BatchAssembler, CleanupManager, recovery.
-- Kabul: 20 linklik batch tek TXT, sıra doğru; ortasında süreç öldürülüp yeniden başlatılınca indirilmiş videolar yeniden inmiyor; 1 bozuk link ile `completedWithErrors` ve TXT'de işaret; sonunda `Jobs/` boş.
-
-**M4 — SwiftUI uygulama**
-- Ana pencere, pano yakalama, oturum listesi, işlem görünümü, menü çubuğu, gönder sonrası arka plan, onboarding, ayarlar, bildirimler, SleepGuard.
-- Kabul: legacy AppleScript uygulamasının tüm davranışları karşılanıyor (link biriktirme, liste kalıcılığı, gönder → pencere kapanır → iş sürer → bitince çıkar).
-
-**M5 — Dosyalar ve izlenen klasörler**
-- Sürükle-bırak, FolderWatcher, iCloud dataless, stabilite, orijinali çöpe taşıma ayarı.
-- Kabul: iPhone'dan iCloud Drive'daki izlenen klasöre bırakılan ses Mac'te otomatik TXT olur; "Memo 1 / Memo 10" adlı dosyalarda yanlış silme yok.
-
-**M6 — Yayın**
-- İmza, notarization, DMG, Sparkle, tanılama paketi, README, THIRD_PARTY_NOTICES (whisper.cpp MIT, GRDB MIT, Sparkle MIT, yt-dlp Unlicense + yt-dlp_macos içindeki bileşenlerin lisansları, Deno MIT, model lisansları).
-- Kabul ("Done" tanımı): temiz bir Mac'te DMG → Applications → aç → onboarding → 20 YouTube linki → pencere kapat → hepsi arka planda iner ve transkript edilir → tek TXT → geçici dosya yok → uygulama kendini kapatır → ortada yeniden başlatma yapılırsa kaldığı yerden devam eder → izlenen klasöre bırakılan ses TXT olur → Terminal hiç açılmadı.
-
-### 17. Yapma listesi
-
-- Buzz, Homebrew, sistem Python'u veya `/opt/homebrew` yollarına bağımlılık.
-- Shell script çağırarak iş yapmak (yalnız yt-dlp ve Deno süreçleri çağrılır).
-- Dosya adına durum kodlamak; durum yalnız DB'de.
-- iCloud'a teknik dosya yazmak.
-- Kullanıcının orijinal dosyasını kalıcı silmek; Voice Memos klasöründe herhangi bir değişiklik yapmak.
-- Transcript metnini log'a yazmak.
-- Final yazılıp doğrulanmadan geçici sesi silmek.
-- Birden fazla whisper context'ini aynı anda yüklemek.
-- YouTube kanallarını/oynatma listelerini otomatik takip etmek.
-- Bu spesifikasyonda olmayan bir bağımlılık eklemek veya mimariyi değiştirmek (önce sor).
-
-### 18. Açık sorular (geliştirmeye başlamadan kullanıcıya sorulacak)
-
-1. Bundle ID ve geliştirici adı ne olacak? Apple Developer Program üyeliği var mı (Developer ID + notarization için gerekli)?
-2. v1 yalnız kişisel kullanım mı, yoksa başkalarına da dağıtılacak mı? (Dağıtılacaksa §13 ve lisans kontrolü zorunlu.)
-3. Tek video çıktısının adı başlık mı kalsın, yoksa `YouTube - Başlık - Tarih` gibi tutarlı bir şema mı?
-4. Mevcut Voice Memos akışında ses dosyaları iCloud'daki hangi klasöre geliyor (iPhone Kestirmesi mi)? Bu klasör M5'te varsayılan izlenen klasör yapılacak.
+- Zero audio, video, or transcript data is ever transmitted to external servers.
+- Network activity is strictly limited to: YouTube stream extraction, official Whisper model downloads, and tool updates.
+- No analytics, tracking, or telemetry SDKs.
+- Transcript text is never written to application diagnostic logs.

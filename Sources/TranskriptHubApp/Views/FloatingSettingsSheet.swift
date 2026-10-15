@@ -77,11 +77,11 @@ public struct FloatingSettingsSheet: View {
             
             // Tab Items
             VStack(spacing: 2) {
-                tabButton(.general, title: "Genel", icon: "gearshape")
-                tabButton(.models, title: "Yapay Zeka Modelleri", icon: "cpu")
-                tabButton(.storage, title: "Depolama & Çıktı", icon: "folder")
-                tabButton(.automation, title: "Otomasyon & Sesli Notlar", icon: "waveform.badge.magnifyingglass")
-                tabButton(.updates, title: "Güncellemeler", icon: "arrow.triangle.2.circlepath")
+                tabButton(.general, title: viewModel.t("tab_general"), icon: "gearshape")
+                tabButton(.models, title: viewModel.t("tab_models"), icon: "cpu")
+                tabButton(.storage, title: viewModel.t("tab_storage"), icon: "folder")
+                tabButton(.automation, title: viewModel.t("tab_automation"), icon: "waveform.badge.magnifyingglass")
+                tabButton(.updates, title: viewModel.t("tab_updates"), icon: "arrow.triangle.2.circlepath")
             }
             .padding(.horizontal, 10)
             

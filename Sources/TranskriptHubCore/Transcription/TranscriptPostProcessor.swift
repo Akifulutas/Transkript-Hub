@@ -48,7 +48,7 @@ public final class TranscriptPostProcessor: Sendable {
                 if normalized == lastNormalizedText {
                     repetitionCount += 1
                     if repetitionCount >= 3 {
-                        Log.warning("Tekrar döngüsü atlandı: '\(text)' (zaman: \(segment.start))")
+                        Log.warning("Repetition loop skipped: '\(text)' (time: \(segment.start))")
                         continue
                     }
                 } else {

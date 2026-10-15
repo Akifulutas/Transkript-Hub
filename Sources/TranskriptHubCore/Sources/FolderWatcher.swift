@@ -43,14 +43,14 @@ public final class FolderWatcher: ObservableObject {
                 await self?.scanDirectory()
             }
         }
-        Log.info("FolderWatcher başlatıldı: \(watchedDirectory.path)")
+        Log.info("FolderWatcher started: \(watchedDirectory.path)")
     }
     
     public func stopWatching() {
         isWatching = false
         timer?.invalidate()
         timer = nil
-        Log.info("FolderWatcher durduruldu.")
+        Log.info("FolderWatcher stopped.")
     }
     
     public var voiceMemosDirectory: URL {
@@ -136,7 +136,7 @@ public final class FolderWatcher: ObservableObject {
                 if status == .notDownloaded {
                     try? fm.startDownloadingUbiquitousItem(at: fileURL)
                     activeCloudDownloads.insert(filename)
-                    Log.info("iCloud dosyası henüz inmemiş, otomatik indirme başlatıldı: \(filename)")
+                    Log.info("iCloud file not yet downloaded locally, initiated automatic download: \(filename)")
                     continue
                 } else if status != .current && status != .downloaded {
                     activeCloudDownloads.insert(filename)
@@ -173,7 +173,7 @@ public final class FolderWatcher: ObservableObject {
                         processedFilesCount += 1
                         lastProcessedFile = filename
                         
-                        Log.info("Yeni ses dosyası algılandı: \(filename)")
+                        Log.info("New audio file detected: \(filename)")
                         await onNewAudioDiscovered?(fileURL)
                     }
                 } else {

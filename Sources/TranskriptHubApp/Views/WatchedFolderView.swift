@@ -20,9 +20,9 @@ struct WatchedFolderView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Otomatik Klasör ve Sesli Notlar İzleme")
+                        Text(viewModel.t("watched_title"))
                             .font(.system(size: 15, weight: .bold))
-                        Text("iCloud Drive veya belirlediğiniz yerel klasöre yeni sesler düştüğünde sıfır temasla transkript edilir.")
+                        Text(viewModel.t("watched_subtitle"))
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -44,7 +44,7 @@ struct WatchedFolderView: View {
                                 }
                             }
                             
-                            Text(viewModel.isFolderWatching ? "Klasör İzleme Aktif (Arka Planda Dinleniyor)" : "Klasör İzleme Devre Dışı")
+                            Text(viewModel.isFolderWatching ? viewModel.t("watched_active") : viewModel.t("watched_inactive"))
                                 .font(.system(size: 13, weight: .semibold))
                         }
                         
@@ -57,7 +57,7 @@ struct WatchedFolderView: View {
                     Divider()
                     
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("İzlenen Dizin:")
+                        Text(viewModel.t("watched_path"))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.secondary)
                         
@@ -69,15 +69,15 @@ struct WatchedFolderView: View {
                             
                             Spacer()
                             
-                            Button("iCloud'u Tara") {
+                            Button(viewModel.t("watched_scan_cloud")) {
                                 viewModel.triggerCloudScan()
                             }
                             .font(.system(size: 11))
                             .buttonStyle(.bordered)
                             .controlSize(.small)
-                            .help("iCloud Drive'daki .icloud yer tutucu sesleri hemen kontrol et ve yerel diske indirmeyi başlat")
+                            .help("Force scan and download any pending .icloud files in watched directory")
                             
-                            Button("Finder'da Göster") {
+                            Button(viewModel.t("action_open_finder")) {
                                 viewModel.openInFinder(path: viewModel.watchedDirectoryPath)
                             }
                             .font(.system(size: 11))
@@ -92,10 +92,10 @@ struct WatchedFolderView: View {
                             .foregroundColor(.accentColor)
                             .font(.system(size: 13))
                         
-                        Text("Otomatik iCloud İndirme:")
+                        Text(viewModel.t("watched_cloud_status"))
                             .font(.system(size: 12, weight: .medium))
                         
-                        Text("Aktif (İnmemiş .icloud sesleri otomatik indirilir)")
+                        Text(viewModel.t("watched_cloud_active"))
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                         
@@ -105,7 +105,7 @@ struct WatchedFolderView: View {
                     
                     if viewModel.isCloudDownloading {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("iCloud'dan İndirilen Sesler:")
+                            Text(viewModel.t("watched_cloud_downloading"))
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.accentColor)
                             
@@ -116,7 +116,7 @@ struct WatchedFolderView: View {
                                         .font(.system(size: 11, weight: .medium))
                                         .lineLimit(1)
                                     Spacer()
-                                    Text("İndiriliyor...")
+                                    Text("Downloading...")
                                         .font(.system(size: 10))
                                         .foregroundColor(.secondary)
                                 }
@@ -139,16 +139,16 @@ struct WatchedFolderView: View {
                             .foregroundColor(.orange)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple Watch / iPhone Sesli Notlar için Tam Disk Erişimi Gerekli")
+                            Text(viewModel.t("watched_fda_title"))
                                 .font(.system(size: 12, weight: .semibold))
-                            Text("Apple'ın yerel Sesli Notlar klasörünü otomatik tarayabilmek için macOS Sistem Ayarları'ndan izin vermeniz önerilir.")
+                            Text(viewModel.t("watched_fda_desc"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
                         
                         Spacer()
                         
-                        Button("Sistem Ayarlarını Aç") {
+                        Button(viewModel.t("watched_open_settings")) {
                             viewModel.openFullDiskAccessSettings()
                         }
                         .font(.system(size: 11, weight: .medium))
@@ -166,7 +166,7 @@ struct WatchedFolderView: View {
                                 .padding(4)
                         }
                         .buttonStyle(.plain)
-                        .help("Bu uyarıyı kapat")
+                        .help("Dismiss this alert")
                     }
                     .padding(14)
                     .background(Color.orange.opacity(0.1))

@@ -78,7 +78,7 @@ public final class ToolManager: Sendable {
     }
     
     public func installYTDLP(progress: (@Sendable (Double) -> Void)? = nil) async throws {
-        Log.info("yt-dlp kuruluyor...")
+        Log.info("Installing yt-dlp...")
         let ytdlpDir = toolsDirectory.appendingPathComponent("yt-dlp", isDirectory: true)
         let currentDir = ytdlpDir.appendingPathComponent("current", isDirectory: true)
         try FileManager.default.createDirectory(at: currentDir, withIntermediateDirectories: true)
@@ -88,7 +88,7 @@ public final class ToolManager: Sendable {
         
         let (tempURL, response) = try await URLSession.shared.download(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw ToolManagerError.downloadFailed("yt-dlp indirilemedi (HTTP hata).")
+            throw ToolManagerError.downloadFailed("Failed to download yt-dlp (HTTP error).")
         }
         
         let fm = FileManager.default
@@ -101,12 +101,12 @@ public final class ToolManager: Sendable {
         try makeExecutable(at: destination)
         removeQuarantine(at: destination)
         
-        Log.info("yt-dlp başarıyla kuruldu: \(destination.path)")
+        Log.info("yt-dlp successfully installed: \(destination.path)")
         progress?(1.0)
     }
     
     public func installDeno(progress: (@Sendable (Double) -> Void)? = nil) async throws {
-        Log.info("deno kuruluyor...")
+        Log.info("Installing Deno...")
         let denoDir = toolsDirectory.appendingPathComponent("deno", isDirectory: true)
         let currentDir = denoDir.appendingPathComponent("current", isDirectory: true)
         try FileManager.default.createDirectory(at: currentDir, withIntermediateDirectories: true)
@@ -116,7 +116,7 @@ public final class ToolManager: Sendable {
         
         let (tempZipURL, response) = try await URLSession.shared.download(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw ToolManagerError.downloadFailed("deno indirilemedi (HTTP hata).")
+            throw ToolManagerError.downloadFailed("Failed to download Deno (HTTP error).")
         }
         
         let tempExtractDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -131,12 +131,12 @@ public final class ToolManager: Sendable {
         process.waitUntilExit()
         
         guard process.terminationStatus == 0 else {
-            throw ToolManagerError.extractionFailed("deno.zip açılamadı.")
+            throw ToolManagerError.extractionFailed("Failed to extract deno.zip.")
         }
         
         let extractedDeno = tempExtractDir.appendingPathComponent("deno")
         guard FileManager.default.fileExists(atPath: extractedDeno.path) else {
-            throw ToolManagerError.extractionFailed("Arşiv içinde 'deno' ikilisi bulunamadı.")
+            throw ToolManagerError.extractionFailed("Deno binary not found in archive.")
         }
         
         let fm = FileManager.default
@@ -149,7 +149,7 @@ public final class ToolManager: Sendable {
         try makeExecutable(at: destination)
         removeQuarantine(at: destination)
         
-        Log.info("deno başarıyla kuruldu: \(destination.path)")
+        Log.info("Deno successfully installed: \(destination.path)")
         progress?(1.0)
     }
     

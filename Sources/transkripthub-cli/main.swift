@@ -30,27 +30,27 @@ struct TranskriptHubCLI {
         case "help", "--help", "-h":
             printUsage()
         default:
-            print("Bilinmeyen komut: \(command)")
+            print("Unknown command: \(command)")
             printUsage()
         }
     }
     
     static func printUsage() {
         print("""
-        Transkript Hub CLI v1.0 — Apple Silicon Yerel Transkripsiyon
+        Transkript Hub CLI v1.0 — Apple Silicon Native Transcription
         
-        Kullanım:
-          transkripthub-cli batch <url1> <url2> ... [seçenekler]
-          transkripthub-cli youtube <youtube_url> [seçenekler]
-          transkripthub-cli transcribe <ses_dosyasi> [seçenekler]
+        Usage:
+          transkripthub-cli batch <url1> <url2> ... [options]
+          transkripthub-cli youtube <youtube_url> [options]
+          transkripthub-cli transcribe <audio_file> [options]
           transkripthub-cli tools [install | status]
-          transkripthub-cli models [download <model_adi> | list]
+          transkripthub-cli models [download <model_name> | list]
           transkripthub-cli version
         
-        Batch Seçenekleri:
-          --file <dosya>    İçinde YouTube linkleri olan bir metin dosyası
-          --model <ad>      Model (tiny, base, small, medium, large-v3-turbo, large-v3-turbo-q5_0) [Varsayılan: tiny]
-          --lang <kod>      Dil kodu (tr, de, en veya auto) [Varsayılan: auto]
+        Batch Options:
+          --file <file>     Text file containing YouTube links
+          --model <name>    Model (tiny, base, small, medium, large-v3-turbo, large-v3-turbo-q5_0) [Default: tiny]
+          --lang <code>     Language code (en, de, tr or auto) [Default: auto]
         """)
     }
     
@@ -68,7 +68,7 @@ struct TranskriptHubCLI {
                     let parsed = URLParser.parseBulk(content)
                     rawURLs.append(contentsOf: parsed.map(\.canonicalURL))
                 } else {
-                    print("Hata: Belirtilen dosya okunamadı: \(filePath)")
+                    print("Error: Could not read file: \(filePath)")
                 }
                 i += 2
             } else if arg == "--model", i + 1 < arguments.count {
@@ -81,7 +81,7 @@ struct TranskriptHubCLI {
                 if let parsed = URLParser.parseSingle(arg) {
                     rawURLs.append(parsed.canonicalURL)
                 } else {
-                    print("Uyarı: Geçersiz URL atlandı: \(arg)")
+                    print("Warning: Skipping invalid URL: \(arg)")
                 }
                 i += 1
             } else {
@@ -90,20 +90,20 @@ struct TranskriptHubCLI {
         }
         
         guard !rawURLs.isEmpty else {
-            print("Hata: İşlenecek geçerli bir video linki bulunamadı.")
+            print("Error: No valid video URLs found to process.")
             printUsage()
             return
         }
         
         guard let selectedModel = WhisperModel(rawValue: modelName) else {
-            print("Geçersiz model: \(modelName).")
+            print("Invalid model: \(modelName).")
             return
         }
         
-        print("=== Transkript Hub — Toplu Batch İşlemi Başlatılıyor ===")
-        print("Toplam Video Sayısı: \(rawURLs.count)")
+        print("=== Transkript Hub — Starting Batch Processing ===")
+        print("Total Videos: \(rawURLs.count)")
         print("Model: \(selectedModel.rawValue)")
-        print("Dil: \(language ?? "Otomatik")")
+        print("Language: \(language ?? "Auto")")
         
         do {
             let database = try AppDatabase.makeShared()
@@ -114,12 +114,12 @@ struct TranskriptHubCLI {
             
             // 2. Create batch
             let batch = try await jobManager.createYouTubeBatch(urls: rawURLs, language: language)
-            print("Batch oluşturuldu (ID: \(batch.id))")
+            print("Batch created (ID: \(batch.id))")
             
             // 3. Process with live updates
             let totalCount = rawURLs.count
             let result = try await jobManager.processBatch(batchID: batch.id, model: selectedModel) { job in
-                let titleStr = job.title ?? job.externalID ?? "Bilinmiyor"
+                let titleStr = job.title ?? job.externalID ?? "Unknown"
                 print(" -> [Video \(job.sequence)/\(totalCount)] \(titleStr): \(job.state.uppercased())")
             }
             
@@ -127,21 +127,21 @@ struct TranskriptHubCLI {
             case .assembled(let outputURL, let isPartial):
                 print("\n=======================================================")
                 if isPartial {
-                    print("⚠️ Kısmi Başarı: Bazı videolar indirilemedi ancak başarılı tüm videolar birleştirildi!")
+                    print("⚠️ Partial Success: Some videos failed to download, but all successful transcripts were merged!")
                 } else {
-                    print("🎉 Başarılı: Tüm videolar eksiksiz birleştirildi!")
+                    print("🎉 Success: All videos transcribed and assembled successfully!")
                 }
-                print("Birleşik Çıktı Dosyası: \(outputURL.path)")
-                print("Geçici ses dosyaları temizlendi.")
+                print("Consolidated Output File: \(outputURL.path)")
+                print("Temporary audio files cleaned up.")
                 print("=======================================================")
             case .waiting(let count):
-                print("İşlem henüz bitmedi, bekleyen video sayısı: \(count)")
+                print("Processing still in progress, waiting videos: \(count)")
             case .empty:
-                print("Hata: Birleştirilecek hiçbir video kaydı bulunamadı.")
+                print("Error: No completed video transcripts found to assemble.")
             }
             
         } catch {
-            print("\nBatch çalıştırma hatası: \(error.localizedDescription)")
+            print("\nBatch execution error: \(error.localizedDescription)")
         }
     }
     
@@ -150,36 +150,36 @@ struct TranskriptHubCLI {
         let sub = arguments.first ?? "status"
         
         if sub == "status" {
-            print("Yönetilen Araç Durumları:")
-            print(" - yt-dlp: \(toolManager.isYTDLPReady() ? "✅ Hazır (\(toolManager.ytdlpExecutableURL.path))" : "⏳ Kurulu değil")")
-            print(" - deno:   \(toolManager.isDenoReady() ? "✅ Hazır (\(toolManager.denoExecutableURL.path))" : "⏳ Kurulu değil")")
+            print("Managed Tools Status:")
+            print(" - yt-dlp: \(toolManager.isYTDLPReady() ? "✅ Ready (\(toolManager.ytdlpExecutableURL.path))" : "⏳ Not installed")")
+            print(" - deno:   \(toolManager.isDenoReady() ? "✅ Ready (\(toolManager.denoExecutableURL.path))" : "⏳ Not installed")")
             return
         }
         
         if sub == "install" {
             do {
-                print("Gerekli bağımsız araçlar indiriliyor ve yapılandırılıyor...")
+                print("Downloading and configuring required tools...")
                 try await toolManager.ensureToolsReady { message, ratio in
                     let percent = Int(ratio * 100)
-                    print("\r[\(message)] %\(percent)", terminator: "")
+                    print("\r[\(message)] \(percent)%", terminator: "")
                     fflush(stdout)
                 }
-                print("\n✅ Tüm araçlar hazır!")
+                print("\n✅ All tools ready!")
             } catch {
-                print("\n❌ Araç kurulum hatası: \(error.localizedDescription)")
+                print("\n❌ Tool installation error: \(error.localizedDescription)")
             }
         }
     }
     
     static func handleYouTube(arguments: [String]) async {
         guard let urlStr = arguments.first, !urlStr.hasPrefix("-") else {
-            print("Hata: YouTube video linki belirtilmedi.")
+            print("Error: No YouTube video URL provided.")
             printUsage()
             return
         }
         
         guard let parsed = URLParser.parseSingle(urlStr) else {
-            print("Hata: Geçersiz YouTube linki: \(urlStr)")
+            print("Error: Invalid YouTube URL: \(urlStr)")
             return
         }
         
@@ -209,11 +209,11 @@ struct TranskriptHubCLI {
         }
         
         guard let selectedModel = WhisperModel(rawValue: modelName) else {
-            print("Geçersiz model: \(modelName).")
+            print("Invalid model: \(modelName).")
             return
         }
         
-        print("=== Transkript Hub — YouTube İşlemi Başlatılıyor ===")
+        print("=== Transkript Hub — Starting YouTube Processing ===")
         print("Video URL: \(parsed.canonicalURL) [ID: \(parsed.videoID)]")
         print("Model: \(selectedModel.rawValue)")
         
@@ -221,18 +221,18 @@ struct TranskriptHubCLI {
         let toolManager = ToolManager()
         do {
             if !toolManager.isYTDLPReady() || !toolManager.isDenoReady() {
-                print("\n[1/4] Gerekli bağımsız YouTube araçları indiriliyor...")
+                print("\n[1/4] Downloading required YouTube tools...")
                 try await toolManager.ensureToolsReady { msg, ratio in
                     let percent = Int(ratio * 100)
-                    print("\r\(msg): %\(percent)", terminator: "")
+                    print("\r\(msg): \(percent)%", terminator: "")
                     fflush(stdout)
                 }
                 print("")
             } else {
-                print("\n[1/4] YouTube araçları hazır.")
+                print("\n[1/4] YouTube tools ready.")
             }
         } catch {
-            print("\nAraç hazırlama hatası: \(error.localizedDescription)")
+            print("\nTool preparation error: \(error.localizedDescription)")
             return
         }
         
@@ -240,39 +240,39 @@ struct TranskriptHubCLI {
         let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("TranskriptHub_Job_\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: workspace) }
         
-        print("\n[2/4] Ses ve metadata indiriliyor...")
+        print("\n[2/4] Downloading audio and metadata...")
         let fetchedMedia: FetchedMedia
         let ytdlp = YTDLPClient(toolManager: toolManager)
         do {
             fetchedMedia = try await ytdlp.fetch(url: parsed.canonicalURL, into: workspace) { ratio in
                 let percent = Int(ratio * 100)
-                print("\rİndirme İlerlemesi: %\(percent)", terminator: "")
+                print("\rDownload Progress: \(percent)%", terminator: "")
                 fflush(stdout)
             }
             print("\nVideo: \(fetchedMedia.metadata.title)")
             if let ch = fetchedMedia.metadata.channel {
-                print("Kanal: \(ch)")
+                print("Channel: \(ch)")
             }
         } catch {
-            print("\nYouTube indirme hatası: \(error.localizedDescription)")
+            print("\nYouTube download error: \(error.localizedDescription)")
             return
         }
         
         // 3. Decode Audio
-        print("\n[3/4] Ses çözülüyor (AVFoundation)...")
+        print("\n[3/4] Decoding audio (AVFoundation)...")
         let decoder = AudioDecoder()
         let preparedAudio: PreparedAudio
         do {
             preparedAudio = try decoder.decode(fileURL: fetchedMedia.localAudioURL)
             let durStr = String(format: "%.1f", preparedAudio.duration)
-            print("Ses çözüldü (Süre: \(durStr) sn)")
+            print("Audio decoded (Duration: \(durStr)s)")
         } catch {
-            print("Ses çözme hatası: \(error.localizedDescription)")
+            print("Audio decode error: \(error.localizedDescription)")
             return
         }
         
         // 4. Transcribe with Metal
-        print("\n[4/4] Metal GPU ile transkript ediliyor...")
+        print("\n[4/4] Transcribing with Metal GPU acceleration...")
         let modelManager = ModelManager()
         let modelURL: URL
         do {
@@ -288,11 +288,11 @@ struct TranskriptHubCLI {
             let startTime = CFAbsoluteTimeGetCurrent()
             let result = try await engine.transcribe(preparedAudio, options: options) { ratio in
                 let percent = Int(ratio * 100)
-                print("\rTranskripsiyon İlerlemesi: %\(percent)", terminator: "")
+                print("\rTranscription Progress: \(percent)%", terminator: "")
                 fflush(stdout)
             }
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            print(String(format: "\nTranskripsiyon tamamlandı (%.2f sn)", elapsed))
+            print(String(format: "\nTranscription completed (%.2fs)", elapsed))
             
             // Post-processing
             let postProcessor = TranscriptPostProcessor()
@@ -301,7 +301,7 @@ struct TranskriptHubCLI {
                 options: PostProcessorOptions(insertTimestamps: insertTimestamps)
             )
             
-            // Save Output using OutputWriter (Başlık.txt)
+            // Save Output using OutputWriter (Title.txt)
             let outputWriter = OutputWriter()
             let targetURL: URL
             if let custom = customOutput {
@@ -314,50 +314,50 @@ struct TranskriptHubCLI {
             }
             
             try outputWriter.write(content: formattedText, to: targetURL)
-            print("\n🎉 Başarıyla tamamlandı!")
-            print("Çıktı Dosyası: \(targetURL.path)")
+            print("\n🎉 Completed successfully!")
+            print("Output File: \(targetURL.path)")
             
         } catch {
-            print("\nİşlem hatası: \(error.localizedDescription)")
+            print("\nProcessing error: \(error.localizedDescription)")
         }
     }
     
     static func handleModels(arguments: [String]) async {
         let manager = ModelManager()
         if arguments.first == "list" || arguments.isEmpty {
-            print("Desteklenen modeller ve durumları:")
+            print("Supported models and download status:")
             for m in WhisperModel.allCases {
                 let downloaded = manager.isModelDownloaded(m)
-                let status = downloaded ? "✅ İndirilmiş" : "⏳ Henüz indirilmedi"
+                let status = downloaded ? "✅ Downloaded" : "⏳ Not downloaded"
                 print(" - \(m.rawValue) (\(m.filename)) -> \(status)")
             }
-            print("\nModeller klasörü: \(manager.modelsDirectory.path)")
+            print("\nModels directory: \(manager.modelsDirectory.path)")
             return
         }
         
         if arguments.first == "download", arguments.count >= 2 {
             let modelName = arguments[1]
             guard let model = WhisperModel(rawValue: modelName) else {
-                print("Geçersiz model adı: \(modelName).")
+                print("Invalid model name: \(modelName).")
                 return
             }
             do {
-                print("\(model.rawValue) modeli indiriliyor...")
+                print("Downloading model \(model.rawValue)...")
                 let path = try await manager.downloadModel(model) { progress in
                     let percent = Int(progress * 100)
-                    print("\rİlerleme: %\(percent)", terminator: "")
+                    print("\rProgress: \(percent)%", terminator: "")
                     fflush(stdout)
                 }
-                print("\nModel hazır: \(path.path)")
+                print("\nModel ready: \(path.path)")
             } catch {
-                print("\nİndirme hatası: \(error.localizedDescription)")
+                print("\nDownload error: \(error.localizedDescription)")
             }
         }
     }
     
     static func handleTranscribe(arguments: [String]) async {
         guard let firstArg = arguments.first, !firstArg.hasPrefix("-") else {
-            print("Hata: Transkript edilecek ses dosyası belirtilmedi.")
+            print("Error: No audio file specified to transcribe.")
             printUsage()
             return
         }
@@ -389,24 +389,24 @@ struct TranskriptHubCLI {
         }
         
         guard let selectedModel = WhisperModel(rawValue: modelName) else {
-            print("Geçersiz model: \(modelName).")
+            print("Invalid model: \(modelName).")
             return
         }
         
-        print("=== Transkript Hub — Yerel İşlem Başlatılıyor ===")
-        print("Girdi Dosyası: \(fileURL.path)")
+        print("=== Transkript Hub — Starting Local Transcription ===")
+        print("Input File: \(fileURL.path)")
         print("Model: \(selectedModel.rawValue)")
         
         // 1. Audio Decoding
-        print("\n[1/3] Ses çözülüyor (AVFoundation 16 kHz Mono PCM)...")
+        print("\n[1/3] Decoding audio (AVFoundation 16 kHz Mono PCM)...")
         let decoder = AudioDecoder()
         let preparedAudio: PreparedAudio
         do {
             preparedAudio = try decoder.decode(fileURL: fileURL)
             let durationStr = String(format: "%.2f", preparedAudio.duration)
-            print("Ses başarıyla çözüldü. Süre: \(durationStr) sn, Örnek Sayısı: \(preparedAudio.samples.count)")
+            print("Audio decoded successfully. Duration: \(durationStr)s, Sample Count: \(preparedAudio.samples.count)")
         } catch {
-            print("Ses çözme hatası: \(error.localizedDescription)")
+            print("Audio decode error: \(error.localizedDescription)")
             return
         }
         
@@ -415,19 +415,19 @@ struct TranskriptHubCLI {
         let modelURL: URL
         do {
             if !modelManager.isModelDownloaded(selectedModel) {
-                print("\n[2/3] Model indiriliyor (\(selectedModel.filename))...")
+                print("\n[2/3] Downloading model (\(selectedModel.filename))...")
                 modelURL = try await modelManager.downloadModel(selectedModel)
             } else {
                 modelURL = modelManager.localURL(for: selectedModel)
-                print("\n[2/3] Model mevcut: \(modelURL.lastPathComponent)")
+                print("\n[2/3] Model already available: \(modelURL.lastPathComponent)")
             }
         } catch {
-            print("Model hazırlama hatası: \(error.localizedDescription)")
+            print("Model preparation error: \(error.localizedDescription)")
             return
         }
         
         // 3. Transcription
-        print("\n[3/3] Metal GPU hızlandırmasıyla transkript ediliyor...")
+        print("\n[3/3] Transcribing with Metal GPU acceleration...")
         do {
             let engine = try WhisperCppEngine(modelPath: modelURL.path)
             let options = TranscriptionOptions(language: language)
@@ -435,20 +435,20 @@ struct TranskriptHubCLI {
             let startTime = CFAbsoluteTimeGetCurrent()
             let result = try await engine.transcribe(preparedAudio, options: options) { progress in
                 let percent = Int(progress * 100)
-                print("\rTranskripsiyon İlerlemesi: %\(percent)", terminator: "")
+                print("\rTranscription Progress: \(percent)%", terminator: "")
                 fflush(stdout)
             }
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            print(String(format: "\nİşlem tamamlandı: %.2f saniyede işlendi.", elapsed))
+            print(String(format: "\nTranscription completed in %.2f seconds.", elapsed))
             
             // Post-processing
             let postProcessor = TranscriptPostProcessor()
             let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps)
             let formattedText = postProcessor.process(segments: result.segments, options: postOptions)
             
-            print("\n----------------- TRANSKRİPT ÇIKTISI -----------------")
+            print("\n----------------- TRANSCRIPT OUTPUT -----------------")
             print(formattedText)
-            print("------------------------------------------------------")
+            print("-----------------------------------------------------")
             
             // Save Output using OutputWriter
             let outputWriter = OutputWriter()
@@ -464,10 +464,10 @@ struct TranskriptHubCLI {
             }
             
             try outputWriter.write(content: formattedText, to: targetURL)
-            print("Çıktı başarıyla kaydedildi: \(targetURL.path)")
+            print("Output saved successfully: \(targetURL.path)")
             
         } catch {
-            print("\nTranskripsiyon hatası: \(error.localizedDescription)")
+            print("\nTranscription error: \(error.localizedDescription)")
         }
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 import GRDB
 @testable import TranskriptHubCore
 
-@Suite("Akıllı Önbellek ve Tekilleştirme (TranscriptCacheManager) Test Paketi")
+@Suite("Smart Transcript Cache and Deduplication Test Suite")
 struct TranscriptCacheTests {
     
     private func makeTestDatabase() throws -> AppDatabase {
@@ -13,77 +13,77 @@ struct TranscriptCacheTests {
         return try AppDatabase(queue)
     }
     
-    @Test("YouTube external_id ile önbellek eşleşmesi")
+    @Test("YouTube external_id cache match")
     func testYouTubeCacheHit() async throws {
         let db = try makeTestDatabase()
         let cache = TranscriptCacheManager(database: db)
         
         await cache.save(
             externalID: "TEST_VIDEO_123",
-            title: "Harika Swift Dersi",
+            title: "Great Swift Lecture",
             durationSec: 120.5,
             outputPath: "/path/to/output.md",
-            transcriptText: "Merhaba dünya, bu bir test transkriptidir."
+            transcriptText: "Hello world, this is a test transcript."
         )
         
         let found = await cache.findCached(
-            title: "Harika Swift Dersi",
+            title: "Great Swift Lecture",
             durationSec: 120.5,
             externalID: "TEST_VIDEO_123"
         )
         
         #expect(found != nil)
-        #expect(found?.transcriptText == "Merhaba dünya, bu bir test transkriptidir.")
+        #expect(found?.transcriptText == "Hello world, this is a test transcript.")
         #expect(found?.externalID == "TEST_VIDEO_123")
     }
     
-    @Test("Ses dosyalarında isim ve süre (uzunluk) ile akıllı eşleşme")
+    @Test("Audio file smart matching by title and duration")
     func testAudioDurationAndNameMatch() async throws {
         let db = try makeTestDatabase()
         let cache = TranscriptCacheManager(database: db)
         
-        // Örnek ses kaydı: 45.2 saniye
+        // Sample recording: 45.2 seconds
         await cache.save(
-            externalID: "/Users/test/Ses Kaydı 1.m4a",
-            title: "Ses Kaydı 1",
+            externalID: "/Users/test/Voice Recording 1.m4a",
+            title: "Voice Recording 1",
             durationSec: 45.2,
-            sourcePath: "/Users/test/Ses Kaydı 1.m4a",
-            outputPath: "/Users/test/Transkript/Ses Kaydı 1.md",
-            transcriptText: "Bu ses kaydının ilk deşifresi."
+            sourcePath: "/Users/test/Voice Recording 1.m4a",
+            outputPath: "/Users/test/Transkript/Voice Recording 1.md",
+            transcriptText: "First transcription of this recording."
         )
         
-        // 1. Aynı isim ve süre (0.2 sn tolerans içinde) -> Eşleşmeli!
+        // 1. Same title and duration (within 0.2s tolerance) -> Must match!
         let match1 = await cache.findCached(
-            title: "Ses Kaydı 1",
+            title: "Voice Recording 1",
             durationSec: 45.3,
-            sourcePath: "/Users/other/Downloads/Ses Kaydı 1.m4a"
+            sourcePath: "/Users/other/Downloads/Voice Recording 1.m4a"
         )
         #expect(match1 != nil)
-        #expect(match1?.transcriptText == "Bu ses kaydının ilk deşifresi.")
+        #expect(match1?.transcriptText == "First transcription of this recording.")
         
-        // 2. Aynı isim ama tamamen farklı süre (örn. 120 sn) -> Eşleşmemeli! (Kullanıcı şartı: süreye de bakılmalı)
+        // 2. Same title but completely different duration (e.g. 120s) -> Must NOT match!
         let mismatchDuration = await cache.findCached(
-            title: "Ses Kaydı 1",
+            title: "Voice Recording 1",
             durationSec: 120.0,
-            sourcePath: "/Users/other/Downloads/Ses Kaydı 1.m4a"
+            sourcePath: "/Users/other/Downloads/Voice Recording 1.m4a"
         )
         #expect(mismatchDuration == nil)
         
-        // 3. Aynı süre ama tamamen ilgisiz isim -> Eşleşmemeli
+        // 3. Same duration but completely unrelated title -> Must NOT match
         let mismatchName = await cache.findCached(
-            title: "Alakasız Dosya",
+            title: "Unrelated File",
             durationSec: 45.2,
-            sourcePath: "/Users/test/Alakasız.m4a"
+            sourcePath: "/Users/test/Unrelated.m4a"
         )
         #expect(mismatchName == nil)
     }
     
-    @Test("Eski tamamlanmış job kayıtlarından otomatik kurtarma ve önbelleğe alma")
+    @Test("Automatic recovery from legacy completed jobs")
     func testFallbackToCompletedJobs() async throws {
         let db = try makeTestDatabase()
         let cache = TranscriptCacheManager(database: db)
         
-        // Veritabanına doğrudan eski bir completed job ve transcript_section ekleyelim
+        // Insert a completed legacy job directly into SQLite
         try await db.dbQueue.write { db in
             try BatchRecord(
                 id: "OLD_BATCH",
@@ -99,25 +99,25 @@ struct TranscriptCacheTests {
                 batchID: "OLD_BATCH",
                 sequence: 1,
                 sourceType: "audio",
-                sourcePath: "/old/sesli_not.m4a",
-                title: "sesli_not",
+                sourcePath: "/old/voice_memo.m4a",
+                title: "voice_memo",
                 durationSec: 88.0,
                 state: .completed
             ).insert(db)
             
             try TranscriptSectionRecord(
                 jobID: "OLD_JOB_1",
-                text: "Eski veritabanından başarıyla kurtarılan transkript metni."
+                text: "Recovered transcript content from database."
             ).insert(db)
         }
         
         let recovered = await cache.findCached(
-            title: "sesli_not",
+            title: "voice_memo",
             durationSec: 88.0,
-            sourcePath: "/Users/akif/Desktop/sesli_not.m4a"
+            sourcePath: "/Users/user/Desktop/voice_memo.m4a"
         )
         
         #expect(recovered != nil)
-        #expect(recovered?.transcriptText == "Eski veritabanından başarıyla kurtarılan transkript metni.")
+        #expect(recovered?.transcriptText == "Recovered transcript content from database.")
     }
 }

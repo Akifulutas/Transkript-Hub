@@ -75,8 +75,8 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    // Interface Language (Türkçe, English, Deutsch)
-    @Published public var appLanguage: AppLanguage = .turkish {
+    // Interface Language (English, Deutsch, Türkçe)
+    @Published public var appLanguage: AppLanguage = .english {
         didSet {
             UserDefaults.standard.set(appLanguage.rawValue, forKey: "appInterfaceLanguage")
         }
@@ -375,8 +375,8 @@ public final class AppViewModel: ObservableObject {
     }
     
     public init() {
-        let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
-        self.appLanguage = AppLanguage(rawValue: savedLang) ?? .turkish
+        let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "en"
+        self.appLanguage = AppLanguage(rawValue: savedLang) ?? .english
         
         if let bestDownloaded = self.modelManager.downloadedModels().first {
             self.selectedModel = bestDownloaded
@@ -444,7 +444,7 @@ public final class AppViewModel: ObservableObject {
             sourcePath: url.path,
             externalID: url.path
         ) {
-            Log.info("Ses dosyası daha önce işlenmiş, önbellekten getirildi: \(title)")
+            Log.info("Audio file previously processed, retrieved from cache: \(title)")
             var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
@@ -862,7 +862,7 @@ public final class AppViewModel: ObservableObject {
     public func startProcessingQueue(saveMode: SessionSaveMode = .both) {
         guard !queueItems.isEmpty else { return }
         guard !isProcessing else {
-            Log.info("Kuyruk zaten işleniyor. İkinci eşzamanlı işlem engellendi.")
+            Log.info("Queue is already processing. Concurrent execution prevented.")
             return
         }
         
@@ -930,11 +930,11 @@ public final class AppViewModel: ObservableObject {
                             durationSec: current.durationSec,
                             externalID: video.videoID
                         ) {
-                            Log.info("YouTube videosu önbellekten yüklendi: \(current.title)")
+                            Log.info("YouTube video loaded from cache: \(current.title)")
                             current.transcript = cached.transcriptText
                             current.state = .completed
                             current.progress = 1.0
-                            current.subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş"
+                            current.subtitle = "Loaded from Cache • Already Transcribed"
                             if let outPath = cached.outputPath {
                                 current.outputURL = URL(fileURLWithPath: outPath)
                                 self.lastOutputURL = current.outputURL
@@ -945,14 +945,14 @@ public final class AppViewModel: ObservableObject {
                         
                         current.state = .fetching
                         self.updateItem(current)
-                        self.currentOperation = "YouTube sesi indiriliyor (yt-dlp)..."
+                        self.currentOperation = "Downloading YouTube audio (yt-dlp)..."
                         
                         do {
                             let media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
                             current.title = media.metadata.title
-                            current.subtitle = "\(channel) • \(Int(duration)) sn"
+                            current.subtitle = "\(channel) • \(Int(duration))s"
                             current.durationSec = media.metadata.duration
                             
                             // Check cache again with fetched metadata title
@@ -961,11 +961,11 @@ public final class AppViewModel: ObservableObject {
                                 durationSec: media.metadata.duration,
                                 externalID: video.videoID
                             ) {
-                                Log.info("YouTube videosu önbellekten yüklendi: \(media.metadata.title)")
+                                Log.info("YouTube video loaded from cache: \(media.metadata.title)")
                                 current.transcript = cached.transcriptText
                                 current.state = .completed
                                 current.progress = 1.0
-                                current.subtitle = "\(channel) • Önbellekten Yüklendi"
+                                current.subtitle = "\(channel) • Loaded from Cache"
                                 if let outPath = cached.outputPath {
                                     current.outputURL = URL(fileURLWithPath: outPath)
                                     self.lastOutputURL = current.outputURL
@@ -1054,11 +1054,11 @@ public final class AppViewModel: ObservableObject {
                                 sourcePath: fileURL.path,
                                 externalID: fileURL.path
                             ) {
-                                Log.info("Ses dosyası önbellekten yüklendi (tekrar transkript atlandı): \(current.title) (\(duration) sn)")
+                                Log.info("Audio file loaded from cache (skipping duplicate transcription): \(current.title) (\(duration)s)")
                                 current.transcript = cached.transcriptText
                                 current.state = .completed
                                 current.progress = 1.0
-                                current.subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş (\(Int(duration)) sn)"
+                                current.subtitle = "Loaded from Cache • Already Transcribed (\(Int(duration))s)"
                                 if let outPath = cached.outputPath {
                                     current.outputURL = URL(fileURLWithPath: outPath)
                                     self.lastOutputURL = current.outputURL
@@ -1239,7 +1239,7 @@ public final class AppViewModel: ObservableObject {
             
             self.historyItems = items
         } catch {
-            Log.error("Geçmiş yükleme hatası: \(error.localizedDescription)")
+            Log.error("History load error: \(error.localizedDescription)")
         }
     }
     

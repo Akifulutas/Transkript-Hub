@@ -3,10 +3,10 @@ import Testing
 import AppKit
 @testable import TranskriptHubCore
 
-@Suite("Pano İzleyici (ClipboardMonitor) Test Paketi")
+@Suite("ClipboardMonitor Test Suite")
 struct ClipboardMonitorTests {
     
-    @Test("İzleme durumu ve toggle geçişleri")
+    @Test("Monitoring state and toggle transitions")
     @MainActor
     func testMonitoringStateTransitions() {
         var detected: [ParsedYouTubeVideo] = []
@@ -16,23 +16,23 @@ struct ClipboardMonitorTests {
         
         #expect(monitor.isMonitoring == false)
         
-        // Başlat
+        // Start monitoring
         monitor.startMonitoring()
         #expect(monitor.isMonitoring == true)
         
-        // Tekrar başlatma idempotent olmalı
+        // Re-starting must be idempotent
         monitor.startMonitoring()
         #expect(monitor.isMonitoring == true)
         
-        // Durdur
+        // Stop monitoring
         monitor.stopMonitoring()
         #expect(monitor.isMonitoring == false)
         
-        // Toggle ile aç
+        // Toggle on
         monitor.toggle()
         #expect(monitor.isMonitoring == true)
         
-        // Toggle ile kapat
+        // Toggle off
         monitor.toggle()
         #expect(monitor.isMonitoring == false)
     }

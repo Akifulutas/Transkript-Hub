@@ -2,84 +2,82 @@ import Foundation
 import Testing
 @testable import TranskriptHubCore
 
-@Suite("Transkript Son İşleyici (PostProcessor) Kapsamlı Test Paketi")
+@Suite("Transcript PostProcessor Comprehensive Test Suite")
 struct PostProcessorDeepTests {
     
-    @Test("Gürültü ve arka plan ses etiketlerinin temizlenmesi")
+    @Test("Noise and background tag removal")
     func testNoiseTagsRemovalComprehensive() {
         let processor = TranscriptPostProcessor()
         let rawSegments = [
-            Segment(start: 0.0, end: 2.0, text: "[Müzik]"),
-            Segment(start: 2.0, end: 5.0, text: "Merhaba değerli izleyiciler [Alkış] programımıza hoş geldiniz."),
-            Segment(start: 5.0, end: 7.0, text: "(Gülüşmeler) Bugün yapay zeka konuşacağız."),
-            Segment(start: 7.0, end: 9.0, text: "[Music] [Applause] Devam ediyoruz."),
-            Segment(start: 9.0, end: 11.0, text: "*müzik* Arka plan sesi temizlenmeli."),
-            Segment(start: 11.0, end: 13.0, text: "♪ neşeli müzik ♪"),
-            Segment(start: 13.0, end: 15.0, text: "Sonuç cümlesi.")
+            Segment(start: 0.0, end: 2.0, text: "[Music]"),
+            Segment(start: 2.0, end: 5.0, text: "Hello viewers [Applause] welcome to the program."),
+            Segment(start: 5.0, end: 7.0, text: "(Laughter) Today we will discuss artificial intelligence."),
+            Segment(start: 7.0, end: 9.0, text: "[Music] [Applause] Moving on."),
+            Segment(start: 9.0, end: 11.0, text: "*music* Background audio should be cleaned."),
+            Segment(start: 11.0, end: 13.0, text: "♪ upbeat music ♪"),
+            Segment(start: 13.0, end: 15.0, text: "Concluding sentence.")
         ]
         
         let result = processor.process(segments: rawSegments)
         
-        // Etiketler silinmiş olmalı
-        #expect(!result.contains("[Müzik]"))
-        #expect(!result.contains("[Alkış]"))
-        #expect(!result.contains("(Gülüşmeler)"))
+        // Tags must be stripped
         #expect(!result.contains("[Music]"))
         #expect(!result.contains("[Applause]"))
-        #expect(!result.contains("*müzik*"))
+        #expect(!result.contains("(Laughter)"))
+        #expect(!result.contains("*music*"))
         #expect(!result.contains("♪"))
         
-        // Asıl konuşma korunmalı
-        #expect(result.contains("Merhaba değerli izleyiciler"))
-        #expect(result.contains("programımıza hoş geldiniz."))
-        #expect(result.contains("Bugün yapay zeka konuşacağız."))
-        #expect(result.contains("Devam ediyoruz."))
-        #expect(result.contains("Sonuç cümlesi."))
+        // Core dialogue must be preserved
+        #expect(result.contains("Hello viewers"))
+        #expect(result.contains("welcome to the program."))
+        #expect(result.contains("Today we will discuss artificial intelligence."))
+        #expect(result.contains("Moving on."))
+        #expect(result.contains("Concluding sentence."))
     }
     
-    @Test("Whisper halüsinasyonu olan tekrar döngülerinin kırılması (Repetition Loop Break)")
+    @Test("Whisper hallucination repetition loop break")
     func testRepetitionLoopBreak() {
         let processor = TranscriptPostProcessor()
         var segments: [Segment] = [
-            Segment(start: 0.0, end: 2.0, text: "Giriş yapılıyor."),
-            Segment(start: 2.0, end: 4.0, text: "Konu anlatılıyor.")
+            Segment(start: 0.0, end: 2.0, text: "Introduction starts."),
+            Segment(start: 2.0, end: 4.0, text: "Topic explanation.")
         ]
         
-        // 10 kez art arda aynı halüsinasyon cümlesini ekle
+        // Add identical hallucinated segment 10 times consecutively
         for i in 1...10 {
             segments.append(
-                Segment(start: Double(4 + i), end: Double(5 + i), text: "Lütfen kanala abone olun.")
+                Segment(start: Double(4 + i), end: Double(5 + i), text: "Please subscribe to the channel.")
             )
         }
         
-        segments.append(Segment(start: 20.0, end: 22.0, text: "Kapanış yapıldı."))
+        segments.append(Segment(start: 20.0, end: 22.0, text: "Outro completed."))
         
         let result = processor.process(segments: segments)
         
-        // Cümle 10 kez yerine en fazla 2 kez yer almalı
-        let occurrences = result.components(separatedBy: "Lütfen kanala abone olun.").count - 1
-        #expect(occurrences <= 2, "Tekrar döngüsü kırılmadı, adet: \(occurrences)")
-        #expect(result.contains("Giriş yapılıyor."))
-        #expect(result.contains("Kapanış yapıldı."))
+        // Repeated sentence should appear at most twice rather than 10 times
+        let occurrences = result.components(separatedBy: "Please subscribe to the channel.").count - 1
+        #expect(occurrences <= 2, "Repetition loop was not broken, count: \(occurrences)")
+        #expect(result.contains("Introduction starts."))
+        #expect(result.contains("Outro completed."))
     }
     
-    @Test("Metin sessizlik eşiğine göre paragraflara ayrıştırma")
+    @Test("Paragraph chunking based on silence threshold")
     func testParagraphChunkingWithSilenceThreshold() {
         let processor = TranscriptPostProcessor()
         let segments = [
-            Segment(start: 0.0, end: 5.0, text: "Birinci konu ele alınıyor."),
-            Segment(start: 5.0, end: 10.0, text: "İkinci cümle burada bitiyor."),
-            // 20 saniyelik uzun sessizlik boşluğu -> eşik 2.0 saniye olunca yeni paragraf olmalı
-            Segment(start: 30.0, end: 35.0, text: "Uzun aradan sonra yeni konu başladı.")
+            Segment(start: 0.0, end: 5.0, text: "First topic is being discussed."),
+            Segment(start: 5.0, end: 10.0, text: "Second sentence ends right here."),
+            // 20s long silence gap -> with threshold 2.0s, triggers a new paragraph
+            Segment(start: 30.0, end: 35.0, text: "After a long pause, a new subject begins.")
         ]
         
         let options = PostProcessorOptions(paragraphSilenceThreshold: 2.0)
         let result = processor.process(segments: segments, options: options)
         
-        // İki paragraf çift satır atlama (\n\n) ile ayrılmalıdır
+        // Two paragraphs should be separated by double line break (\n\n)
         let paragraphs = result.components(separatedBy: "\n\n")
-        #expect(paragraphs.count >= 2, "Paragraf ayrımı oluşmadı")
-        #expect(paragraphs[0].contains("Birinci konu"))
-        #expect(paragraphs[1].contains("Uzun aradan sonra"))
+        #expect(paragraphs.count >= 2, "Paragraph division was not created")
+        #expect(paragraphs[0].contains("First topic"))
+        #expect(paragraphs[1].contains("After a long pause"))
     }
 }

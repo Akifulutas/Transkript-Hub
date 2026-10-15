@@ -5,14 +5,14 @@ struct SidebarView: View {
     
     var body: some View {
         List(selection: $viewModel.selectedSection) {
-            Section("İşlemler") {
+            Section(viewModel.t("section_operations")) {
                 NavigationLink(value: SidebarSection.queue) {
                     HStack {
-                        Label(SidebarSection.queue.rawValue, systemImage: SidebarSection.queue.icon)
+                        Label(viewModel.t("section_queue"), systemImage: SidebarSection.queue.icon)
                         Spacer()
                         
                         if viewModel.failedCount > 0 {
-                            Text("\(viewModel.failedCount) Hata")
+                            Text(viewModel.t("sidebar_errors", viewModel.failedCount))
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
@@ -33,7 +33,7 @@ struct SidebarView: View {
                 
                 NavigationLink(value: SidebarSection.history) {
                     HStack {
-                        Label(SidebarSection.history.rawValue, systemImage: SidebarSection.history.icon)
+                        Label(viewModel.t("section_history"), systemImage: SidebarSection.history.icon)
                         Spacer()
                         if !viewModel.historyItems.isEmpty {
                             Text("\(viewModel.historyItems.count)")
@@ -44,10 +44,10 @@ struct SidebarView: View {
                 }
             }
             
-            Section("Otomasyon & Sistem") {
+            Section(viewModel.t("section_automation")) {
                 NavigationLink(value: SidebarSection.watchedFolder) {
                     HStack {
-                        Label(SidebarSection.watchedFolder.rawValue, systemImage: SidebarSection.watchedFolder.icon)
+                        Label(viewModel.t("section_watched_folder"), systemImage: SidebarSection.watchedFolder.icon)
                         Spacer()
                         ZStack {
                             Circle()
@@ -63,7 +63,7 @@ struct SidebarView: View {
                 }
                 
                 NavigationLink(value: SidebarSection.settings) {
-                    Label(SidebarSection.settings.rawValue, systemImage: SidebarSection.settings.icon)
+                    Label(viewModel.t("section_settings"), systemImage: SidebarSection.settings.icon)
                 }
             }
         }

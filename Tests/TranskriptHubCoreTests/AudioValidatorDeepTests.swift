@@ -3,23 +3,23 @@ import Testing
 import AVFoundation
 @testable import TranskriptHubCore
 
-@Suite("Ses Doğrulayıcı (AudioValidator) Derinlik Test Paketi")
+@Suite("AudioValidator Comprehensive Test Suite")
 struct AudioValidatorDeepTests {
     
-    @Test("Desteklenen ve desteklenmeyen uzantıların doğrulanması")
+    @Test("Validation of supported and unsupported file extensions")
     func testExtensionSupportMatrix() {
         let supported = ["m4a", "M4A", "mp3", "MP3", "wav", "WAV", "aac", "caf", "aiff", "mp4", "mov"]
         for ext in supported {
-            #expect(AudioValidator.isExtensionSupported(ext), "Desteklenmeliydi: \(ext)")
+            #expect(AudioValidator.isExtensionSupported(ext), "Should be supported: \(ext)")
         }
         
         let unsupported = ["txt", "pdf", "exe", "dmg", "zip", "flac-unsupported", "sqlite", "sh"]
         for ext in unsupported {
-            #expect(!AudioValidator.isExtensionSupported(ext), "Desteklenmemeliydi: \(ext)")
+            #expect(!AudioValidator.isExtensionSupported(ext), "Should not be supported: \(ext)")
         }
     }
     
-    @Test("Olmayan dosya verildiğinde fileNotFound hatası fırlatma")
+    @Test("Throwing fileNotFound error for non-existent file")
     func testNonExistentFile() {
         let fakeURL = URL(fileURLWithPath: "/tmp/non_existent_audio_\(UUID().uuidString).m4a")
         #expect(throws: AudioValidationError.self) {
@@ -27,7 +27,7 @@ struct AudioValidatorDeepTests {
         }
     }
     
-    @Test("0 baytlık boş dosya verildiğinde emptyFile hatası fırlatma")
+    @Test("Throwing emptyFile error for 0-byte file")
     func testZeroByteFile() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("empty_\(UUID().uuidString).m4a")
         FileManager.default.createFile(atPath: tempURL.path, contents: Data())
@@ -38,10 +38,10 @@ struct AudioValidatorDeepTests {
         }
     }
     
-    @Test("Ses formatında olmayan sahte metin dosyası verildiğinde unreadable hatası")
+    @Test("Throwing unreadable error for non-audio mock file")
     func testFakeAudioFile() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("fake_\(UUID().uuidString).wav")
-        let dummyData = "Bu aslında bir metin dosyasıdır, ses dosyası değildir.".data(using: .utf8)!
+        let dummyData = "This is a plain text file, not valid audio data.".data(using: .utf8)!
         try dummyData.write(to: tempURL)
         defer { try? FileManager.default.removeItem(at: tempURL) }
         
@@ -50,12 +50,12 @@ struct AudioValidatorDeepTests {
         }
     }
     
-    @Test("Geçerli ses örneğinin başarıyla doğrulanması ve süre hesaplaması")
+    @Test("Successful validation and duration calculation for valid audio sample")
     func testValidAudioSample() throws {
         let sampleURL = URL(fileURLWithPath: "Tests/Fixtures/sample.m4a")
         guard FileManager.default.fileExists(atPath: sampleURL.path) else { return }
         
         let duration = try AudioValidator.validate(fileURL: sampleURL)
-        #expect(duration > 1.0, "Örnek ses süresi 1 saniyeden uzun olmalıydı")
+        #expect(duration > 1.0, "Sample audio duration should be longer than 1 second")
     }
 }

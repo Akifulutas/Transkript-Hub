@@ -51,7 +51,7 @@ public actor WhisperCppEngine: TranscriptionEngine {
             throw WhisperCppError.contextInitializationFailed
         }
         self.contextBox = WhisperContextBox(context)
-        Log.info("WhisperCppEngine Metal context başarıyla yüklendi: \(modelPath)")
+        Log.info("WhisperCppEngine Metal context successfully initialized: \(modelPath)")
     }
     
     public func transcribe(
