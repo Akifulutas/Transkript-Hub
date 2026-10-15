@@ -3,6 +3,7 @@ import AppKit
 
 struct WatchedFolderView: View {
     @ObservedObject var viewModel: AppViewModel
+    @AppStorage("dismissedFDABanner") private var dismissedFDABanner: Bool = false
     
     var body: some View {
         ScrollView {
@@ -131,7 +132,7 @@ struct WatchedFolderView: View {
                 .liquidGlass(cornerRadius: 14, glowColor: viewModel.isFolderWatching ? .green.opacity(0.6) : .white, material: .ultraThinMaterial)
                 
                 // Full Disk Access Banner for Voice Memos
-                if !viewModel.fullDiskAccessStatus.isGranted {
+                if !viewModel.fullDiskAccessStatus.isGranted && !dismissedFDABanner {
                     HStack(spacing: 12) {
                         Image(systemName: "lock.shield")
                             .font(.system(size: 22))
@@ -153,6 +154,19 @@ struct WatchedFolderView: View {
                         .font(.system(size: 11, weight: .medium))
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                dismissedFDABanner = true
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(4)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Bu uyarıyı kapat")
                     }
                     .padding(14)
                     .background(Color.orange.opacity(0.1))
@@ -188,5 +202,8 @@ struct WatchedFolderView: View {
             .padding(20)
         }
         .navigationTitle("İzlenen Klasör")
+        .onAppear {
+            viewModel.checkFullDiskAccess()
+        }
     }
 }

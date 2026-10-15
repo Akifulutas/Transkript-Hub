@@ -193,7 +193,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var copiedToast: Bool = false
     
     // System Monitors
-    @Published public var isClipboardMonitoring: Bool = false {
+    @Published public var isClipboardMonitoring: Bool = true {
         didSet {
             if isClipboardMonitoring {
                 clipboardMonitor.startMonitoring()
@@ -395,6 +395,19 @@ public final class AppViewModel: ObservableObject {
         }
         if self.isFolderWatching {
             self.folderWatcher.startWatching()
+        }
+        if self.isClipboardMonitoring {
+            self.clipboardMonitor.startMonitoring()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.checkFullDiskAccess()
+            }
         }
         
         Task {

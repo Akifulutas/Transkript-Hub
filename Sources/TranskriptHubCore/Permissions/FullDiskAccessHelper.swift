@@ -16,38 +16,40 @@ public enum FullDiskAccessHelper {
             .appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings", isDirectory: true)
     }
     
-    /// Checks if Full Disk Access is granted by attempting to inspect protected directories.
+    /// Checks if Full Disk Access is granted by attempting to inspect protected directories and files.
     public static func checkStatus() -> FullDiskAccessStatus {
         let fm = FileManager.default
-        let path = voiceMemosDirectory.path
+        let home = fm.homeDirectoryForCurrentUser
         
-        // 1. Primary check: Voice Memos directory
-        if fm.fileExists(atPath: path) {
-            do {
-                _ = try fm.contentsOfDirectory(atPath: path)
-                return .granted
-            } catch {
-                return .notGranted
-            }
+        // 1. Time Machine preference check (Standard macOS FDA test):
+        // File exists with world-readable POSIX permissions, but kernel strictly denies read
+        // without TCC Full Disk Access (SystemPolicyAllFiles).
+        let tmFd = open("/Library/Preferences/com.apple.TimeMachine.plist", O_RDONLY)
+        if tmFd >= 0 {
+            close(tmFd)
+            return .granted
         }
         
-        // 2. Secondary check: Safari Bookmarks or Mail sandbox
-        let safariBookmarks = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Safari/Bookmarks.plist")
-        if fm.fileExists(atPath: safariBookmarks.path) {
-            return fm.isReadableFile(atPath: safariBookmarks.path) ? .granted : .notGranted
+        // 2. Voice Memos directory (the specific feature we need FDA for)
+        let vmPath = voiceMemosDirectory.path
+        if let dir = opendir(vmPath) {
+            closedir(dir)
+            return .granted
         }
         
-        // 3. Fallback check: Mail directory
-        let mailDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mail")
-        if fm.fileExists(atPath: mailDir.path) {
-            do {
-                _ = try fm.contentsOfDirectory(atPath: mailDir.path)
-                return .granted
-            } catch {
-                return .notGranted
-            }
+        // 3. Safari Bookmarks check (Protected by SystemPolicySysAdminFiles / FDA)
+        let safariBookmarks = home.appendingPathComponent("Library/Safari/Bookmarks.plist")
+        let safariFd = open(safariBookmarks.path, O_RDONLY)
+        if safariFd >= 0 {
+            close(safariFd)
+            return .granted
+        }
+        
+        // 4. Mail directory check
+        let mailDir = home.appendingPathComponent("Library/Mail")
+        if let dir = opendir(mailDir.path) {
+            closedir(dir)
+            return .granted
         }
         
         return .notGranted
