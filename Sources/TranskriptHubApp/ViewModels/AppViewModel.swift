@@ -224,6 +224,20 @@ public final class AppViewModel: ObservableObject {
         folderWatcher.watchedDirectory.path
     }
     
+    public var activeCloudDownloads: Set<String> {
+        folderWatcher.activeCloudDownloads
+    }
+    
+    public var isCloudDownloading: Bool {
+        !folderWatcher.activeCloudDownloads.isEmpty
+    }
+    
+    public func triggerCloudScan() {
+        Task {
+            await folderWatcher.forceDownloadAllCloudItems()
+        }
+    }
+    
     // MARK: - Action-Oriented Metrics & 8-State Computed Properties
     public var successfulCount: Int {
         queueItems.filter { $0.state == .completed }.count

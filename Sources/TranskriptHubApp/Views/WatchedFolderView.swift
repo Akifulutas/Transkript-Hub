@@ -68,6 +68,14 @@ struct WatchedFolderView: View {
                             
                             Spacer()
                             
+                            Button("iCloud'u Tara") {
+                                viewModel.triggerCloudScan()
+                            }
+                            .font(.system(size: 11))
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .help("iCloud Drive'daki .icloud yer tutucu sesleri hemen kontrol et ve yerel diske indirmeyi başlat")
+                            
                             Button("Finder'da Göster") {
                                 viewModel.openInFinder(path: viewModel.watchedDirectoryPath)
                             }
@@ -75,6 +83,48 @@ struct WatchedFolderView: View {
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                         }
+                    }
+                    
+                    // Automatic iCloud Download Status
+                    HStack(spacing: 8) {
+                        Image(systemName: "icloud.and.arrow.down")
+                            .foregroundColor(.accentColor)
+                            .font(.system(size: 13))
+                        
+                        Text("Otomatik iCloud İndirme:")
+                            .font(.system(size: 12, weight: .medium))
+                        
+                        Text("Aktif (İnmemiş .icloud sesleri otomatik indirilir)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 4)
+                    
+                    if viewModel.isCloudDownloading {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("iCloud'dan İndirilen Sesler:")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.accentColor)
+                            
+                            ForEach(Array(viewModel.activeCloudDownloads).sorted(), id: \.self) { name in
+                                HStack(spacing: 8) {
+                                    ProgressView().controlSize(.small)
+                                    Text(name)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text("İndiriliyor...")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(8)
+                                .background(Color.accentColor.opacity(0.08))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.top, 4)
                     }
                 }
                 .padding(16)

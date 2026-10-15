@@ -491,7 +491,10 @@ public struct FloatingSettingsSheet: View {
                     Text("2. iCloud Drive altındaki **Transkript** klasörünü seçip kaydedin.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text("3. Mac'iniz açık olduğu sürece Transkript Hub kaydı **3 saniye içinde otomatik algılar**, kuyruğa alır ve metne çevirip aynı klasöre .txt olarak kaydeder!")
+                    Text("3. Dosya Mac'e .icloud yer tutucu olarak gelse bile, Transkript Hub bunu otomatik olarak algılar ve arka planda derhal indirmeyi başlatır.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text("4. İndirme bittiğinde ses kuyruğa alınır, Whisper AI ile yazıya dökülür ve çıktı aynı klasöre kaydedilir!")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }

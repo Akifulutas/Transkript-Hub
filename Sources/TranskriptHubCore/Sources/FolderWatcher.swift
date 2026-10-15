@@ -11,6 +11,8 @@ public final class FolderWatcher: ObservableObject {
     private var knownFiles: [String: Int64] = [:] // Path -> size
     private var processedPaths: Set<String> = []
     
+    @Published public var activeCloudDownloads: Set<String> = [] // Filenames currently being downloaded from iCloud
+    
     public var onNewAudioDiscovered: ((URL) async -> Void)?
     
     public init(watchedDirectory: URL? = nil) {
@@ -72,37 +74,91 @@ public final class FolderWatcher: ObservableObject {
         }
     }
     
+    public func forceDownloadAllCloudItems() async {
+        await scanDirectory()
+    }
+    
     private func scanSingleDirectory(_ directory: URL) async {
         let fm = FileManager.default
         guard fm.fileExists(atPath: directory.path) else { return }
         
+        // DO NOT skip hidden files, because iCloud Drive placeholders start with '.' (e.g. .ses_kaydi.m4a.icloud)
         guard let items = try? fm.contentsOfDirectory(
             at: directory,
-            includingPropertiesForKeys: [.fileSizeKey, .ubiquitousItemDownloadingStatusKey],
-            options: [.skipsHiddenFiles]
+            includingPropertiesForKeys: [
+                .fileSizeKey,
+                .ubiquitousItemDownloadingStatusKey,
+                .ubiquitousItemIsDownloadingKey
+            ],
+            options: []
         ) else { return }
         
         for fileURL in items {
             let filename = fileURL.lastPathComponent
             
-            // 1. Check extensions & exclusions
-            if filename.hasPrefix(".") || filename.hasSuffix(".part") || filename.hasSuffix(".download") {
+            // Exclude system meta files
+            if filename == ".DS_Store" || filename.hasPrefix("._") || filename == "." || filename == ".." {
                 continue
             }
             
-            // iCloud dataless handling
+            // 1. Check for iCloud Drive placeholder files (.something.m4a.icloud)
             if filename.hasSuffix(".icloud") {
-                try? fm.startDownloadingUbiquitousItem(at: fileURL)
+                var baseName = filename
+                if baseName.hasPrefix(".") {
+                    baseName = String(baseName.dropFirst())
+                }
+                if baseName.hasSuffix(".icloud") {
+                    baseName = String(baseName.dropLast(".icloud".count))
+                }
+                
+                let candidateExt = (baseName as NSString).pathExtension.lowercased()
+                guard AudioValidator.isExtensionSupported(candidateExt) else {
+                    continue
+                }
+                
+                // Automatically force iCloud to start downloading this audio file to the local disk
+                do {
+                    try fm.startDownloadingUbiquitousItem(at: fileURL)
+                } catch {
+                    let targetURL = directory.appendingPathComponent(baseName)
+                    try? fm.startDownloadingUbiquitousItem(at: targetURL)
+                }
+                
+                activeCloudDownloads.insert(baseName)
+                continue
+            }
+            
+            // 2. Check for ubiquitous item whose download is pending locally
+            if let res = try? fileURL.resourceValues(forKeys: [
+                .ubiquitousItemDownloadingStatusKey,
+                .ubiquitousItemIsDownloadingKey
+            ]), let status = res.ubiquitousItemDownloadingStatus {
+                if status == .notDownloaded {
+                    try? fm.startDownloadingUbiquitousItem(at: fileURL)
+                    activeCloudDownloads.insert(filename)
+                    Log.info("iCloud dosyası henüz inmemiş, otomatik indirme başlatıldı: \(filename)")
+                    continue
+                } else if status != .current && status != .downloaded {
+                    activeCloudDownloads.insert(filename)
+                    continue
+                }
+            }
+            
+            // 3. Regular exclusions (non-icloud hidden files and incomplete browser downloads)
+            if filename.hasPrefix(".") || filename.hasSuffix(".part") || filename.hasSuffix(".download") {
                 continue
             }
             
             let ext = fileURL.pathExtension.lowercased()
             guard AudioValidator.isExtensionSupported(ext) else { continue }
             
+            // File is locally present and downloaded! Remove from active downloads
+            activeCloudDownloads.remove(filename)
+            
             let path = fileURL.path
             guard !processedPaths.contains(path) else { continue }
             
-            // 2. Size stability check (2 measurements, > 0)
+            // 4. Size stability check (2 measurements, > 0)
             guard let attrs = try? fm.attributesOfItem(atPath: path),
                   let currentSize = attrs[.size] as? Int64,
                   currentSize > 0 else { continue }
