@@ -203,7 +203,7 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    @Published public var isFolderWatching: Bool = false {
+    @Published public var isFolderWatching: Bool = true {
         didSet {
             if isFolderWatching {
                 folderWatcher.startWatching()
@@ -392,6 +392,9 @@ public final class AppViewModel: ObservableObject {
         self.folderWatcher = FolderWatcher()
         self.folderWatcher.onNewAudioDiscovered = { [weak self] audioURL in
             await self?.handleAutoDiscoveredAudio(audioURL)
+        }
+        if self.isFolderWatching {
+            self.folderWatcher.startWatching()
         }
         
         Task {
