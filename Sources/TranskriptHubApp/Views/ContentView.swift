@@ -63,8 +63,26 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isRecordingModalPresented) {
                 LiveAudioMeterView(viewModel: viewModel)
             }
-            .sheet(isPresented: $viewModel.isRecordingSourceSheetPresented) {
+            .sheet(isPresented: $viewModel.isRecordingSourceSheetPresented, onDismiss: {
+                viewModel.recordingSourceSheetDidDismiss()
+            }) {
                 AudioRecordingSourceSheet(viewModel: viewModel)
+            }
+            .alert(
+                viewModel.recordingAlertPermission == nil ? "Kayıt Başlatılamadı" : "İzin Gerekli",
+                isPresented: Binding(
+                    get: { viewModel.recordingAlertMessage != nil },
+                    set: { if !$0 { viewModel.dismissRecordingAlert() } }
+                )
+            ) {
+                if viewModel.recordingAlertPermission != nil {
+                    Button("Sistem Ayarlarını Aç") { viewModel.openRecordingPermissionSettings() }
+                    Button("Vazgeç", role: .cancel) { viewModel.dismissRecordingAlert() }
+                } else {
+                    Button("Tamam", role: .cancel) { viewModel.dismissRecordingAlert() }
+                }
+            } message: {
+                Text(viewModel.recordingAlertMessage ?? "")
             }
             .sheet(isPresented: $viewModel.isWatchedFolderPresented) {
                 WatchedFolderSheet(viewModel: viewModel)
@@ -80,28 +98,6 @@ public struct ContentView: View {
                         dismissAction: { viewModel.dismissUndoToast() }
                     )
                 }
-            }
-            
-            // Floating ⌘K Command Palette Overlay
-            if viewModel.isCommandPalettePresented {
-                CommandPaletteView(
-                    isPresented: $viewModel.isCommandPalettePresented,
-                    searchText: $viewModel.commandPaletteSearch,
-                    onPasteClipboard: { viewModel.addFromClipboard() },
-                    onSelectAudioFile: {
-                        let panel = NSOpenPanel()
-                        panel.allowsMultipleSelection = true
-                        panel.canChooseDirectories = false
-                        panel.allowedContentTypes = [.audio, .movie]
-                        if panel.runModal() == .OK {
-                            viewModel.addAudioFiles(panel.urls)
-                        }
-                    },
-                    onStartQueue: { viewModel.requestStartQueue() },
-                    onClearQueue: { viewModel.clearQueueWithUndo() },
-                    onCopyCurrentTranscript: { viewModel.copySelectedTranscript() },
-                    onToggleFolderWatch: { viewModel.isFolderWatching.toggle() }
-                )
             }
         }
         // Real macOS Liquid Glass Translucency & Specular Ambiance
@@ -135,11 +131,6 @@ public struct ContentView: View {
         // Global Keyboard Ergonomics
         .background(
             KeyboardShortcutsView(
-                onCommandK: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        viewModel.isCommandPalettePresented.toggle()
-                    }
-                },
                 onCommandV: {
                     viewModel.addFromClipboard()
                 },
@@ -181,24 +172,6 @@ public struct ContentView: View {
                 Text("Transkript Hub")
                     .font(.system(size: 14, weight: .bold))
             }
-        }
-        
-        ToolbarItem(placement: .automatic) {
-            // ⌘K Quick Button in Toolbar
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    viewModel.isCommandPalettePresented.toggle()
-                }
-            }) {
-                Image(systemName: "command")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
-            }
-            .buttonStyle(.plain)
-            .help("Hızlı Komut Paleti (⌘K)")
         }
         
         ToolbarItem(placement: .automatic) {
@@ -299,7 +272,6 @@ public struct ContentView: View {
 
 // MARK: - Global Invisible Keyboard Event Listener
 private struct KeyboardShortcutsView: NSViewRepresentable {
-    let onCommandK: () -> Void
     let onCommandV: () -> Void
     let onCommandShiftC: () -> Void
     let onCommandA: () -> Void
@@ -309,7 +281,6 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     let onCommandR: () -> Void
     
     init(
-        onCommandK: @escaping () -> Void,
         onCommandV: @escaping () -> Void,
         onCommandShiftC: @escaping () -> Void,
         onCommandA: @escaping () -> Void,
@@ -318,7 +289,6 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         onCommandRight: @escaping () -> Void = {},
         onCommandR: @escaping () -> Void = {}
     ) {
-        self.onCommandK = onCommandK
         self.onCommandV = onCommandV
         self.onCommandShiftC = onCommandShiftC
         self.onCommandA = onCommandA
@@ -330,7 +300,6 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSView {
         let view = KeyInterceptingView()
-        view.onCommandK = onCommandK
         view.onCommandV = onCommandV
         view.onCommandShiftC = onCommandShiftC
         view.onCommandA = onCommandA
@@ -345,7 +314,6 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
 }
 
 private final class KeyInterceptingView: NSView {
-    var onCommandK: (() -> Void)?
     var onCommandV: (() -> Void)?
     var onCommandShiftC: (() -> Void)?
     var onCommandA: (() -> Void)?
@@ -362,10 +330,6 @@ private final class KeyInterceptingView: NSView {
         
         if flags == .command && chars == "r" {
             onCommandR?()
-            return true
-        }
-        if flags == .command && chars == "k" {
-            onCommandK?()
             return true
         }
         if flags == [.command, .shift] && chars == "c" {

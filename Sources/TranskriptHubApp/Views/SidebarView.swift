@@ -81,22 +81,6 @@ struct SidebarView: View {
                     .foregroundColor(.secondary)
                 
                 Spacer()
-                
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        viewModel.isCommandPalettePresented.toggle()
-                    }
-                }) {
-                    Text("⌘K")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.primary.opacity(0.06))
-                        .cornerRadius(4)
-                }
-                .buttonStyle(.plain)
-                .help("Hızlı Komut Paletini Aç (⌘K)")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

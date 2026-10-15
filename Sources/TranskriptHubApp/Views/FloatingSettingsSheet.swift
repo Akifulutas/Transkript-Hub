@@ -313,10 +313,10 @@ public struct FloatingSettingsSheet: View {
                         if isActive {
                             Text("Aktif")
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(.green)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .liquidGlassCapsule(glowColor: .accentColor, material: .ultraThinMaterial)
+                                .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
                         }
                     }
                     
@@ -332,7 +332,7 @@ public struct FloatingSettingsSheet: View {
                 if isDownloaded {
                     HStack(spacing: 8) {
                         if !isActive {
-                            Button("Aktif Yap") {
+                            Button("Seç") {
                                 viewModel.selectedModel = spec.model
                             }
                             .font(.system(size: 11))
@@ -354,13 +354,25 @@ public struct FloatingSettingsSheet: View {
                         .help("Modeli Sil")
                     }
                 } else if viewModel.downloadingModel == spec.model {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        ProgressView(value: viewModel.modelDownloadFraction)
-                            .progressViewStyle(.linear)
-                            .frame(width: 130)
-                        Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            ProgressView(value: viewModel.modelDownloadFraction)
+                                .progressViewStyle(.linear)
+                                .frame(width: 120)
+                            Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Button(action: {
+                            viewModel.cancelModelDownload()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 15))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("İndirmeyi İptal Et")
                     }
                 } else {
                     Button("İndir") {

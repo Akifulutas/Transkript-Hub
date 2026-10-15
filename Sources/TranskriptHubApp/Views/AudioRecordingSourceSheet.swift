@@ -94,10 +94,7 @@ public struct AudioRecordingSourceSheet: View {
         let isHovered = hoveredSource == source
         
         return Button(action: {
-            viewModel.isRecordingSourceSheetPresented = false
-            Task {
-                await viewModel.startRecording(source: source)
-            }
+            viewModel.requestRecording(source: source)
         }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {

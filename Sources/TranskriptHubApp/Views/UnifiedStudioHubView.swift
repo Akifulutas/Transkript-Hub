@@ -47,7 +47,6 @@ public struct UnifiedStudioHubView: View {
                     badgeColor: .orange,
                     caption: "YAPAY ZEKA MODELİ",
                     title: viewModel.selectedModelTitle,
-                    subtitle: isModelPickerPresented ? "Pencereyi Kapat" : "Modeli Değiştir",
                     showsChevron: true
                 )
             }
@@ -65,7 +64,6 @@ public struct UnifiedStudioHubView: View {
                     badgeColor: .blue,
                     caption: "KONUŞMA DİLİ",
                     title: languageTitle(viewModel.selectedLanguage),
-                    subtitle: isLanguagePickerPresented ? "Pencereyi Kapat" : "Dili Seç",
                     showsChevron: true
                 )
             }
@@ -85,7 +83,6 @@ public struct UnifiedStudioHubView: View {
                     badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
                     caption: "PANO İZLEME",
                     title: viewModel.isClipboardMonitoring ? "İzleniyor" : "Kapalı",
-                    subtitle: "Otomatik Link",
                     isPulseActive: viewModel.isClipboardMonitoring
                 )
             }
@@ -100,7 +97,6 @@ public struct UnifiedStudioHubView: View {
                     badgeColor: .red,
                     caption: "SES KAYDI",
                     title: viewModel.recordingSource == .microphone ? "Mikrofon" : "Sistem Sesi",
-                    subtitle: "Kayıt Başlat (⌘R)",
                     showsChevron: true
                 )
             }
@@ -111,11 +107,10 @@ public struct UnifiedStudioHubView: View {
                 viewModel.isWatchedFolderPresented = true
             }) {
                 interactiveCard(
-                    icon: "folder.badge.gearshape.fill",
+                    icon: "folder.fill.badge.gearshape",
                     badgeColor: viewModel.isFolderWatching ? .teal : .secondary,
                     caption: "KLASÖR İZLEME",
-                    title: viewModel.isFolderWatching ? "1 Klasör Aktif" : "Yapılandır",
-                    subtitle: "Otomatik Alma"
+                    title: viewModel.isFolderWatching ? "1 Klasör Aktif" : "Yapılandır"
                 )
             }
             .buttonStyle(.plain)
@@ -128,8 +123,7 @@ public struct UnifiedStudioHubView: View {
                     icon: "clock.arrow.circlepath",
                     badgeColor: .purple,
                     caption: "GEÇMİŞ & ARŞİV",
-                    title: "\(viewModel.historyItems.count) Dosya",
-                    subtitle: "Kayıtları Gör"
+                    title: "\(viewModel.historyItems.count) Dosya"
                 )
             }
             .buttonStyle(.plain)
@@ -234,10 +228,10 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.accentColor))
+                        .background(Capsule().fill(Color.green))
                         .fixedSize(horizontal: true, vertical: false)
                     } else {
-                        Button("Aktif Yap") {
+                        Button("Seç") {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 viewModel.selectedModel = spec.model
                                 isModelPickerPresented = false
@@ -245,6 +239,7 @@ public struct UnifiedStudioHubView: View {
                         }
                         .font(.system(size: 10, weight: .semibold))
                         .buttonStyle(.borderedProminent)
+                        .tint(.blue)
                         .controlSize(.small)
                         .fixedSize(horizontal: true, vertical: false)
                     }
@@ -262,14 +257,28 @@ public struct UnifiedStudioHubView: View {
                     .accessibilityLabel("Model dosyasını diskten sil")
                 }
             } else if viewModel.downloadingModel == spec.model {
-                VStack(alignment: .trailing, spacing: 3) {
-                    ProgressView(value: viewModel.modelDownloadFraction)
-                        .progressViewStyle(.linear)
-                        .frame(width: 80)
-                    Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    VStack(alignment: .trailing, spacing: 3) {
+                        ProgressView(value: viewModel.modelDownloadFraction)
+                            .progressViewStyle(.linear)
+                            .frame(width: 80)
+                        Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Button(action: {
+                        viewModel.cancelModelDownload()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.secondary.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .help("İndirmeyi iptal et")
+                    .accessibilityLabel("İndirmeyi iptal et")
                 }
+                .fixedSize(horizontal: true, vertical: false)
             } else {
                 Button(action: {
                     viewModel.downloadModelInSettings(spec.model)
@@ -382,55 +391,48 @@ public struct UnifiedStudioHubView: View {
         badgeColor: Color,
         caption: String,
         title: String,
-        subtitle: String,
         showsChevron: Bool = false,
         isPulseActive: Bool = false
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(badgeColor.opacity(0.16))
-                        .frame(width: 28, height: 28)
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(badgeColor)
-                }
-                
-                Spacer()
-                
-                if isPulseActive {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                        .shadow(color: Color.green.opacity(0.8), radius: 3)
-                } else if showsChevron {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.secondary.opacity(0.7))
-                }
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(badgeColor.opacity(0.16))
+                    .frame(width: 30, height: 30)
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(badgeColor)
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(caption)
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 8.5, weight: .bold))
                     .foregroundStyle(Color.secondary)
                     .lineLimit(1)
                 
                 Text(title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 12.5, weight: .bold))
                     .foregroundStyle(Color.primary)
                     .lineLimit(1)
-                
-                Text(subtitle)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Color.secondary.opacity(0.8))
-                    .lineLimit(1)
+            }
+            
+            Spacer(minLength: 2)
+            
+            if isPulseActive {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: Color.green.opacity(0.8), radius: 3)
+            } else if showsChevron {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.secondary.opacity(0.7))
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .liquidGlass(cornerRadius: 14, glowColor: badgeColor.opacity(0.4), material: .ultraThinMaterial)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .liquidGlass(cornerRadius: 12, glowColor: badgeColor.opacity(0.35), material: .ultraThinMaterial)
     }
     
     // MARK: - 2. Central Floating Hero Card: Drop & Paste Zone

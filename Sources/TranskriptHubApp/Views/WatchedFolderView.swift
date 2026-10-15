@@ -500,7 +500,7 @@ public struct WatchedFolderSheet: View {
                     Circle()
                         .fill(Color.teal.opacity(0.18))
                         .frame(width: 28, height: 28)
-                    Image(systemName: "folder.badge.gearshape.fill")
+                    Image(systemName: "folder.fill.badge.gearshape")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color.teal)
                 }

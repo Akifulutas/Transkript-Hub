@@ -648,7 +648,7 @@ public struct TranscriptDetailView: View {
                     )
                     
                     kpiMetricCard(
-                        icon: "folder.badge.gearshape.fill",
+                        icon: "folder.fill.badge.gearshape",
                         badgeColor: .green,
                         caption: "İZLENEN KLASÖR",
                         value: viewModel.isFolderWatching ? "1 Aktif" : "Kapalı",

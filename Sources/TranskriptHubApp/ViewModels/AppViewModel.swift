@@ -188,10 +188,6 @@ public final class AppViewModel: ObservableObject {
     // Density Mode (Standard / Compact)
     @Published public var densityMode: DensityMode = .standard
     
-    // Command Palette (⌘K)
-    @Published public var isCommandPalettePresented: Bool = false
-    @Published public var commandPaletteSearch: String = ""
-    
     // Confirmation & Undo State (8-State Matrix)
     @Published public var showUndoToast: Bool = false
     @Published public var undoToastMessage: String = ""
@@ -234,6 +230,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var downloadingModel: WhisperModel? = nil
     @Published public var modelDownloadFraction: Double = 0.0
     @Published public var modelDownloadStatusText: String = ""
+    private var modelDownloadTask: Task<Void, Never>? = nil
     
     // Processing & Progress
     @Published public var isProcessing: Bool = false
@@ -257,15 +254,34 @@ public final class AppViewModel: ObservableObject {
     @Published public var isRecordingModalPresented: Bool = false
     @Published public var isRecordingSourceSheetPresented: Bool = false
     @Published public var recordingSource: AudioRecordingSource = .microphone
+    /// Source chosen in the picker sheet; recording starts once that sheet has finished
+    /// dismissing (SwiftUI drops a sheet presented while another is still closing).
+    public var pendingRecordingSource: AudioRecordingSource?
+    
+    // Recording error / missing-permission alert
+    @Published public var recordingAlertMessage: String? = nil
+    @Published public var recordingAlertPermission: RecordingPermissionKind? = nil
+    
+    public func requestRecording(source: AudioRecordingSource) {
+        pendingRecordingSource = source
+        isRecordingSourceSheetPresented = false
+    }
+    
+    public func recordingSourceSheetDidDismiss() {
+        guard let source = pendingRecordingSource else { return }
+        pendingRecordingSource = nil
+        Task { await startRecording(source: source) }
+    }
     
     public func startRecording(source: AudioRecordingSource = .microphone) async {
         self.recordingSource = source
+        let input: RecordingInput = source == .microphone ? .microphone : .systemAudio
         do {
-            _ = try await recordingEngine.startRecording()
+            _ = try await recordingEngine.startRecording(input: input)
             isRecordingModalPresented = true
             statusMessage = source == .microphone ? "Mikrofon kaydı başladı..." : "Sistem / Zoom sesi kaydı başladı..."
         } catch {
-            errorMessage = error.localizedDescription
+            presentRecordingError(error)
         }
     }
     
@@ -276,7 +292,8 @@ public final class AppViewModel: ObservableObject {
             statusMessage = "Kayıt tamamlandı, deşifre ediliyor..."
             addAudioFiles([url])
         } catch {
-            errorMessage = error.localizedDescription
+            isRecordingModalPresented = false
+            presentRecordingError(error)
         }
     }
     
@@ -284,6 +301,25 @@ public final class AppViewModel: ObservableObject {
         recordingEngine.cancelRecording()
         isRecordingModalPresented = false
         statusMessage = "Kayıt iptal edildi."
+    }
+    
+    public func openRecordingPermissionSettings() {
+        if let url = recordingAlertPermission?.settingsURL {
+            NSWorkspace.shared.open(url)
+        }
+        dismissRecordingAlert()
+    }
+    
+    public func dismissRecordingAlert() {
+        recordingAlertMessage = nil
+        recordingAlertPermission = nil
+    }
+    
+    private func presentRecordingError(_ error: Error) {
+        let engineError = error as? RecordingEngineError
+        recordingAlertPermission = engineError?.missingPermission
+        recordingAlertMessage = error.localizedDescription
+        statusMessage = "Kayıt başlatılamadı."
     }
     
     // KPI Analytics for Frosted Glass Dashboard
@@ -1809,7 +1845,7 @@ public final class AppViewModel: ObservableObject {
         modelDownloadFraction = 0.0
         modelDownloadStatusText = "Bağlanılıyor..."
         
-        Task { [weak self] in
+        modelDownloadTask = Task { [weak self] in
             guard let self = self else { return }
             do {
                 _ = try await self.modelManager.downloadModelWithDetails(model) { [weak self] frac, written, total in
@@ -1826,16 +1862,47 @@ public final class AppViewModel: ObservableObject {
                         }
                     }
                 }
-                self.downloadingModel = nil
-                self.modelDownloadFraction = 1.0
-                self.modelDownloadStatusText = ""
-                self.objectWillChange.send()
+                await MainActor.run {
+                    self.downloadingModel = nil
+                    self.modelDownloadFraction = 1.0
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.objectWillChange.send()
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.downloadingModel = nil
+                    self.modelDownloadFraction = 0.0
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.objectWillChange.send()
+                }
             } catch {
-                self.downloadingModel = nil
-                self.modelDownloadStatusText = ""
-                self.errorMessage = "Model indirme hatası: \(error.localizedDescription)"
+                await MainActor.run {
+                    if Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                        self.downloadingModel = nil
+                        self.modelDownloadFraction = 0.0
+                        self.modelDownloadStatusText = ""
+                        self.modelDownloadTask = nil
+                        self.objectWillChange.send()
+                        return
+                    }
+                    self.downloadingModel = nil
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.errorMessage = "Model indirme hatası: \(error.localizedDescription)"
+                }
             }
         }
+    }
+    
+    public func cancelModelDownload() {
+        modelDownloadTask?.cancel()
+        modelDownloadTask = nil
+        downloadingModel = nil
+        modelDownloadFraction = 0.0
+        modelDownloadStatusText = ""
+        objectWillChange.send()
     }
     
     public func deleteModelInSettings(_ model: WhisperModel) {

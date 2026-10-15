@@ -161,14 +161,26 @@ struct SettingsView: View {
                     .help("Modeli Silerek Disk Alanı Aç")
                 }
             } else if viewModel.downloadingModel == model {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ProgressView(value: viewModel.modelDownloadFraction)
-                        .progressViewStyle(.linear)
-                        .frame(width: 140)
+                HStack(spacing: 8) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        ProgressView(value: viewModel.modelDownloadFraction)
+                            .progressViewStyle(.linear)
+                            .frame(width: 130)
+                        
+                        Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundColor(.secondary)
+                    Button(action: {
+                        viewModel.cancelModelDownload()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("İndirmeyi İptal Et")
                 }
             } else {
                 Button(viewModel.t("settings_download")) {
