@@ -425,6 +425,28 @@ public struct TranscriptDetailView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.selectedItemID = nil
+                        viewModel.selectedItemIDs.removeAll()
+                        viewModel.showCombinedSessionTranscript = false
+                        viewModel.selectedSection = .queue
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Ana Sayfa")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .liquidGlassCapsule(glowColor: .accentColor.opacity(0.3), material: .ultraThinMaterial)
+                }
+                .buttonStyle(.plain)
+                .help("Ana Merkeze Dön")
+                
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(.system(size: 15, weight: .bold))

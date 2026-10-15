@@ -12,31 +12,35 @@ public struct ContentView: View {
     
     public var body: some View {
         ZStack {
-            NavigationSplitView {
-                // Column 1: Content List (Queue, History, Folder, Settings)
-                Group {
+            Group {
+                if viewModel.selectedItem != nil || viewModel.selectedHistoryItem != nil {
+                    TranscriptDetailView(viewModel: viewModel)
+                } else {
                     switch viewModel.selectedSection {
                     case .queue:
-                        QueueListView(viewModel: viewModel)
+                        UnifiedStudioHubView(viewModel: viewModel)
                     case .history:
-                        HistoryListView(viewModel: viewModel)
+                        VStack(spacing: 0) {
+                            navigationBackBar(title: "Geçmiş & Arşiv")
+                            HistoryListView(viewModel: viewModel)
+                        }
                     case .watchedFolder:
-                        WatchedFolderView(viewModel: viewModel)
+                        VStack(spacing: 0) {
+                            navigationBackBar(title: "İzlenen Klasör")
+                            WatchedFolderView(viewModel: viewModel)
+                        }
                     case .settings:
-                        SettingsView(viewModel: viewModel)
+                        VStack(spacing: 0) {
+                            navigationBackBar(title: "Ayarlar")
+                            SettingsView(viewModel: viewModel)
+                        }
                     }
                 }
-                .frame(minWidth: 320, idealWidth: 360, maxWidth: 460)
-            } detail: {
-                // Column 2: Interactive Studio Canvas & Inspector Pane
-                TranscriptDetailView(viewModel: viewModel)
             }
-            .navigationSplitViewStyle(.prominentDetail)
             .frame(minWidth: 900, minHeight: 600)
             .toolbar {
                 mainToolbar
             }
-            .searchable(text: $viewModel.searchQuery, prompt: "Transkriptlerde veya kuyrukta ara...")
             .sheet(item: $viewModel.pendingBatchIngestion) { pending in
                 PlaylistIngestionSheet(viewModel: viewModel, pending: pending)
             }
@@ -154,159 +158,22 @@ public struct ContentView: View {
         )
     }
     
-    // MARK: - Native macOS Unified Toolbar (Liquid Glass Capsules)
+    // MARK: - Native macOS Unified Toolbar (Clean & Minimal)
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
-            Picker("", selection: $viewModel.selectedSection) {
-                Label(viewModel.queueItems.isEmpty ? viewModel.t("section_queue") : "\(viewModel.t("section_queue")) (\(viewModel.queueItems.count))", systemImage: "tray.full.fill")
-                    .tag(SidebarSection.queue)
-                Label(viewModel.historyItems.isEmpty ? viewModel.t("section_history") : "\(viewModel.t("section_history")) (\(viewModel.historyItems.count))", systemImage: "clock.arrow.circlepath")
-                    .tag(SidebarSection.history)
-                Label(viewModel.t("section_watched_folder"), systemImage: "folder.badge.gearshape")
-                    .tag(SidebarSection.watchedFolder)
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.regular)
-            .frame(maxWidth: 350)
-        }
-        
-        ToolbarItem(placement: .automatic) {
-            // Model Selector Dropdown (Only downloaded models shown)
-            Menu {
-                if viewModel.downloadedModels.isEmpty {
-                    Text("İndirilmiş Model Yok")
-                } else {
-                    ForEach(viewModel.downloadedModels, id: \.self) { model in
-                        Button {
-                            viewModel.selectedModel = model
-                        } label: {
-                            HStack {
-                                Label(modelDisplayName(model), systemImage: modelSystemIcon(model))
-                                if viewModel.selectedModel == model { Image(systemName: "checkmark") }
-                            }
-                        }
-                    }
-                }
-                
-                Divider()
-                
-                Button {
-                    viewModel.openSettings(tab: .models)
-                } label: {
-                    Label("Model Kataloğu & Yeni Model İndir...", systemImage: "gearshape")
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "cpu")
-                        .foregroundColor(.secondary)
-                    Text(viewModel.selectedModelTitle)
-                        .font(.system(size: 12, weight: .medium))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8))
-                        .foregroundColor(.secondary.opacity(0.8))
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .liquidGlassCapsule(glowColor: .white.opacity(0.4), material: .ultraThinMaterial)
-            }
-            .buttonStyle(.plain)
-            .help("İndirilen Whisper Yapay Zeka Modelini Seçin")
-        }
-        
-        ToolbarItem(placement: .automatic) {
-            // Language Selector Dropdown (Instant single-click, no submenu)
-            Menu {
-                languageMenuButton(code: "auto", title: "🌐 Otomatik Algıla")
-                Divider()
-                languageMenuButton(code: "tr", title: "🇹🇷 Türkçe")
-                languageMenuButton(code: "en", title: "🇬🇧 İngilizce")
-                languageMenuButton(code: "de", title: "🇩🇪 Almanca")
-                languageMenuButton(code: "fr", title: "🇫🇷 Fransızca")
-                languageMenuButton(code: "es", title: "🇪🇸 İspanyolca")
-                languageMenuButton(code: "ru", title: "🇷🇺 Rusça")
-                languageMenuButton(code: "ar", title: "🇸🇦 Arapça")
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "globe")
-                        .foregroundColor(.secondary)
-                    Text(languageTitle(viewModel.selectedLanguage))
-                        .font(.system(size: 12, weight: .medium))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8))
-                        .foregroundColor(.secondary.opacity(0.8))
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .liquidGlassCapsule(glowColor: .white.opacity(0.4), material: .ultraThinMaterial)
-            }
-            .buttonStyle(.plain)
-            .help("Transkript Edilecek Konuşma Dili")
-        }
-        
-        ToolbarItem(placement: .automatic) {
-            // Distinct Interactive Clipboard Monitor Toggle
-            Button(action: {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                    viewModel.isClipboardMonitoring.toggle()
-                }
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(viewModel.isClipboardMonitoring ? .accentColor : .secondary)
-                    
-                    Text(viewModel.isClipboardMonitoring ? viewModel.t("action_clipboard_monitoring") : viewModel.t("action_clipboard_off"))
-                        .font(.system(size: 11, weight: viewModel.isClipboardMonitoring ? .semibold : .medium))
-                        .foregroundColor(viewModel.isClipboardMonitoring ? .primary : .secondary)
-                    
+            HStack(spacing: 8) {
+                ZStack {
                     Circle()
-                        .fill(viewModel.isClipboardMonitoring ? Color.green : Color.gray.opacity(0.4))
-                        .frame(width: 6, height: 6)
-                        .shadow(color: viewModel.isClipboardMonitoring ? Color.green.opacity(0.7) : Color.clear, radius: 3)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(viewModel.isClipboardMonitoring ? Color.accentColor.opacity(0.14) : Color.white.opacity(0.05))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(viewModel.isClipboardMonitoring ? Color.accentColor.opacity(0.45) : Color.white.opacity(0.1), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            .help("Panoya kopyalanan YouTube video bağlantılarını otomatik yakalama")
-        }
-        
-        ToolbarItem(placement: .automatic) {
-            // In-App Microphone Recording Trigger
-            Button(action: {
-                Task {
-                    await viewModel.startRecording()
-                }
-            }) {
-                HStack(spacing: 5) {
-                    Image(systemName: "mic.fill")
+                        .fill(Color.accentColor.opacity(0.18))
+                        .frame(width: 24, height: 24)
+                    Image(systemName: "waveform")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.red)
-                    Text("Ses Kaydet")
-                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
                 }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.red.opacity(0.12))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.red.opacity(0.35), lineWidth: 1)
-                )
+                Text("Transkript Hub")
+                    .font(.system(size: 14, weight: .bold))
             }
-            .buttonStyle(.plain)
-            .help("Mikrofondan Canlı Ses Kaydet & Deşifre Et (⌘R)")
         }
         
         ToolbarItem(placement: .automatic) {
@@ -318,7 +185,7 @@ public struct ContentView: View {
             }) {
                 Image(systemName: "command")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
@@ -334,7 +201,7 @@ public struct ContentView: View {
             }) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
@@ -342,28 +209,38 @@ public struct ContentView: View {
             .buttonStyle(.plain)
             .help("Ayarlar (⌘,)")
         }
-        
-        ToolbarItem(placement: .primaryAction) {
-            // Primary Action Button (⌘Return)
-            Button(action: { viewModel.requestStartQueue() }) {
-                HStack(spacing: 6) {
-                    if viewModel.isProcessing {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 10))
-                    }
-                    Text(viewModel.isProcessing ? viewModel.t("status_transcribing") : viewModel.t("action_transcribe_queue"))
-                        .font(.system(size: 12, weight: .semibold))
+    }
+    
+    private func navigationBackBar(title: String) -> some View {
+        HStack {
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.selectedSection = .queue
                 }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Ana Merkeze Dön")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .padding(.vertical, 5)
+                .liquidGlassCapsule(glowColor: .accentColor.opacity(0.4), material: .ultraThinMaterial)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(viewModel.queueItems.isEmpty || viewModel.isProcessing)
-            .keyboardShortcut(.defaultAction)
-            .help("Kuyruktaki tüm videoları ve sesleri transkript etmeye başlar (⌘Return)")
+            .buttonStyle(.plain)
+            
+            Spacer()
+            
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+            
+            Spacer()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial.opacity(0.4))
     }
     
     private func modelDisplayName(_ model: WhisperModel) -> String {
