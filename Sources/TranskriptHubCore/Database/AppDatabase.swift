@@ -110,6 +110,23 @@ public final class AppDatabase: Sendable {
             }
         }
         
+        migrator.registerMigration("v2_transcript_cache") { db in
+            try db.create(table: "transcript_cache") { t in
+                t.column("id", .text).primaryKey()
+                t.column("external_id", .text)
+                t.column("title", .text).notNull()
+                t.column("duration_sec", .double)
+                t.column("file_size", .integer)
+                t.column("source_path", .text)
+                t.column("output_path", .text)
+                t.column("transcript_text", .text).notNull()
+                t.column("created_at", .text).notNull()
+            }
+            try db.create(index: "idx_cache_duration", on: "transcript_cache", columns: ["duration_sec"])
+            try db.create(index: "idx_cache_title", on: "transcript_cache", columns: ["title"])
+            try db.create(index: "idx_cache_external_id", on: "transcript_cache", columns: ["external_id"])
+        }
+        
         return migrator
     }
 }

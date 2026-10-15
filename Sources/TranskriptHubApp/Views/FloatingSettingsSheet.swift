@@ -500,17 +500,74 @@ public struct FloatingSettingsSheet: View {
                 }
             }
             
+            // Full Disk Access (FDA) Permission Card
+            cardSection(title: "macOS Tam Disk Erişimi (Full Disk Access)", icon: "lock.shield") {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(viewModel.fullDiskAccessStatus.isGranted ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Text(viewModel.fullDiskAccessStatus.isGranted ? "Tam Disk Erişimi Aktif" : "İzin Bekleniyor")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(viewModel.fullDiskAccessStatus.isGranted ? .green : .orange)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(viewModel.fullDiskAccessStatus.isGranted ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
+                        .cornerRadius(6)
+                        
+                        Spacer()
+                        
+                        Button("İzni Yeniden Denetle") {
+                            viewModel.checkFullDiskAccess()
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        
+                        Button("Sistem Ayarlarını Aç") {
+                            viewModel.openFullDiskAccessSettings()
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    
+                    Text("Apple Watch veya iPhone'un yerel **Sesli Notlar** kayıtlarının Mac'e düştüğü korumalı sistem klasörünü doğrudan tarayabilmek için Transkript Hub'a Tam Disk Erişimi verilmesi gerekir.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    
+                    if !viewModel.fullDiskAccessStatus.isGranted {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Nasıl Açılır?")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("1. **Sistem Ayarlarını Aç** butonuna basın.\n2. **Gizlilik ve Güvenlik > Tam Disk Erişimi** listesinde **TranskriptHub** yanındaki anahtarı açın.\n3. Apple Watch ses kayıtlarınız sıfır temasla otomatik olarak yazıya dökülsün!")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(10)
+                        .background(Color.orange.opacity(0.08))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+            
             // Apple Watch & iPhone Voice Memos Guide
             cardSection(title: "Apple Watch & iPhone Sesli Notlar", icon: "applewatch") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Apple Watch veya iPhone'un yerel Sesli Notlar uygulamasıyla kayıt aldığınızda:")
                         .font(.system(size: 12, weight: .medium))
                     
-                    Text("• **Yöntem A (En Kolay):** Ses kaydının yanındaki (...) menüsünden **Paylaş > Dosyalara Kaydet > iCloud Drive / Transkript** yolunu seçin.")
+                    Text("• **Yöntem A (Tam Disk Erişimi ile Tam Otomatik):** Yukarıdaki Tam Disk Erişimi iznini verdiğinizde, Apple Watch veya iPhone'dan aldığınız tüm Sesli Notlar hiçbir şey yapmanıza gerek kalmadan Mac'inize düştüğü anda transkript edilir.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Text("• **Yöntem B (Apple Kestirmeler - Sıfır Tıklama):** iPhone'unuzdaki Kestirmeler uygulamasından 'Ses Kaydı Al' ve ardından 'iCloud Drive / Transkript Klasörüne Kaydet' kestirmesini kurabilirsiniz. Böylece saatinizden kaydettiğiniz ses Mac'inize otomatik düşer ve anında transkript edilir.")
+                    Text("• **Yöntem B (Paylaşım):** Ses kaydının yanındaki (...) menüsünden **Paylaş > Dosyalara Kaydet > iCloud Drive / Transkript** yolunu seçin.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    
+                    Text("• **Yöntem C (Apple Kestirmeler):** iPhone'unuzdaki Kestirmeler uygulamasından 'Ses Kaydı Al' ve ardından 'iCloud Drive / Transkript Klasörüne Kaydet' kestirmesini kurabilirsiniz.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }

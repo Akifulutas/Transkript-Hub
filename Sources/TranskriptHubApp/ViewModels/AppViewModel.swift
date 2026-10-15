@@ -219,6 +219,17 @@ public final class AppViewModel: ObservableObject {
     public let outputWriter = OutputWriter()
     private var jobManager: JobManager?
     private var appDatabase: AppDatabase?
+    public private(set) var transcriptCacheManager: TranscriptCacheManager?
+    
+    @Published public var fullDiskAccessStatus: FullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
+    
+    public func checkFullDiskAccess() {
+        fullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
+    }
+    
+    public func openFullDiskAccessSettings() {
+        FullDiskAccessHelper.openSystemSettings()
+    }
     
     public var watchedDirectoryPath: String {
         folderWatcher.watchedDirectory.path
@@ -388,6 +399,7 @@ public final class AppViewModel: ObservableObject {
                 let db = try AppDatabase.makeShared()
                 self.appDatabase = db
                 self.jobManager = JobManager(database: db, outputWriter: self.outputWriter)
+                self.transcriptCacheManager = TranscriptCacheManager(database: db)
                 try await self.jobManager?.recoverState()
                 await self.loadHistoryFromDatabase()
                 await self.resolvePendingVideoTitles()
@@ -406,14 +418,49 @@ public final class AppViewModel: ObservableObject {
         guard AudioValidator.isExtensionSupported(url.pathExtension) else { return }
         guard !queueItems.contains(where: { $0.id == url.path }) else { return }
         
-        let item = QueueItem(
+        let title = url.deletingPathExtension().lastPathComponent
+        let duration = try? AudioValidator.validate(fileURL: url)
+        
+        // 1. Check if previously transcribed by duration + name
+        if let cached = await transcriptCacheManager?.findCached(
+            title: title,
+            durationSec: duration,
+            sourcePath: url.path,
+            externalID: url.path
+        ) {
+            Log.info("Ses dosyası daha önce işlenmiş, önbellekten getirildi: \(title)")
+            var item = QueueItem(
+                id: url.path,
+                kind: .audioFile(url),
+                title: title,
+                subtitle: "Önbellekten Yüklendi • Zaten Deşifre Edilmiş",
+                state: .completed,
+                transcript: cached.transcriptText,
+                isNewlyDiscovered: true
+            )
+            item.progress = 1.0
+            item.durationSec = duration
+            if let outPath = cached.outputPath {
+                item.outputURL = URL(fileURLWithPath: outPath)
+            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                queueItems.append(item)
+                if selectedItemID == nil {
+                    selectedItemID = item.id
+                }
+            }
+            return
+        }
+        
+        var item = QueueItem(
             id: url.path,
             kind: .audioFile(url),
-            title: url.deletingPathExtension().lastPathComponent,
+            title: title,
             subtitle: "Sesli Notlar • \(url.pathExtension.uppercased())",
             state: .queued,
             isNewlyDiscovered: true
         )
+        item.durationSec = duration
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
             if selectedItemID == nil {
@@ -455,6 +502,23 @@ public final class AppViewModel: ObservableObject {
         // Fast asynchronous title, author and thumbnail resolution (~100ms)
         Task { @MainActor [weak self] in
             await self?.resolveMetadata(for: video.videoID, source: source)
+            
+            // Check cache for existing transcript
+            if let cached = await self?.transcriptCacheManager?.findCached(
+                title: initialTitle,
+                durationSec: nil,
+                externalID: video.videoID
+            ) {
+                if let idx = self?.queueItems.firstIndex(where: { $0.id == video.videoID }) {
+                    self?.queueItems[idx].transcript = cached.transcriptText
+                    self?.queueItems[idx].state = .completed
+                    self?.queueItems[idx].progress = 1.0
+                    self?.queueItems[idx].subtitle = "\(source) • Önbellekten Yüklendi (Zaten İşlenmiş)"
+                    if let outPath = cached.outputPath {
+                        self?.queueItems[idx].outputURL = URL(fileURLWithPath: outPath)
+                    }
+                }
+            }
         }
     }
     
@@ -491,17 +555,44 @@ public final class AppViewModel: ObservableObject {
             guard AudioValidator.isExtensionSupported(url.pathExtension) else { continue }
             guard !queueItems.contains(where: { $0.id == url.path }) else { continue }
             
-            let item = QueueItem(
+            let title = url.deletingPathExtension().lastPathComponent
+            let duration = try? AudioValidator.validate(fileURL: url)
+            
+            var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
-                title: url.deletingPathExtension().lastPathComponent,
+                title: title,
                 subtitle: "Ses Dosyası • \(url.pathExtension.uppercased())",
                 state: .queued
             )
+            item.durationSec = duration
+            
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
                 if selectedItemID == nil {
                     selectedItemID = item.id
+                }
+            }
+            
+            // Check cache by filename and audio duration
+            let itemId = item.id
+            Task { [weak self] in
+                if let cached = await self?.transcriptCacheManager?.findCached(
+                    title: title,
+                    durationSec: duration,
+                    sourcePath: url.path,
+                    externalID: url.path
+                ) {
+                    await MainActor.run {
+                        guard let self = self, let idx = self.queueItems.firstIndex(where: { $0.id == itemId }) else { return }
+                        self.queueItems[idx].transcript = cached.transcriptText
+                        self.queueItems[idx].state = .completed
+                        self.queueItems[idx].progress = 1.0
+                        self.queueItems[idx].subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş"
+                        if let outPath = cached.outputPath {
+                            self.queueItems[idx].outputURL = URL(fileURLWithPath: outPath)
+                        }
+                    }
                 }
             }
         }
@@ -817,6 +908,25 @@ public final class AppViewModel: ObservableObject {
                     
                     switch item.kind {
                     case .youtube(let video):
+                        // Check cache before fetching or transcribing
+                        if let cached = await self.transcriptCacheManager?.findCached(
+                            title: current.title,
+                            durationSec: current.durationSec,
+                            externalID: video.videoID
+                        ) {
+                            Log.info("YouTube videosu önbellekten yüklendi: \(current.title)")
+                            current.transcript = cached.transcriptText
+                            current.state = .completed
+                            current.progress = 1.0
+                            current.subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş"
+                            if let outPath = cached.outputPath {
+                                current.outputURL = URL(fileURLWithPath: outPath)
+                                self.lastOutputURL = current.outputURL
+                            }
+                            self.updateItem(current)
+                            continue
+                        }
+                        
                         current.state = .fetching
                         self.updateItem(current)
                         self.currentOperation = "YouTube sesi indiriliyor (yt-dlp)..."
@@ -828,6 +938,25 @@ public final class AppViewModel: ObservableObject {
                             current.title = media.metadata.title
                             current.subtitle = "\(channel) • \(Int(duration)) sn"
                             current.durationSec = media.metadata.duration
+                            
+                            // Check cache again with fetched metadata title
+                            if let cached = await self.transcriptCacheManager?.findCached(
+                                title: media.metadata.title,
+                                durationSec: media.metadata.duration,
+                                externalID: video.videoID
+                            ) {
+                                Log.info("YouTube videosu önbellekten yüklendi: \(media.metadata.title)")
+                                current.transcript = cached.transcriptText
+                                current.state = .completed
+                                current.progress = 1.0
+                                current.subtitle = "\(channel) • Önbellekten Yüklendi"
+                                if let outPath = cached.outputPath {
+                                    current.outputURL = URL(fileURLWithPath: outPath)
+                                    self.lastOutputURL = current.outputURL
+                                }
+                                self.updateItem(current)
+                                continue
+                            }
                             
                             current.state = .transcribing
                             current.transcript = ""
@@ -860,6 +989,7 @@ public final class AppViewModel: ObservableObject {
                             current.state = .completed
                             current.progress = 1.0
                             
+                            var targetURLPath: String? = nil
                             // Save individual file if requested
                             if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
                                 let targetURL = self.outputWriter.resolveUniqueURL(
@@ -871,6 +1001,7 @@ public final class AppViewModel: ObservableObject {
                                 try self.outputWriter.write(content: formatted, to: targetURL)
                                 current.outputURL = targetURL
                                 self.lastOutputURL = targetURL
+                                targetURLPath = targetURL.path
                                 
                                 self.saveToHistory(
                                     title: media.metadata.title,
@@ -880,19 +1011,51 @@ public final class AppViewModel: ObservableObject {
                                 )
                             }
                             
+                            // Save to cache for future instant re-use
+                            await self.transcriptCacheManager?.save(
+                                externalID: video.videoID,
+                                title: media.metadata.title,
+                                durationSec: media.metadata.duration,
+                                sourcePath: video.canonicalURL,
+                                outputPath: targetURLPath,
+                                transcriptText: formatted
+                            )
+                            
                         } catch {
                             current.state = .failed
                             current.errorMessage = error.localizedDescription
                         }
                         
                     case .audioFile(let fileURL):
-                        current.state = .transcribing
-                        current.transcript = ""
-                        self.updateItem(current)
-                        self.currentOperation = "Yerel ses çözümleniyor ve transkript ediliyor..."
-                        
                         do {
-                            _ = try AudioValidator.validate(fileURL: fileURL)
+                            let duration = try AudioValidator.validate(fileURL: fileURL)
+                            current.durationSec = duration
+                            
+                            // Check cache using both name and exact duration!
+                            if let cached = await self.transcriptCacheManager?.findCached(
+                                title: current.title,
+                                durationSec: duration,
+                                sourcePath: fileURL.path,
+                                externalID: fileURL.path
+                            ) {
+                                Log.info("Ses dosyası önbellekten yüklendi (tekrar transkript atlandı): \(current.title) (\(duration) sn)")
+                                current.transcript = cached.transcriptText
+                                current.state = .completed
+                                current.progress = 1.0
+                                current.subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş (\(Int(duration)) sn)"
+                                if let outPath = cached.outputPath {
+                                    current.outputURL = URL(fileURLWithPath: outPath)
+                                    self.lastOutputURL = current.outputURL
+                                }
+                                self.updateItem(current)
+                                continue
+                            }
+                            
+                            current.state = .transcribing
+                            current.transcript = ""
+                            self.updateItem(current)
+                            self.currentOperation = "Yerel ses çözümleniyor ve transkript ediliyor..."
+                            
                             let prepared = try audioDecoder.decode(fileURL: fileURL)
                             let collector = SegmentCollector()
                             let itemId = current.id
@@ -919,6 +1082,7 @@ public final class AppViewModel: ObservableObject {
                             current.state = .completed
                             current.progress = 1.0
                             
+                            var targetURLPath: String? = nil
                             let baseName = fileURL.deletingPathExtension().lastPathComponent
                             if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
                                 let targetURL = self.outputWriter.resolveUniqueURL(
@@ -930,6 +1094,7 @@ public final class AppViewModel: ObservableObject {
                                 try self.outputWriter.write(content: formatted, to: targetURL)
                                 current.outputURL = targetURL
                                 self.lastOutputURL = targetURL
+                                targetURLPath = targetURL.path
                                 
                                 self.saveToHistory(
                                     title: baseName,
@@ -938,6 +1103,16 @@ public final class AppViewModel: ObservableObject {
                                     snippet: String(formatted.prefix(200))
                                 )
                             }
+                            
+                            // Save to cache for future instant re-use
+                            await self.transcriptCacheManager?.save(
+                                externalID: fileURL.path,
+                                title: baseName,
+                                durationSec: duration,
+                                sourcePath: fileURL.path,
+                                outputPath: targetURLPath,
+                                transcriptText: formatted
+                            )
                             
                         } catch {
                             current.state = .failed

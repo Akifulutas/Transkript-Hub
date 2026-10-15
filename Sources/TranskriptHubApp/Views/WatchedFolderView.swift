@@ -130,6 +130,39 @@ struct WatchedFolderView: View {
                 .padding(16)
                 .liquidGlass(cornerRadius: 14, glowColor: viewModel.isFolderWatching ? .green.opacity(0.6) : .white, material: .ultraThinMaterial)
                 
+                // Full Disk Access Banner for Voice Memos
+                if !viewModel.fullDiskAccessStatus.isGranted {
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 22))
+                            .foregroundColor(.orange)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Apple Watch / iPhone Sesli Notlar için Tam Disk Erişimi Gerekli")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Apple'ın yerel Sesli Notlar klasörünü otomatik tarayabilmek için macOS Sistem Ayarları'ndan izin vermeniz önerilir.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button("Sistem Ayarlarını Aç") {
+                            viewModel.openFullDiskAccessSettings()
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .padding(14)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                    )
+                }
+                
                 // Tips / Guide Card (Liquid Glass)
                 VStack(alignment: .leading, spacing: 10) {
                     Label("iPhone Sesli Notlar (Voice Memos) Entegrasyonu", systemImage: "iphone")
