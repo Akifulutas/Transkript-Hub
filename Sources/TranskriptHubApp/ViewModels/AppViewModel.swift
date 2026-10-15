@@ -58,6 +58,20 @@ public struct PendingBatchIngestion: Identifiable, Sendable, Equatable {
     }
 }
 
+public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
+    case microphone = "microphone"
+    case systemAudio = "systemAudio"
+    
+    public var id: String { rawValue }
+    
+    public var displayName: String {
+        switch self {
+        case .microphone: return "🎙️ Canlı Mikrofon"
+        case .systemAudio: return "🖥️ Bilgisayar / Zoom Sesi"
+        }
+    }
+}
+
 final class NotificationObserverToken: @unchecked Sendable {
     private let token: any NSObjectProtocol
     
@@ -238,23 +252,10 @@ public final class AppViewModel: ObservableObject {
     @Published public var isKaraokeMode: Bool = true
     @Published public var currentPlayingItemId: String? = nil
     
-public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
-    case microphone = "microphone"
-    case systemAudio = "systemAudio"
-    
-    public var id: String { rawValue }
-    
-    public var displayName: String {
-        switch self {
-        case .microphone: return "🎙️ Canlı Mikrofon"
-        case .systemAudio: return "🖥️ Bilgisayar / Zoom Sesi"
-        }
-    }
-}
-
     // In-App Microphone / System Audio Recording Engine (Milestone 2)
     public let recordingEngine = AudioRecordingEngine()
     @Published public var isRecordingModalPresented: Bool = false
+    @Published public var isRecordingSourceSheetPresented: Bool = false
     @Published public var recordingSource: AudioRecordingSource = .microphone
     
     public func startRecording(source: AudioRecordingSource = .microphone) async {
@@ -1675,9 +1676,8 @@ public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
     public func clearAllHistory() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             historyItems.removeAll()
-            if selectedHistoryItem != nil {
-                selectedItemID = nil
-            }
+            selectedItemID = nil
+            selectedItemIDs.removeAll()
         }
         Task { [weak self] in
             guard let db = self?.appDatabase else { return }

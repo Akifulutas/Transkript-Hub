@@ -129,6 +129,8 @@ public struct FloatingSettingsSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
     
     // MARK: - Top Bar with Close Button

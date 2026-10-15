@@ -6,7 +6,8 @@ public struct UnifiedStudioHubView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var quickLinkText: String = ""
     @State private var isDropTargeted: Bool = false
-    @State private var isModelAccordionExpanded: Bool = false
+    @State private var isModelPickerPresented: Bool = false
+    @State private var isLanguagePickerPresented: Bool = false
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -19,16 +20,6 @@ public struct UnifiedStudioHubView: View {
                 topActionCardsRow
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
-                
-                // Model Selection Accordion (smooth downward expansion)
-                if isModelAccordionExpanded {
-                    modelAccordionSection
-                        .padding(.horizontal, 24)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .top)),
-                            removal: .opacity.combined(with: .move(edge: .top))
-                        ))
-                }
                 
                 // 2. Central Floating Hero Card: Drop & Paste Zone
                 centralHeroCard
@@ -47,41 +38,41 @@ public struct UnifiedStudioHubView: View {
     // MARK: - 1. Top 6 Interactive Action Cards Row
     private var topActionCardsRow: some View {
         HStack(spacing: 10) {
-            // Card 1: Model Selection (Interactive Accordion Toggle)
+            // Card 1: Model Selection (Floating Popover anchored under Card 1)
             Button(action: {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    isModelAccordionExpanded.toggle()
-                }
+                isModelPickerPresented.toggle()
             }) {
                 interactiveCard(
                     icon: "cpu.fill",
                     badgeColor: .orange,
                     caption: "YAPAY ZEKA MODELİ",
                     title: viewModel.selectedModelTitle,
-                    subtitle: isModelAccordionExpanded ? "Listeyi Kapat" : "Modeli Değiştir",
+                    subtitle: isModelPickerPresented ? "Pencereyi Kapat" : "Modeli Değiştir",
                     showsChevron: true
                 )
             }
             .buttonStyle(.plain)
+            .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
+                modelPickerPopover
+            }
             
-            // Card 2: Language Selection (Clickable Menu)
-            Menu {
-                languageMenuButton(code: "auto", title: "🌐 Otomatik Algıla")
-                Divider()
-                languageMenuButton(code: "tr", title: "🇹🇷 Türkçe")
-                languageMenuButton(code: "en", title: "🇬🇧 İngilizce")
-                languageMenuButton(code: "de", title: "🇩🇪 Almanca")
-            } label: {
+            // Card 2: Language Selection (Floating Popover anchored under Card 2)
+            Button(action: {
+                isLanguagePickerPresented.toggle()
+            }) {
                 interactiveCard(
                     icon: "globe",
                     badgeColor: .blue,
                     caption: "KONUŞMA DİLİ",
                     title: languageTitle(viewModel.selectedLanguage),
-                    subtitle: "Dili Seç",
+                    subtitle: isLanguagePickerPresented ? "Pencereyi Kapat" : "Dili Seç",
                     showsChevron: true
                 )
             }
             .buttonStyle(.plain)
+            .popover(isPresented: $isLanguagePickerPresented, arrowEdge: .bottom) {
+                languagePickerPopover
+            }
             
             // Card 3: Clipboard Monitoring (Toggle Button)
             Button(action: {
@@ -100,30 +91,16 @@ public struct UnifiedStudioHubView: View {
             }
             .buttonStyle(.plain)
             
-            // Card 4: Live Audio Recording (Dual Mode: Microphone & System Audio)
-            Menu {
-                Button {
-                    Task {
-                        await viewModel.startRecording(source: .microphone)
-                    }
-                } label: {
-                    Label("🎙️ Canlı Mikrofon", systemImage: "mic.fill")
-                }
-                
-                Button {
-                    Task {
-                        await viewModel.startRecording(source: .systemAudio)
-                    }
-                } label: {
-                    Label("🖥️ Bilgisayar / Zoom Sesi", systemImage: "display")
-                }
-            } label: {
+            // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
+            Button(action: {
+                viewModel.isRecordingSourceSheetPresented = true
+            }) {
                 interactiveCard(
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
                     badgeColor: .red,
                     caption: "SES KAYDI",
                     title: viewModel.recordingSource == .microphone ? "Mikrofon" : "Sistem Sesi",
-                    subtitle: "Mod Seç (⌘R)",
+                    subtitle: "Kayıt Başlat (⌘R)",
                     showsChevron: true
                 )
             }
@@ -159,118 +136,107 @@ public struct UnifiedStudioHubView: View {
         }
     }
     
-    // MARK: - Model Selection Accordion Section
-    private var modelAccordionSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    // MARK: - Model Selection Popover (Card 1)
+    private var modelPickerPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: "cpu.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.orange)
-                    Text("Whisper Yapay Zeka Modelleri")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.orange)
+                    Text("Whisper Modelleri")
                         .font(.system(size: 13, weight: .bold))
-                    Text("• \(WhisperModelCatalog.availableModels.count) Model")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
-                Button(action: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                        isModelAccordionExpanded = false
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Text("Kapat")
-                            .font(.system(size: 11, weight: .medium))
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+                Text("Boyuta göre sıralı")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
+            .padding(.bottom, 2)
             
             Divider()
             
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 ForEach(WhisperModelCatalog.availableModels) { spec in
-                    accordionModelRow(spec: spec)
+                    popoverModelRow(spec: spec)
                     if spec.id != WhisperModelCatalog.availableModels.last?.id {
-                        Divider().opacity(0.4)
+                        Divider().opacity(0.3)
                     }
                 }
             }
         }
-        .padding(16)
-        .liquidGlass(cornerRadius: 16, glowColor: .orange.opacity(0.3), material: .ultraThinMaterial)
+        .padding(14)
+        .frame(width: 380)
     }
     
-    private func accordionModelRow(spec: WhisperModelSpec) -> some View {
+    private func popoverModelRow(spec: WhisperModelSpec) -> some View {
         let isDownloaded = viewModel.modelManager.isModelDownloaded(spec.model)
         let isActive = viewModel.selectedModel == spec.model
         let visuals = modelSpecVisuals(spec)
         
-        return HStack(spacing: 12) {
+        return HStack(spacing: 10) {
             // Colorful Model Icon Badge
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(visuals.color.opacity(0.18))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 28, height: 28)
                 Image(systemName: visuals.icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(visuals.color)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(visuals.color)
             }
             
             // Model Info
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(spec.displayName)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                     
                     Text(spec.sizeDescription)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
                     
                     if let badge = spec.badge {
                         Text(badge)
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(visuals.color)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
+                            .foregroundStyle(visuals.color)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
                             .background(Capsule().fill(visuals.color.opacity(0.12)))
-                    }
-                    
-                    if isActive {
-                        Text("Aktif")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.accentColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .liquidGlassCapsule(glowColor: .accentColor, material: .ultraThinMaterial)
                     }
                 }
                 
                 Text(spec.summary)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             
             Spacer()
             
-            // Inline Action Buttons: Seç, İndir, Sil
+            // Inline Action Buttons & Status Badges
             if isDownloaded {
-                HStack(spacing: 8) {
-                    if !isActive {
-                        Button("Seç") {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                HStack(spacing: 6) {
+                    if isActive {
+                        HStack(spacing: 3) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("✓ Aktif Model")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.accentColor))
+                    } else {
+                        Button("Kullan / Aktif Yap") {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 viewModel.selectedModel = spec.model
-                                isModelAccordionExpanded = false
+                                isModelPickerPresented = false
                             }
                         }
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                     }
@@ -278,50 +244,110 @@ public struct UnifiedStudioHubView: View {
                     Button(role: .destructive) {
                         viewModel.deleteModelInSettings(spec.model)
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 10))
-                            Text("Sil")
-                                .font(.system(size: 11))
-                        }
-                        .foregroundColor(.red.opacity(0.85))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(Color.red.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        Image(systemName: "trash")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.red.opacity(0.8))
+                            .padding(4)
                     }
                     .buttonStyle(.plain)
                     .help("Model dosyasını diskten sil")
+                    .accessibilityLabel("Model dosyasını diskten sil")
                 }
             } else if viewModel.downloadingModel == spec.model {
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 3) {
                     ProgressView(value: viewModel.modelDownloadFraction)
                         .progressViewStyle(.linear)
-                        .frame(width: 120)
+                        .frame(width: 90)
                     Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 Button(action: {
                     viewModel.downloadModelInSettings(spec.model)
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "arrow.down.circle")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10))
                         Text("İndir")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 10)
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.accentColor.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(.rect(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
+    }
+    
+    // MARK: - Language Selection Popover (Card 2)
+    private var languagePickerPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "globe")
+                    .foregroundStyle(.blue)
+                    .font(.system(size: 12))
+                Text("Konuşma Dili")
+                    .font(.system(size: 12, weight: .bold))
+                Spacer()
+            }
+            .padding(.bottom, 2)
+            
+            Divider()
+            
+            VStack(spacing: 4) {
+                languageOptionRow(code: "auto", flag: "🌐", name: "Otomatik Algıla", desc: "Konuşulan dili ses kaydından otomatik tespit eder")
+                languageOptionRow(code: "tr", flag: "🇹🇷", name: "Türkçe", desc: "Türkçe konuşmalar için optimize")
+                languageOptionRow(code: "en", flag: "🇬🇧", name: "İngilizce", desc: "İngilizce toplantı ve kayıtlar")
+                languageOptionRow(code: "de", flag: "🇩🇪", name: "Almanca", desc: "Almanca kayıtlar ve sesli notlar")
+            }
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+    
+    private func languageOptionRow(code: String, flag: String, name: String, desc: String) -> some View {
+        let isSelected = viewModel.selectedLanguage == code
+        return Button(action: {
+            viewModel.selectedLanguage = code
+            isLanguagePickerPresented = false
+        }) {
+            HStack(spacing: 10) {
+                Text(flag)
+                    .font(.system(size: 18))
+                    .frame(width: 24)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                        .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.85))
+                    Text(desc)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                        .font(.system(size: 13))
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
     
     private func modelSpecVisuals(_ spec: WhisperModelSpec) -> (icon: String, color: Color) {
@@ -526,27 +552,17 @@ public struct UnifiedStudioHubView: View {
                 
                 Spacer()
                 
-                // Secondary Actions: Clear & Retry
-                if !viewModel.queueItems.isEmpty {
-                    if viewModel.failedCount > 0 {
-                        Button(action: { viewModel.retryFailedItems() }) {
-                            Text("Hatalıları Yeniden Dene")
-                                .font(.system(size: 11))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    
-                    Button(action: { viewModel.clearQueueWithUndo() }) {
-                        Text("Kuyruğu Temizle")
+                // Secondary Actions: Retry Failed
+                if !viewModel.queueItems.isEmpty && viewModel.failedCount > 0 {
+                    Button(action: { viewModel.retryFailedItems() }) {
+                        Text("Hatalıları Yeniden Dene")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .disabled(viewModel.isProcessing)
                 }
                 
-                // Primary Action Button: "Transkripte Yolla (⌘Return)"
+                // Primary Action Button: "Transkripte Yolla"
                 Button(action: {
                     viewModel.requestStartQueue()
                 }) {
@@ -559,7 +575,7 @@ public struct UnifiedStudioHubView: View {
                         } else {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 11, weight: .bold))
-                            Text("Transkripte Yolla (⌘Return)")
+                            Text("Transkripte Yolla")
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
@@ -609,6 +625,26 @@ public struct UnifiedStudioHubView: View {
                     ForEach(viewModel.queueItems) { item in
                         queueItemRow(item: item)
                     }
+                    
+                    // Bottom Circular Clear Queue Button (Icon-only)
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            viewModel.clearQueueWithUndo()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(Color.secondary.opacity(0.55))
+                                .padding(6)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(viewModel.isProcessing)
+                        .help("Kuyruğu Temizle")
+                        .accessibilityLabel("Kuyruğu Temizle")
+                        Spacer()
+                    }
+                    .padding(.top, 2)
                 }
             }
         }
@@ -624,12 +660,41 @@ public struct UnifiedStudioHubView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
-                        .frame(width: 38, height: 38)
+                        .frame(width: 48, height: 36)
                     
-                    Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
-                        .font(.system(size: 16))
-                        .foregroundStyle(item.isYouTube ? Color.red : Color.purple)
+                    if let thumbURL = item.thumbnailURL {
+                        AsyncImage(url: thumbURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 48, height: 36)
+                                    .clipped()
+                            case .failure:
+                                Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(item.isYouTube ? Color.red : Color.purple)
+                            case .empty:
+                                ProgressView()
+                                    .controlSize(.mini)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .frame(width: 48, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                            .font(.system(size: 16))
+                            .foregroundStyle(item.isYouTube ? Color.red : Color.purple)
+                    }
                 }
+                .frame(width: 48, height: 36)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
                 
                 // Title and Subtitle
                 VStack(alignment: .leading, spacing: 3) {
@@ -666,6 +731,7 @@ public struct UnifiedStudioHubView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Kuyruktan kaldır")
+                    .accessibilityLabel("Kuyruktan kaldır")
                 }
             }
             .padding(12)
@@ -772,19 +838,6 @@ public struct UnifiedStudioHubView: View {
         case "en": return "İngilizce"
         case "de": return "Almanca"
         default: return code.uppercased()
-        }
-    }
-    
-    private func languageMenuButton(code: String, title: String) -> some View {
-        Button {
-            viewModel.selectedLanguage = code
-        } label: {
-            HStack {
-                Text(title)
-                if viewModel.selectedLanguage == code {
-                    Image(systemName: "checkmark")
-                }
-            }
         }
     }
 }

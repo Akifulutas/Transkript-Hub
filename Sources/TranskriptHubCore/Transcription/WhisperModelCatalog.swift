@@ -42,37 +42,14 @@ public struct WhisperModelSpec: Identifiable, Sendable, Hashable {
 public struct WhisperModelCatalog {
     public static let availableModels: [WhisperModelSpec] = [
         WhisperModelSpec(
-            model: .largeV3Turbo,
-            displayName: "Large-v3-Turbo",
-            sizeDescription: "1.6 GB",
-            sizeBytes: 1_620_000_000,
-            badge: "🚀 En Yeni Turbo & En İyi",
+            model: .tiny,
+            displayName: "Tiny",
+            sizeDescription: "75 MB",
+            sizeBytes: 75_000_000,
+            badge: "🪶 Ultra Hafif",
             speedRating: 5,
-            accuracyRating: 5,
-            summary: "OpenAI'ın en yeni ve en gelişmiş modeli. Large-v3 doğruluğunu 4 kat daha hızlı sağlar. Türkçe için 1 numaralı öneri.",
-            isTurbo: true
-        ),
-        WhisperModelSpec(
-            model: .largeV3TurboQ5,
-            displayName: "Large-v3-Turbo (Q5_0)",
-            sizeDescription: "1.1 GB",
-            sizeBytes: 1_100_000_000,
-            badge: "⚡️ Hızlı & Optimize",
-            speedRating: 5,
-            accuracyRating: 5,
-            summary: "Apple Silicon bellek mimarisi için özel 5-bit kuantize edilmiş turbo model. %30 daha az RAM, sıfır kalite kaybı.",
-            isTurbo: true,
-            isQuantized: true
-        ),
-        WhisperModelSpec(
-            model: .small,
-            displayName: "Small",
-            sizeDescription: "466 MB",
-            sizeBytes: 466_000_000,
-            badge: "🎯 Dengeli & Popüler",
-            speedRating: 4,
-            accuracyRating: 4,
-            summary: "Düşük bellek kullanımıyla yüksek Türkçe ve çok dilli doğruluk sunan standart model.",
+            accuracyRating: 2,
+            summary: "Saniyeler içinde inen, neredeyse hiç RAM tüketmeyen en hafif Whisper motoru.",
             isTurbo: false
         ),
         WhisperModelSpec(
@@ -87,15 +64,27 @@ public struct WhisperModelCatalog {
             isTurbo: false
         ),
         WhisperModelSpec(
-            model: .tiny,
-            displayName: "Tiny",
-            sizeDescription: "75 MB",
-            sizeBytes: 75_000_000,
-            badge: "🪶 Ultra Hafif",
-            speedRating: 5,
-            accuracyRating: 2,
-            summary: "Saniyeler içinde inen, neredeyse hiç RAM tüketmeyen en hafif Whisper motoru.",
+            model: .small,
+            displayName: "Small",
+            sizeDescription: "466 MB",
+            sizeBytes: 466_000_000,
+            badge: "🎯 Dengeli & Popüler",
+            speedRating: 4,
+            accuracyRating: 4,
+            summary: "Düşük bellek kullanımıyla yüksek Türkçe ve çok dilli doğruluk sunan standart model.",
             isTurbo: false
+        ),
+        WhisperModelSpec(
+            model: .largeV3TurboQ5,
+            displayName: "Large-v3-Turbo (Q5_0)",
+            sizeDescription: "1.1 GB",
+            sizeBytes: 1_100_000_000,
+            badge: "⚡️ Hızlı & Optimize",
+            speedRating: 5,
+            accuracyRating: 5,
+            summary: "Apple Silicon bellek mimarisi için özel 5-bit kuantize edilmiş turbo model. %30 daha az RAM, sıfır kalite kaybı.",
+            isTurbo: true,
+            isQuantized: true
         ),
         WhisperModelSpec(
             model: .medium,
@@ -107,6 +96,17 @@ public struct WhisperModelCatalog {
             accuracyRating: 4,
             summary: "Teknik terimler ve akademik konuşmalar için optimize edilmiş dengeli model.",
             isTurbo: false
+        ),
+        WhisperModelSpec(
+            model: .largeV3Turbo,
+            displayName: "Large-v3-Turbo",
+            sizeDescription: "1.6 GB",
+            sizeBytes: 1_620_000_000,
+            badge: "🚀 En Yeni Turbo & En İyi",
+            speedRating: 5,
+            accuracyRating: 5,
+            summary: "OpenAI'ın en yeni ve en gelişmiş modeli. Large-v3 doğruluğunu 4 kat daha hızlı sağlar. Türkçe için 1 numaralı öneri.",
+            isTurbo: true
         )
     ]
     

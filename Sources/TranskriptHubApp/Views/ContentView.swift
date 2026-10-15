@@ -63,6 +63,9 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isRecordingModalPresented) {
                 LiveAudioMeterView(viewModel: viewModel)
             }
+            .sheet(isPresented: $viewModel.isRecordingSourceSheetPresented) {
+                AudioRecordingSourceSheet(viewModel: viewModel)
+            }
             .sheet(isPresented: $viewModel.isWatchedFolderPresented) {
                 WatchedFolderSheet(viewModel: viewModel)
             }
@@ -156,9 +159,7 @@ public struct ContentView: View {
                     viewModel.audioPlayer.skipForward(by: 5.0)
                 },
                 onCommandR: {
-                    Task {
-                        await viewModel.startRecording()
-                    }
+                    viewModel.isRecordingSourceSheetPresented = true
                 }
             )
         )

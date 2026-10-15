@@ -113,4 +113,18 @@ final class FolderWatcherTests: XCTestCase {
         XCTAssertEqual(WhisperModel.tiny.displayName, "Tiny")
         XCTAssertEqual(WhisperModel.medium.displayName, "Medium")
     }
+    
+    func testWhisperModelCatalogSortedBySizeBytesAscending() {
+        let models = WhisperModelCatalog.availableModels
+        XCTAssertEqual(models.count, 6)
+        for i in 0..<(models.count - 1) {
+            XCTAssertLessThanOrEqual(
+                models[i].sizeBytes,
+                models[i + 1].sizeBytes,
+                "Model \(models[i].displayName) sizeBytes (\(models[i].sizeBytes)) must be <= next model \(models[i+1].displayName) sizeBytes (\(models[i+1].sizeBytes))"
+            )
+        }
+        XCTAssertEqual(models.first?.model, .tiny)
+        XCTAssertEqual(models.last?.model, .largeV3Turbo)
+    }
 }
