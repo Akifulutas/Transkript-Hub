@@ -21,9 +21,12 @@ echo "3. Copying binaries and dependencies..."
 cp "$BUILD_DIR/TranskriptHubApp" "$APP_DIR/Contents/MacOS/TranskriptHub"
 chmod +x "$APP_DIR/Contents/MacOS/TranskriptHub"
 
-# Copy whisper.framework and AppIcon
+# Copy whisper.framework, AppIcon and PrivacyInfo
 cp -R "$PROJECT_DIR/Frameworks/whisper.xcframework/macos-arm64_x86_64/whisper.framework" "$APP_DIR/Contents/Frameworks/"
 cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+if [ -f "$PROJECT_DIR/Resources/PrivacyInfo.xcprivacy" ]; then
+    cp "$PROJECT_DIR/Resources/PrivacyInfo.xcprivacy" "$APP_DIR/Contents/Resources/PrivacyInfo.xcprivacy"
+fi
 
 echo "4. Configuring RPATH and dynamic linker..."
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
@@ -66,7 +69,19 @@ EOF
 
 echo "6. Code signing and Gatekeeper quarantine cleanup..."
 xattr -cr "$APP_DIR" || true
-codesign --force --deep -s - "$APP_DIR"
+
+ENTITLEMENTS="$PROJECT_DIR/Resources/TranskriptHub.entitlements"
+SIGN_IDENTITY="-"
+
+# Sign embedded framework first (bottom-up signing)
+codesign --force --options runtime -s "$SIGN_IDENTITY" "$APP_DIR/Contents/Frameworks/whisper.framework" 2>/dev/null || codesign --force -s "$SIGN_IDENTITY" "$APP_DIR/Contents/Frameworks/whisper.framework"
+
+# Sign main application bundle with Hardened Runtime and Entitlements
+if [ -f "$ENTITLEMENTS" ]; then
+    codesign --force --options runtime --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR" 2>/dev/null || codesign --force --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR"
+else
+    codesign --force -s "$SIGN_IDENTITY" "$APP_DIR"
+fi
 
 echo "7. Creating DMG staging layout..."
 DMG_STAGING="$DIST_DIR/dmg_staging"

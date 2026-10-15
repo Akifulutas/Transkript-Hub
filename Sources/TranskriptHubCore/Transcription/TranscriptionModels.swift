@@ -35,7 +35,7 @@ public struct TranscriptionOptions: Sendable {
     public init(
         language: String? = nil,
         useVAD: Bool = true,
-        threads: Int = ProcessInfo.processInfo.activeProcessorCount,
+        threads: Int = min(ProcessInfo.processInfo.activeProcessorCount, 6),
         initialPrompt: String? = nil
     ) {
         self.language = language

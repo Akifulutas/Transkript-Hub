@@ -58,6 +58,18 @@ public struct PendingBatchIngestion: Identifiable, Sendable, Equatable {
     }
 }
 
+final class NotificationObserverToken: @unchecked Sendable {
+    private let token: any NSObjectProtocol
+    
+    init(_ token: any NSObjectProtocol) {
+        self.token = token
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(token)
+    }
+}
+
 @MainActor
 public final class AppViewModel: ObservableObject {
     // Navigation & Selection
@@ -220,6 +232,7 @@ public final class AppViewModel: ObservableObject {
     private var jobManager: JobManager?
     private var appDatabase: AppDatabase?
     public private(set) var transcriptCacheManager: TranscriptCacheManager?
+    private var didBecomeActiveObserver: NotificationObserverToken?
     
     @Published public var fullDiskAccessStatus: FullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
     
@@ -450,7 +463,7 @@ public final class AppViewModel: ObservableObject {
             self.clipboardMonitor.startMonitoring()
         }
         
-        NotificationCenter.default.addObserver(
+        let token = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
@@ -459,6 +472,7 @@ public final class AppViewModel: ObservableObject {
                 self?.checkFullDiskAccess()
             }
         }
+        self.didBecomeActiveObserver = NotificationObserverToken(token)
         
         Task {
             do {

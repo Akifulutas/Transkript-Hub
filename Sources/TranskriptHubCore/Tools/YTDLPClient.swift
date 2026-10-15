@@ -229,8 +229,18 @@ public final class YTDLPClient: Sendable {
         
         try process.run()
         
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stdoutHandle = stdoutPipe.fileHandleForReading
+        let stderrHandle = stderrPipe.fileHandleForReading
+        
+        async let stdoutTask = Task.detached {
+            stdoutHandle.readDataToEndOfFile()
+        }.value
+        
+        async let stderrTask = Task.detached {
+            stderrHandle.readDataToEndOfFile()
+        }.value
+        
+        let (stdoutData, stderrData) = await (stdoutTask, stderrTask)
         process.waitUntilExit()
         
         let output = String(data: stdoutData, encoding: .utf8) ?? ""

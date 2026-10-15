@@ -65,17 +65,17 @@ public final class TranscriptPostProcessor: Sendable {
         // 3. Paragraphing
         var paragraphs: [String] = []
         var currentParagraphWords: [String] = []
+        var currentParagraphLength: Int = 0
         var currentParagraphStart: Double = cleanedSegments[0].start
         var lastSegmentEnd: Double = cleanedSegments[0].start
         
         for segment in cleanedSegments {
             let silence = segment.start - lastSegmentEnd
-            let currentLength = currentParagraphWords.joined(separator: " ").count
             let isSentenceEnding = segment.text.hasSuffix(".") || segment.text.hasSuffix("?") || segment.text.hasSuffix("!")
             
             let shouldBreak = !currentParagraphWords.isEmpty && (
-                (silence >= options.paragraphSilenceThreshold && (currentLength >= 140 || isSentenceEnding)) ||
-                (currentLength >= options.maxParagraphLength && isSentenceEnding)
+                (silence >= options.paragraphSilenceThreshold && (currentParagraphLength >= 140 || isSentenceEnding)) ||
+                (currentParagraphLength >= options.maxParagraphLength && isSentenceEnding)
             )
             
             if shouldBreak {
@@ -86,9 +86,11 @@ public final class TranscriptPostProcessor: Sendable {
                 )
                 paragraphs.append(paragraphText)
                 currentParagraphWords.removeAll()
+                currentParagraphLength = 0
                 currentParagraphStart = segment.start
             }
             
+            currentParagraphLength += currentParagraphWords.isEmpty ? segment.text.count : (segment.text.count + 1)
             currentParagraphWords.append(segment.text)
             lastSegmentEnd = segment.end
         }

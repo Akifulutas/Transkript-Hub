@@ -85,10 +85,15 @@ public final class ModelManager: Sendable {
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         
-        let tempURL: URL = try await withCheckedThrowingContinuation { continuation in
-            delegate.continuation = continuation
-            let task = session.downloadTask(with: model.downloadURL)
-            task.resume()
+        let tempURL: URL = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                delegate.continuation = continuation
+                let task = session.downloadTask(with: model.downloadURL)
+                delegate.setTask(task)
+                task.resume()
+            }
+        } onCancel: {
+            delegate.cancel()
         }
         
         // Atomic move
@@ -115,8 +120,22 @@ public final class ModelManager: Sendable {
 final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     var onProgress: (@Sendable (Double, Int64, Int64) -> Void)?
     var continuation: CheckedContinuation<URL, Error>?
+    private var downloadTask: URLSessionDownloadTask?
     private var hasResumed = false
     private let lock = NSLock()
+    
+    func setTask(_ task: URLSessionDownloadTask) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.downloadTask = task
+    }
+    
+    func cancel() {
+        lock.lock()
+        let task = downloadTask
+        lock.unlock()
+        task?.cancel()
+    }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         let fraction = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0

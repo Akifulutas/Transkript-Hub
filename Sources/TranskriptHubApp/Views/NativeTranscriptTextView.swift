@@ -100,10 +100,6 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
             }
         }
         
-        if let container = textView.textContainer, let layoutManager = textView.layoutManager {
-            layoutManager.ensureLayout(for: container)
-        }
-        
         if autoScrollToEnd {
             textView.scrollToEndOfDocument(nil)
         }
