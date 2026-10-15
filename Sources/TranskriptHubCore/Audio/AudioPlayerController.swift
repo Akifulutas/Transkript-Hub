@@ -157,6 +157,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     }
     
     public func seek(to time: Double) {
+        guard !time.isNaN else { return }
         let clampedTime = max(0.0, min(time, duration))
         self.currentTime = clampedTime
         self.inFlightSeekTime = clampedTime
@@ -176,6 +177,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     
     @discardableResult
     public func seek(to time: Double, tolerance: CMTime) async -> Bool {
+        guard !time.isNaN else { return false }
         let clampedTime = max(0.0, min(time, duration))
         self.currentTime = clampedTime
         self.inFlightSeekTime = clampedTime

@@ -49,7 +49,16 @@ public struct KaraokeTranscriptView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 20)
                 }
-                .onChange(of: player.currentTime) { newTime in
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 5).onChanged { _ in
+                        if player.isPlaying && !isAutoScrollPaused {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isAutoScrollPaused = true
+                            }
+                        }
+                    }
+                )
+                .onChange(of: player.currentTime) { _, _ in
                     guard player.isPlaying, !isAutoScrollPaused else { return }
                     if let activeIndex = activeSegmentIndex {
                         let activeId = segments[activeIndex].id

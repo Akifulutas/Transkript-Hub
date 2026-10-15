@@ -201,7 +201,6 @@ public struct WaveformVisualizerView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .keyboardShortcut(.space, modifiers: [])
                     .help("Oynat / Duraklat (Space)")
                     
                     // Jump +5s
