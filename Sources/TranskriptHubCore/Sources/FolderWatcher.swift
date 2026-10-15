@@ -21,6 +21,9 @@ public final class FolderWatcher: ObservableObject {
             let iCloud = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Transkript", isDirectory: true)
             self.watchedDirectory = iCloud
         }
+        
+        let saved = UserDefaults.standard.stringArray(forKey: "FolderWatcher.processedPaths") ?? []
+        self.processedPaths = Set(saved)
     }
     
     public func startWatching() {
@@ -88,6 +91,7 @@ public final class FolderWatcher: ObservableObject {
                     // Size is stable! Validate audio
                     if let _ = try? AudioValidator.validate(fileURL: fileURL) {
                         processedPaths.insert(path)
+                        UserDefaults.standard.set(Array(processedPaths), forKey: "FolderWatcher.processedPaths")
                         knownFiles.removeValue(forKey: path)
                         processedFilesCount += 1
                         lastProcessedFile = filename

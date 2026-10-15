@@ -85,6 +85,14 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var isCompleted: Bool {
         state == .completed
     }
+    
+    public var effectiveThumbnailURL: URL? {
+        if let thumb = thumbnailURL { return thumb }
+        if case .youtube(let video) = kind {
+            return URL(string: "https://i.ytimg.com/vi/\(video.videoID)/hqdefault.jpg")
+        }
+        return nil
+    }
 }
 
 public struct HistoryItem: Identifiable, Hashable, Sendable {

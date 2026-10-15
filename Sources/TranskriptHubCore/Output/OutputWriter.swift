@@ -83,21 +83,38 @@ public final class OutputWriter: Sendable {
         return sanitized
     }
     
-    /// Resolves file collision: if 'Name.txt' exists, returns 'Name (2).txt', etc.
-    public func resolveUniqueURL(forBaseName baseName: String, in directory: URL) -> URL {
+    /// Resolves file collision: if 'Name.txt' exists, checks if content is identical, otherwise returns 'Name (2).txt'.
+    public func resolveUniqueURL(
+        forBaseName baseName: String,
+        in directory: URL,
+        allowOverwrite: Bool = false,
+        matchingContent: String? = nil
+    ) -> URL {
         let sanitized = Self.sanitizeFilename(baseName)
         let fm = FileManager.default
-        var candidate = directory.appendingPathComponent("\(sanitized).txt")
+        let candidate = directory.appendingPathComponent("\(sanitized).txt")
         
-        if !fm.fileExists(atPath: candidate.path) {
+        if !fm.fileExists(atPath: candidate.path) || allowOverwrite {
+            return candidate
+        }
+        
+        // If existing file has identical content, reuse it to avoid duplicate (2).txt
+        if let newContent = matchingContent,
+           let existing = try? String(contentsOf: candidate, encoding: .utf8),
+           existing == newContent {
             return candidate
         }
         
         var counter = 2
         while true {
-            candidate = directory.appendingPathComponent("\(sanitized) (\(counter)).txt")
-            if !fm.fileExists(atPath: candidate.path) {
-                return candidate
+            let nextCandidate = directory.appendingPathComponent("\(sanitized) (\(counter)).txt")
+            if !fm.fileExists(atPath: nextCandidate.path) {
+                return nextCandidate
+            }
+            if let newContent = matchingContent,
+               let existing = try? String(contentsOf: nextCandidate, encoding: .utf8),
+               existing == newContent {
+                return nextCandidate
             }
             counter += 1
         }

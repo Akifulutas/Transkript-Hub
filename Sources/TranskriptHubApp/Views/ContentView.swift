@@ -12,12 +12,8 @@ public struct ContentView: View {
     
     public var body: some View {
         ZStack {
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                // Column 1: Sidebar
-                SidebarView(viewModel: viewModel)
-                    .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
-            } content: {
-                // Column 2: Content List (Queue, History, Folder, Settings)
+            NavigationSplitView {
+                // Column 1: Content List (Queue, History, Folder, Settings)
                 Group {
                     switch viewModel.selectedSection {
                     case .queue:
@@ -30,19 +26,32 @@ public struct ContentView: View {
                         SettingsView(viewModel: viewModel)
                     }
                 }
-                .frame(minWidth: 320, idealWidth: 350, maxWidth: 440)
+                .frame(minWidth: 320, idealWidth: 360, maxWidth: 460)
             } detail: {
-                // Column 3: Interactive Studio Canvas & Inspector Pane
+                // Column 2: Interactive Studio Canvas & Inspector Pane
                 TranscriptDetailView(viewModel: viewModel)
             }
             .navigationSplitViewStyle(.prominentDetail)
-            .frame(minWidth: 920, minHeight: 600)
+            .frame(minWidth: 900, minHeight: 600)
             .toolbar {
                 mainToolbar
             }
             .searchable(text: $viewModel.searchQuery, prompt: "Transkriptlerde veya kuyrukta ara...")
             .sheet(item: $viewModel.pendingBatchIngestion) { pending in
                 PlaylistIngestionSheet(viewModel: viewModel, pending: pending)
+            }
+            .sheet(isPresented: $viewModel.isSaveModePromptPresented) {
+                SessionSaveModeSheet(
+                    viewModel: viewModel,
+                    itemCount: viewModel.queueItems.filter { $0.state == .queued || $0.state == .failed }.count,
+                    onConfirm: { mode in
+                        viewModel.isSaveModePromptPresented = false
+                        viewModel.startProcessingQueue(saveMode: mode)
+                    },
+                    onCancel: {
+                        viewModel.isSaveModePromptPresented = false
+                    }
+                )
             }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
@@ -128,6 +137,22 @@ public struct ContentView: View {
     // MARK: - Native macOS Unified Toolbar (Liquid Glass Capsules)
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Picker("", selection: $viewModel.selectedSection) {
+                Label(viewModel.queueItems.isEmpty ? "Kuyruk" : "Kuyruk (\(viewModel.queueItems.count))", systemImage: "tray.full.fill")
+                    .tag(SidebarSection.queue)
+                Label(viewModel.historyItems.isEmpty ? "Geçmiş" : "Geçmiş (\(viewModel.historyItems.count))", systemImage: "clock.arrow.circlepath")
+                    .tag(SidebarSection.history)
+                Label("İzlenen Klasör", systemImage: "folder.badge.gearshape")
+                    .tag(SidebarSection.watchedFolder)
+                Label("Ayarlar", systemImage: "gearshape")
+                    .tag(SidebarSection.settings)
+            }
+            .pickerStyle(.segmented)
+            .controlSize(.regular)
+            .frame(maxWidth: 430)
+        }
+        
         ToolbarItem(placement: .automatic) {
             // Model Selector Dropdown (Only downloaded models shown)
             Menu {
@@ -202,24 +227,39 @@ public struct ContentView: View {
         }
         
         ToolbarItem(placement: .automatic) {
-            // Clipboard Monitor Toggle
+            // Distinct Interactive Clipboard Monitor Toggle
             Button(action: {
-                viewModel.isClipboardMonitoring.toggle()
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    viewModel.isClipboardMonitoring.toggle()
+                }
             }) {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(viewModel.isClipboardMonitoring ? Color.green : Color.gray.opacity(0.5))
-                        .frame(width: 7, height: 7)
-                    Text("Pano İzle")
-                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(viewModel.isClipboardMonitoring ? .accentColor : .secondary)
+                    
+                    Text(viewModel.isClipboardMonitoring ? "Pano İzleniyor" : "Pano İzle: Kapalı")
+                        .font(.system(size: 11, weight: viewModel.isClipboardMonitoring ? .semibold : .medium))
                         .foregroundColor(viewModel.isClipboardMonitoring ? .primary : .secondary)
+                    
+                    Circle()
+                        .fill(viewModel.isClipboardMonitoring ? Color.green : Color.gray.opacity(0.4))
+                        .frame(width: 6, height: 6)
+                        .shadow(color: viewModel.isClipboardMonitoring ? Color.green.opacity(0.7) : Color.clear, radius: 3)
                 }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .liquidGlassCapsule(glowColor: viewModel.isClipboardMonitoring ? .green : .white.opacity(0.3), material: .ultraThinMaterial)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(viewModel.isClipboardMonitoring ? Color.accentColor.opacity(0.14) : Color.white.opacity(0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(viewModel.isClipboardMonitoring ? Color.accentColor.opacity(0.45) : Color.white.opacity(0.1), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
-            .help("Panoya kopyalanan tüm YouTube linklerini otomatik olarak kuyruğa ekler.")
+            .help("Panoya kopyalanan YouTube video bağlantılarını otomatik yakalama")
         }
         
         ToolbarItem(placement: .automatic) {
@@ -242,7 +282,7 @@ public struct ContentView: View {
         
         ToolbarItem(placement: .primaryAction) {
             // Primary Action Button (⌘Return)
-            Button(action: { viewModel.startProcessingQueue() }) {
+            Button(action: { viewModel.requestStartQueue() }) {
                 HStack(spacing: 6) {
                     if viewModel.isProcessing {
                         ProgressView().controlSize(.small)
@@ -250,10 +290,11 @@ public struct ContentView: View {
                         Image(systemName: "play.fill")
                             .font(.system(size: 10))
                     }
-                    Text(viewModel.isProcessing ? "İşleniyor..." : "Transkripti Başlat")
+                    Text(viewModel.isProcessing ? "İşleniyor..." : "Transkripte Yolla")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.queueItems.isEmpty || viewModel.isProcessing)

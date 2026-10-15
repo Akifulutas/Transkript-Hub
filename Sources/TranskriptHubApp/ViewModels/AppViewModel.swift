@@ -91,6 +91,10 @@ public final class AppViewModel: ObservableObject {
     @Published public var isResolvingBatch: Bool = false
     @Published public var batchResolutionError: String? = nil
     
+    // Session Save Mode Prompt
+    @Published public var isSaveModePromptPresented: Bool = false
+    @Published public var sessionSaveMode: SessionSaveMode = .both
+    
     // Quick Add Inputs
     @Published public var quickInputText: String = ""
     @Published public var isDropTargetActive: Bool = false
@@ -646,9 +650,24 @@ public final class AppViewModel: ObservableObject {
     }
     
     // MARK: - Unified Processing Loop
-    public func startProcessingQueue() {
+    public func requestStartQueue() {
+        guard !isProcessing else { return }
+        let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
+        if pending.count > 1 {
+            isSaveModePromptPresented = true
+        } else if !pending.isEmpty {
+            startProcessingQueue(saveMode: .individual)
+        }
+    }
+    
+    public func startProcessingQueue(saveMode: SessionSaveMode = .both) {
         guard !queueItems.isEmpty else { return }
+        guard !isProcessing else {
+            Log.info("Kuyruk zaten işleniyor. İkinci eşzamanlı işlem engellendi.")
+            return
+        }
         
+        self.sessionSaveMode = saveMode
         isProcessing = true
         progressFraction = 0.05
         statusMessage = "İşlem başlatılıyor..."
@@ -730,21 +749,25 @@ public final class AppViewModel: ObservableObject {
                             current.state = .completed
                             current.progress = 1.0
                             
-                            // Save file
-                            let targetURL = self.outputWriter.resolveUniqueURL(
-                                forBaseName: media.metadata.title,
-                                in: self.outputWriter.defaultOutputDirectory
-                            )
-                            try self.outputWriter.write(content: formatted, to: targetURL)
-                            current.outputURL = targetURL
-                            self.lastOutputURL = targetURL
-                            
-                            self.saveToHistory(
-                                title: media.metadata.title,
-                                kind: "youtube",
-                                outputPath: targetURL.path,
-                                snippet: String(formatted.prefix(200))
-                            )
+                            // Save individual file if requested
+                            if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
+                                let targetURL = self.outputWriter.resolveUniqueURL(
+                                    forBaseName: media.metadata.title,
+                                    in: self.outputWriter.defaultOutputDirectory,
+                                    allowOverwrite: true,
+                                    matchingContent: formatted
+                                )
+                                try self.outputWriter.write(content: formatted, to: targetURL)
+                                current.outputURL = targetURL
+                                self.lastOutputURL = targetURL
+                                
+                                self.saveToHistory(
+                                    title: media.metadata.title,
+                                    kind: "youtube",
+                                    outputPath: targetURL.path,
+                                    snippet: String(formatted.prefix(200))
+                                )
+                            }
                             
                         } catch {
                             current.state = .failed
@@ -767,20 +790,24 @@ public final class AppViewModel: ObservableObject {
                             current.progress = 1.0
                             
                             let baseName = fileURL.deletingPathExtension().lastPathComponent
-                            let targetURL = self.outputWriter.resolveUniqueURL(
-                                forBaseName: baseName,
-                                in: self.outputWriter.defaultOutputDirectory
-                            )
-                            try self.outputWriter.write(content: formatted, to: targetURL)
-                            current.outputURL = targetURL
-                            self.lastOutputURL = targetURL
-                            
-                            self.saveToHistory(
-                                title: baseName,
-                                kind: "audio",
-                                outputPath: targetURL.path,
-                                snippet: String(formatted.prefix(200))
-                            )
+                            if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
+                                let targetURL = self.outputWriter.resolveUniqueURL(
+                                    forBaseName: baseName,
+                                    in: self.outputWriter.defaultOutputDirectory,
+                                    allowOverwrite: true,
+                                    matchingContent: formatted
+                                )
+                                try self.outputWriter.write(content: formatted, to: targetURL)
+                                current.outputURL = targetURL
+                                self.lastOutputURL = targetURL
+                                
+                                self.saveToHistory(
+                                    title: baseName,
+                                    kind: "audio",
+                                    outputPath: targetURL.path,
+                                    snippet: String(formatted.prefix(200))
+                                )
+                            }
                             
                         } catch {
                             current.state = .failed
@@ -790,6 +817,32 @@ public final class AppViewModel: ObservableObject {
                     
                     self.updateItem(current)
                     self.progressFraction = Double(index + 1) / Double(totalCount)
+                }
+                
+                // If combined mode is requested and multiple videos were in queue, write the combined session file
+                if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && totalCount > 1 {
+                    let completed = self.queueItems.filter { $0.state == .completed && ($0.transcript != nil) }
+                    if !completed.isEmpty {
+                        let combinedText = self.combinedTranscript
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+                        let dateStr = formatter.string(from: Date())
+                        let combinedName = "Toplu_Oturum_\(dateStr)"
+                        
+                        let targetURL = self.outputWriter.resolveUniqueURL(
+                            forBaseName: combinedName,
+                            in: self.outputWriter.defaultOutputDirectory,
+                            allowOverwrite: true,
+                            matchingContent: combinedText
+                        )
+                        try? self.outputWriter.write(content: combinedText, to: targetURL)
+                        self.saveToHistory(
+                            title: "\(combinedName) (\(completed.count) Video)",
+                            kind: "combined",
+                            outputPath: targetURL.path,
+                            snippet: String(combinedText.prefix(200))
+                        )
+                    }
                 }
                 
                 self.statusMessage = "✅ Tüm işlemler tamamlandı."

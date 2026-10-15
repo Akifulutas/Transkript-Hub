@@ -96,13 +96,47 @@ struct QueueListView: View {
                                 .padding(.vertical, 4)
                         }
                     }
+                    
+                    // 4. Kuyruğun Sonu: Kuyruğu Temizle & Tümünü Seç
+                    Section {
+                        HStack(spacing: 12) {
+                            Spacer()
+                            
+                            Button(action: {
+                                if viewModel.selectedItemIDs.count == viewModel.queueItems.count {
+                                    viewModel.deselectAllQueueItems()
+                                } else {
+                                    viewModel.selectAllQueueItems()
+                                }
+                            }) {
+                                Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? "Seçimi Kaldır" : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "Tümünü Seç (⌘A)"))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Text("•")
+                                .foregroundColor(.secondary.opacity(0.3))
+                            
+                            Button(action: { viewModel.clearQueueWithUndo() }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 11))
+                                    Text("Kuyruğu Temizle")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(viewModel.isProcessing)
+                            
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                        .listRowBackground(Color.clear)
+                    }
                 }
                 .listStyle(.inset)
-                
-                Divider()
-                
-                // Bottom Bar with Density Toggle & Clear with Undo
-                bottomActionBar
             }
         }
         .navigationTitle("Kuyruk")
@@ -190,24 +224,15 @@ struct QueueListView: View {
         }
     }
     
-    // MARK: - Row Dispatcher (Compact vs Standard)
+    // MARK: - Row Dispatcher
     @ViewBuilder
     private func queueRow(for item: QueueItem) -> some View {
-        if viewModel.densityMode == .compact {
-            CompactQueueRow(
-                item: item,
-                isSelected: viewModel.selectedItemID == item.id,
-                onRemove: { viewModel.removeItem(id: item.id) }
-            )
-            .contextMenu { rowContextMenu(item: item) }
-        } else {
-            StandardQueueRow(
-                item: item,
-                isSelected: viewModel.selectedItemID == item.id,
-                onRemove: { viewModel.removeItem(id: item.id) }
-            )
-            .contextMenu { rowContextMenu(item: item) }
-        }
+        StandardQueueRow(
+            item: item,
+            isSelected: viewModel.selectedItemID == item.id,
+            onRemove: { viewModel.removeItem(id: item.id) }
+        )
+        .contextMenu { rowContextMenu(item: item) }
     }
     
     @ViewBuilder
@@ -236,50 +261,6 @@ struct QueueListView: View {
         Button("Kuyruktan Çıkar", role: .destructive) {
             viewModel.removeItem(id: item.id)
         }
-    }
-    
-    // MARK: - Bottom Action Bar (Density + Clear with Undo)
-    private var bottomActionBar: some View {
-        HStack(spacing: 8) {
-            // Density Mode Toggle
-            Picker("", selection: $viewModel.densityMode) {
-                ForEach(DensityMode.allCases) { mode in
-                    Label(mode.rawValue, systemImage: mode.icon).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 140)
-            .controlSize(.mini)
-            
-            // Select All / Selection Indicator
-            if !viewModel.queueItems.isEmpty {
-                Button(action: {
-                    if viewModel.selectedItemIDs.count == viewModel.queueItems.count {
-                        viewModel.deselectAllQueueItems()
-                    } else {
-                        viewModel.selectAllQueueItems()
-                    }
-                }) {
-                    Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? "Seçimi Kaldır" : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "Tümünü Seç (⌘A)"))
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(viewModel.selectedItemIDs.count > 1 ? .accentColor : .secondary)
-            }
-            
-            Spacer()
-            
-            Button("Kuyruğu Temizle") {
-                viewModel.clearQueueWithUndo()
-            }
-            .font(.system(size: 11))
-            .buttonStyle(.plain)
-            .foregroundColor(.secondary)
-            .disabled(viewModel.isProcessing)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
     }
     
     // MARK: - Empty State (8-State Matrix)
@@ -421,18 +402,18 @@ struct StandardQueueRow: View {
     
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbURL = item.thumbnailURL {
+        if let thumbURL = item.effectiveThumbnailURL {
             AsyncImage(url: thumbURL) { phase in
                 switch phase {
                 case .success(let image):
                     image
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 48, height: 32)
+                        .aspectRatio(16/9, contentMode: .fill)
+                        .frame(width: 54, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
                         )
                 case .failure, .empty:
                     fallbackIcon
@@ -440,7 +421,7 @@ struct StandardQueueRow: View {
                     fallbackIcon
                 }
             }
-            .frame(width: 48, height: 32)
+            .frame(width: 54, height: 32)
         } else {
             fallbackIcon
         }
@@ -450,55 +431,11 @@ struct StandardQueueRow: View {
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
-                .frame(width: 40, height: 30)
+                .frame(width: 44, height: 30)
             
             Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
                 .foregroundColor(item.isYouTube ? .red : .purple)
                 .font(.system(size: 13))
-        }
-    }
-}
-
-// MARK: - Compact View Row (Dense Table Hierarchy)
-struct CompactQueueRow: View {
-    let item: QueueItem
-    let isSelected: Bool
-    var onRemove: (() -> Void)? = nil
-    @State private var isHovered: Bool = false
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: item.isYouTube ? "play.tv" : "waveform")
-                .foregroundColor(item.isYouTube ? .red : .purple)
-                .font(.system(size: 11))
-                .frame(width: 16)
-            
-            Text(item.title)
-                .font(.system(size: 12, weight: .regular))
-                .lineLimit(1)
-            
-            Spacer()
-            
-            if isHovered && !item.isInProgress {
-                Button(action: { onRemove?() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 16, height: 16)
-                        .background(Circle().fill(Color.secondary.opacity(0.18)))
-                }
-                .buttonStyle(.plain)
-                .help("Kuyruktan Çıkar")
-                .transition(.opacity)
-            }
-            
-            LiquidStatusPill(state: item.state, compact: true)
-        }
-        .padding(.vertical, 1)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) {
-                isHovered = hovering
-            }
         }
     }
 }
