@@ -666,8 +666,9 @@ public final class AppViewModel: ObservableObject {
     // MARK: - Unified Processing Loop
     public func requestStartQueue() {
         guard !isProcessing else { return }
+        let totalCount = queueItems.count
         let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
-        if pending.count > 1 {
+        if totalCount > 1 || pending.count > 1 {
             isSaveModePromptPresented = true
         } else if !pending.isEmpty {
             startProcessingQueue(saveMode: .individual)

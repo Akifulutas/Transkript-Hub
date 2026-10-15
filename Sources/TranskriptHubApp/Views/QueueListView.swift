@@ -34,10 +34,6 @@ struct QueueListView: View {
                             ForEach(viewModel.failedItems) { item in
                                 queueRow(for: item)
                                     .tag(item.id)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        viewModel.selectedItemID = item.id
-                                    }
                             }
                         } header: {
                             HStack(spacing: 6) {
@@ -65,10 +61,6 @@ struct QueueListView: View {
                             ForEach(viewModel.activeOrQueuedItems) { item in
                                 queueRow(for: item)
                                     .tag(item.id)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        viewModel.selectedItemID = item.id
-                                    }
                             }
                         } header: {
                             Text("İŞLENİYOR & KUYRUK (\(viewModel.activeOrQueuedItems.count))")
@@ -84,10 +76,6 @@ struct QueueListView: View {
                             ForEach(viewModel.completedItems) { item in
                                 queueRow(for: item)
                                     .tag(item.id)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        viewModel.selectedItemID = item.id
-                                    }
                             }
                         } header: {
                             Text("TAMAMLANANLAR (\(viewModel.completedItems.count))")

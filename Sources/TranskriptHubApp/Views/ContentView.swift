@@ -43,7 +43,7 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isSaveModePromptPresented) {
                 SessionSaveModeSheet(
                     viewModel: viewModel,
-                    itemCount: viewModel.queueItems.filter { $0.state == .queued || $0.state == .failed }.count,
+                    itemCount: max(viewModel.queueItems.count, viewModel.queueItems.filter { $0.state == .queued || $0.state == .failed }.count),
                     onConfirm: { mode in
                         viewModel.isSaveModePromptPresented = false
                         viewModel.startProcessingQueue(saveMode: mode)
@@ -81,7 +81,7 @@ public struct ContentView: View {
                             viewModel.addAudioFiles(panel.urls)
                         }
                     },
-                    onStartQueue: { viewModel.startProcessingQueue() },
+                    onStartQueue: { viewModel.requestStartQueue() },
                     onClearQueue: { viewModel.clearQueueWithUndo() },
                     onCopyCurrentTranscript: { viewModel.copySelectedTranscript() },
                     onToggleFolderWatch: { viewModel.isFolderWatching.toggle() }

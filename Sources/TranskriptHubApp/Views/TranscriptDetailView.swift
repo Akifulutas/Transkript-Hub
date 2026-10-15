@@ -16,12 +16,14 @@ struct TranscriptDetailView: View {
     
     var body: some View {
         Group {
-            if viewModel.selectedItemIDs.count > 1 || viewModel.showCombinedSessionTranscript {
+            if viewModel.showCombinedSessionTranscript {
                 combinedSessionView
             } else if let item = activeItem {
                 contentForItem(item)
             } else if let history = activeHistoryItem {
                 contentForHistory(history)
+            } else if viewModel.selectedItemIDs.count > 1 {
+                combinedSessionView
             } else {
                 studioWelcomeView
             }
@@ -33,13 +35,14 @@ struct TranscriptDetailView: View {
     // MARK: - Queue Item View
     @ViewBuilder
     private func contentForItem(_ item: QueueItem) -> some View {
+        let transcript = effectiveTranscript(for: item)
         VStack(spacing: 0) {
             // Liquid Glass Inspector Header
             inspectorHeader(
                 title: item.title,
                 subtitle: item.subtitle,
                 duration: item.durationSec,
-                transcript: item.transcript,
+                transcript: transcript,
                 outputURL: item.outputURL,
                 browserURL: item.canonicalURL
             )
@@ -49,14 +52,28 @@ struct TranscriptDetailView: View {
             // Body: Processing Card or Full Transcript
             if item.state == .transcribing || item.state == .fetching {
                 activeProcessingCard(title: item.title, state: item.state)
-            } else if let transcript = item.transcript, !transcript.isEmpty {
-                transcriptReader(text: transcript)
+            } else if let text = transcript, !text.isEmpty {
+                transcriptReader(text: text)
             } else if item.state == .failed {
                 failedStateView(item: item)
             } else {
                 readyToTranscribeView(title: item.title)
             }
         }
+    }
+    
+    private func effectiveTranscript(for item: QueueItem) -> String? {
+        if let t = item.transcript, !t.isEmpty {
+            return t
+        }
+        if let out = item.outputURL, let diskContent = try? String(contentsOf: out, encoding: .utf8), !diskContent.isEmpty {
+            return diskContent
+        }
+        let candidate = viewModel.outputWriter.defaultOutputDirectory.appendingPathComponent("\(item.title).txt")
+        if let diskContent = try? String(contentsOf: candidate, encoding: .utf8), !diskContent.isEmpty {
+            return diskContent
+        }
+        return nil
     }
     
     // MARK: - History Item View
@@ -381,7 +398,7 @@ struct TranscriptDetailView: View {
                 .frame(maxWidth: 320)
             
             Button("Şimdi Başlat (⌘Return)") {
-                viewModel.startProcessingQueue()
+                viewModel.requestStartQueue()
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)

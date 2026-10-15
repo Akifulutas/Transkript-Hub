@@ -20,14 +20,25 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
         
-        let textView = FocusableTranscriptTextView()
+        let contentSize = scrollView.contentSize
+        let textView = FocusableTranscriptTextView(frame: NSRect(origin: .zero, size: contentSize))
+        textView.minSize = NSSize(width: 0.0, height: 0.0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
         textView.font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         textView.textColor = NSColor.labelColor
-        textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.lineFragmentPadding = 0
+        
+        if let container = textView.textContainer {
+            container.containerSize = NSSize(width: max(100, contentSize.width), height: CGFloat.greatestFiniteMagnitude)
+            container.widthTracksTextView = true
+            container.lineFragmentPadding = 0
+        }
         textView.textContainerInset = NSSize(width: 24, height: 24)
         
         scrollView.documentView = textView
@@ -37,6 +48,9 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
+        if textView.frame.width != scrollView.contentSize.width && scrollView.contentSize.width > 0 {
+            textView.frame = NSRect(x: 0, y: 0, width: scrollView.contentSize.width, height: max(scrollView.contentSize.height, textView.frame.height))
+        }
         updateTextView(textView)
     }
     
@@ -69,12 +83,16 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
             }
         }
         
-        if textView.attributedString().string != text || textView.font?.pointSize != fontSize {
+        if textView.string != text || textView.font?.pointSize != fontSize {
             let currentSelection = textView.selectedRange()
             textView.textStorage?.setAttributedString(attributed)
             if currentSelection.location + currentSelection.length <= text.count {
                 textView.setSelectedRange(currentSelection)
             }
+        }
+        
+        if let container = textView.textContainer, let layoutManager = textView.layoutManager {
+            layoutManager.ensureLayout(for: container)
         }
     }
 }
