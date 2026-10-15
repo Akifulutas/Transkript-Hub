@@ -101,12 +101,38 @@ public final class YTDLPClient: Sendable {
         
         // Progress and output tracker
         final class ProgressTracker: @unchecked Sendable {
-            var fullStdout: String = ""
-            var metadata: YouTubeMetadata?
+            private let lock = NSLock()
+            private var _fullStdout: String = ""
+            private var _metadata: YouTubeMetadata?
             let onProgress: (@Sendable (Double) -> Void)?
             
             init(onProgress: (@Sendable (Double) -> Void)?) {
                 self.onProgress = onProgress
+            }
+            
+            var fullStdout: String {
+                lock.lock()
+                defer { lock.unlock() }
+                return _fullStdout
+            }
+            
+            func appendStdout(_ str: String) {
+                lock.lock()
+                _fullStdout.append(str)
+                lock.unlock()
+            }
+            
+            var metadata: YouTubeMetadata? {
+                get {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    return _metadata
+                }
+                set {
+                    lock.lock()
+                    _metadata = newValue
+                    lock.unlock()
+                }
             }
         }
         let tracker = ProgressTracker(onProgress: progress)
@@ -115,7 +141,7 @@ public final class YTDLPClient: Sendable {
             let data = handle.availableData
             guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
             
-            tracker.fullStdout.append(str)
+            tracker.appendStdout(str)
             
             let lines = str.components(separatedBy: .newlines)
             for line in lines {

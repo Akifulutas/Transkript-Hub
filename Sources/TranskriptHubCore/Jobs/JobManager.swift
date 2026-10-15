@@ -177,8 +177,11 @@ public actor JobManager {
                     let detectedLang = result.detectedLanguage
                     let now = ISO8601DateFormatter().string(from: Date())
                     
+                    let segmentsData = try? JSONEncoder().encode(result.segments)
+                    let segmentsJson = segmentsData != nil ? String(data: segmentsData!, encoding: .utf8) : nil
+                    
                     try await database.dbQueue.write { db in
-                        let section = TranscriptSectionRecord(jobID: jobID, text: formatted)
+                        let section = TranscriptSectionRecord(jobID: jobID, text: formatted, segments: segmentsJson)
                         try section.insert(db)
                         
                         try db.execute(

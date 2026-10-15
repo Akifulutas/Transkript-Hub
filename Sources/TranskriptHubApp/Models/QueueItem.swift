@@ -30,6 +30,12 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var thumbnailURL: URL?
     public var channelTitle: String?
     
+    // M1 Audio Playback & Media Retention Properties
+    public var audioURL: URL?
+    public var segments: [Segment]
+    public var waveformPoints: [WaveformPoint]?
+    public var words: [WordItem]?
+    
     public init(
         id: String = UUID().uuidString,
         kind: QueueItemKind,
@@ -44,7 +50,11 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         isNewlyDiscovered: Bool = false,
         addedAt: Date = Date(),
         thumbnailURL: URL? = nil,
-        channelTitle: String? = nil
+        channelTitle: String? = nil,
+        audioURL: URL? = nil,
+        segments: [Segment] = [],
+        waveformPoints: [WaveformPoint]? = nil,
+        words: [WordItem]? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -60,6 +70,10 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.addedAt = addedAt
         self.thumbnailURL = thumbnailURL
         self.channelTitle = channelTitle
+        self.audioURL = audioURL
+        self.segments = segments
+        self.waveformPoints = waveformPoints
+        self.words = words
     }
     
     public var isYouTube: Bool {
@@ -96,6 +110,16 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         }
         if case .youtube(let video) = kind {
             return URL(string: "https://i.ytimg.com/vi/\(video.videoID)/mqdefault.jpg")
+        }
+        return nil
+    }
+    
+    public var effectiveAudioURL: URL? {
+        if let audioURL = audioURL, FileManager.default.fileExists(atPath: audioURL.path) {
+            return audioURL
+        }
+        if case .audioFile(let url) = kind, FileManager.default.fileExists(atPath: url.path) {
+            return url
         }
         return nil
     }

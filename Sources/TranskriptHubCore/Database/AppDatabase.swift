@@ -130,3 +130,49 @@ public final class AppDatabase: Sendable {
         return migrator
     }
 }
+
+extension AppDatabase {
+    /// Atomically updates the formatted transcript text and JSON-serialized segments for a given job.
+    public func updateTranscript(jobId: String, newText: String, segments: [Segment]) async throws {
+        let encoder = JSONEncoder()
+        let segmentsData = try encoder.encode(segments)
+        let segmentsString = String(data: segmentsData, encoding: .utf8)
+        let now = ISO8601DateFormatter().string(from: Date())
+        
+        try await dbQueue.write { db in
+            try db.execute(
+                sql: """
+                INSERT INTO transcript_section (job_id, text, segments)
+                VALUES (?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    text = excluded.text,
+                    segments = excluded.segments
+                """,
+                arguments: [jobId, newText, segmentsString]
+            )
+            
+            try db.execute(
+                sql: "UPDATE job SET updated_at = ? WHERE id = ?",
+                arguments: [now, jobId]
+            )
+        }
+    }
+    
+    /// Fetches the transcript text and decoded segments for a job.
+    public func fetchTranscriptSection(jobId: String) async throws -> (text: String, segments: [Segment])? {
+        try await dbQueue.read { db in
+            guard let record = try TranscriptSectionRecord.fetchOne(
+                db,
+                sql: "SELECT * FROM transcript_section WHERE job_id = ?",
+                arguments: [jobId]
+            ) else {
+                return nil
+            }
+            var parsedSegments: [Segment] = []
+            if let jsonString = record.segments, let data = jsonString.data(using: .utf8) {
+                parsedSegments = (try? JSONDecoder().decode([Segment].self, from: data)) ?? []
+            }
+            return (text: record.text, segments: parsedSegments)
+        }
+    }
+}

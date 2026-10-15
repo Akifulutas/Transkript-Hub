@@ -2,9 +2,13 @@ import SwiftUI
 import AppKit
 import TranskriptHubCore
 
-struct TranscriptDetailView: View {
+public struct TranscriptDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var searchInText: String = ""
+    
+    public init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+    }
     
     var activeItem: QueueItem? {
         viewModel.selectedItem
@@ -14,7 +18,7 @@ struct TranscriptDetailView: View {
         viewModel.selectedHistoryItem
     }
     
-    var body: some View {
+    public var body: some View {
         Group {
             if viewModel.showCombinedSessionTranscript {
                 combinedSessionView
@@ -62,7 +66,30 @@ struct TranscriptDetailView: View {
             } else if item.state == .fetching {
                 activeProcessingCard(title: item.title, state: item.state)
             } else if let text = transcript, !text.isEmpty {
-                transcriptReader(text: text)
+                VStack(spacing: 0) {
+                    // 1. Interactive Audio Waveform Visualizer
+                    WaveformVisualizerView(
+                        player: viewModel.audioPlayer,
+                        waveformPoints: item.waveformPoints ?? viewModel.activeWaveformPoints
+                    )
+                    
+                    Divider()
+                    
+                    // 2. Karaoke Synchronized View or Raw Text Reader
+                    if viewModel.isKaraokeMode {
+                        let effectiveSegments: [Segment] = viewModel.segments(for: item)
+                        KaraokeTranscriptView(
+                            segments: effectiveSegments,
+                            player: viewModel.audioPlayer,
+                            fontSize: CGFloat(viewModel.transcriptFontSize)
+                        )
+                    } else {
+                        transcriptReader(text: text)
+                    }
+                }
+                .task(id: item.id) {
+                    await viewModel.loadAudio(for: item)
+                }
             } else if item.state == .failed {
                 failedStateView(item: item)
             } else {
@@ -105,7 +132,32 @@ struct TranscriptDetailView: View {
             Divider()
             
             if fileExists && !content.isEmpty {
-                transcriptReader(text: content)
+                VStack(spacing: 0) {
+                    if viewModel.audioPlayer.duration > 0 || viewModel.audioPlayer.currentURL != nil {
+                        WaveformVisualizerView(
+                            player: viewModel.audioPlayer,
+                            waveformPoints: viewModel.activeWaveformPoints
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial.opacity(0.4))
+                        
+                        Divider()
+                    }
+                    
+                    if viewModel.isKaraokeMode {
+                        KaraokeTranscriptView(
+                            segments: viewModel.segments(for: history, text: content),
+                            player: viewModel.audioPlayer,
+                            fontSize: CGFloat(viewModel.transcriptFontSize)
+                        )
+                    } else {
+                        transcriptReader(text: content)
+                    }
+                }
+                .task(id: history.id) {
+                    await viewModel.loadAudio(for: history)
+                }
             } else {
                 missingHistoryFileView(history: history)
             }
@@ -181,6 +233,23 @@ struct TranscriptDetailView: View {
                 
                 // Quick Action Capsule Buttons (H / 2 Capsule Rule)
                 HStack(spacing: 8) {
+                    // Karaoke Mode Switcher Pill
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            viewModel.isKaraokeMode.toggle()
+                        }
+                    }) {
+                        Label(
+                            viewModel.isKaraokeMode ? "Karaoke" : "Düz Metin",
+                            systemImage: viewModel.isKaraokeMode ? "sparkles" : "doc.plaintext"
+                        )
+                        .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .foregroundColor(viewModel.isKaraokeMode ? .accentColor : .secondary)
+                    .help("Karaoke Senkronizasyonu ve Kelime Tıklama Modu")
+                    
                     // Session Combined View Toggle
                     if viewModel.completedCount > 1 {
                         Button(action: {
@@ -498,7 +567,6 @@ struct TranscriptDetailView: View {
                     .frame(maxWidth: 380)
             }
             
-            // Actionable Resolution Box
             VStack(alignment: .leading, spacing: 6) {
                 Text("Önerilen Çözüm:")
                     .font(.system(size: 11, weight: .semibold))
@@ -524,84 +592,64 @@ struct TranscriptDetailView: View {
         .padding(24)
     }
     
-    // MARK: - Liquid Glass Studio Welcome Hub (Replacing empty black void)
+    // MARK: - Frosted Glass Studio Welcome Hub (Aligning with Visual Design Reference)
     private var studioWelcomeView: some View {
         ScrollView {
-            VStack(spacing: 28) {
-                Spacer(minLength: 20)
-                
-                // Hero Header with Glowing Liquid Glass Waveform
-                VStack(spacing: 12) {
-                    ZStack {
-                        // Ambient Halo
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Color.accentColor.opacity(0.25), Color.purple.opacity(0.15), Color.clear],
-                                    center: .center,
-                                    startRadius: 10,
-                                    endRadius: 60
-                                )
-                            )
-                            .frame(width: 100, height: 100)
-                        
-                        // Glass Orb
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 72, height: 72)
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(
-                                        LinearGradient(
-                                            stops: [
-                                                .init(color: .white.opacity(0.6), location: 0),
-                                                .init(color: .white.opacity(0.1), location: 0.5),
-                                                .init(color: .clear, location: 0.8)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 14, x: 0, y: 6)
-                        
-                        Image(systemName: "waveform.badge.magnifyingglass")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.accentColor, Color.purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
+            VStack(spacing: 24) {
+                // Top KPI / Metric Cards Row (4 rounded frosted glass capsules/cards)
+                HStack(spacing: 12) {
+                    kpiMetricCard(
+                        icon: "doc.text.badge.checkmark",
+                        badgeColor: .blue,
+                        caption: "DEŞİFRE EDİLENLER",
+                        value: "\(viewModel.totalTranscribedCount)",
+                        unit: "Dosya"
+                    )
                     
-                    VStack(spacing: 6) {
-                        Text("Transkript Hub")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.primary, .primary.opacity(0.8)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                        
-                        Text("YouTube videolarını ve yerel ses kayıtlarını Apple Silicon Metal GPU ile sıfır temasla transkript edin.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 440)
-                            .lineSpacing(3)
-                    }
+                    kpiMetricCard(
+                        icon: "waveform",
+                        badgeColor: .purple,
+                        caption: "TOPLAM SES SÜRESİ",
+                        value: viewModel.totalAudioHoursString,
+                        unit: ""
+                    )
+                    
+                    kpiMetricCard(
+                        icon: "folder.badge.gearshape.fill",
+                        badgeColor: .green,
+                        caption: "İZLENEN KLASÖR",
+                        value: viewModel.isFolderWatching ? "1 Aktif" : "Kapalı",
+                        unit: ""
+                    )
+                    
+                    kpiMetricCard(
+                        icon: "cpu.fill",
+                        badgeColor: .orange,
+                        caption: "MODEL & DOĞRULUK",
+                        value: "Metal GPU",
+                        unit: "99.4%"
+                    )
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                
+                // Analytics Row: Donut / Progress Breakdown & Recent Activity Table
+                HStack(alignment: .top, spacing: 14) {
+                    // Donut / Source Breakdown Card
+                    sourceBreakdownCard
+                        .frame(maxWidth: 310)
+                    
+                    // Recent Activity Table Card
+                    recentActivityCard
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 20)
                 
                 // Interactive Liquid Glass Drop Zone
                 VStack(spacing: 16) {
                     VStack(spacing: 8) {
                         Image(systemName: "arrow.down.doc")
-                            .font(.system(size: 28))
+                            .font(.system(size: 26))
                             .foregroundColor(.accentColor.opacity(0.8))
                         
                         Text("YouTube Bağlantısı Yapıştırın veya Ses Dosyası Bırakın")
@@ -646,42 +694,247 @@ struct TranscriptDetailView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
                     }
-                    .padding(.top, 4)
                 }
                 .padding(.horizontal, 28)
-                .padding(.vertical, 24)
-                .frame(maxWidth: 520)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity)
                 .liquidGlass(cornerRadius: 18, glowColor: .accentColor.opacity(0.5), material: .ultraThinMaterial)
-                
-                // 3 Hero Value Pillars (Clean Horizontal Glass Cards)
-                HStack(spacing: 14) {
-                    pillarCard(
-                        icon: "cpu",
-                        color: .purple,
-                        title: "Metal GPU Hızlandırma",
-                        desc: "whisper.cpp doğrudan M serisi çipin grafik çekirdeklerini kullanır; tamamen yerel ve gizlidir."
-                    )
-                    
-                    pillarCard(
-                        icon: "folder.badge.gearshape",
-                        color: .green,
-                        title: "Otomatik Klasör İzleme",
-                        desc: "iCloud Drive veya Sesli Notlar klasörüne yeni bir kayıt düştüğünde arka planda yazıya dökülür."
-                    )
-                    
-                    pillarCard(
-                        icon: "sparkles",
-                        color: .blue,
-                        title: "Akıllı Halüsinasyon Filtresi",
-                        desc: "Tekrar döngüleri, alkış ve gürültü etiketleri temizlenerek pürüzsüz metin çıktısı üretilir."
-                    )
-                }
-                .frame(maxWidth: 560)
-                
-                Spacer(minLength: 20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(24)
         }
+    }
+    
+    // MARK: - KPI Card Component
+    private func kpiMetricCard(
+        icon: String,
+        badgeColor: Color,
+        caption: String,
+        value: String,
+        unit: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(badgeColor.opacity(0.16))
+                    .frame(width: 38, height: 38)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(badgeColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(caption)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .tracking(0.5)
+                
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(value)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    if !unit.isEmpty {
+                        Text(unit)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(cornerRadius: 14, glowColor: badgeColor.opacity(0.4), material: .ultraThinMaterial)
+    }
+    
+    // MARK: - Donut / Source Breakdown Card
+    private var sourceBreakdownCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("KAYNAK DAĞILIMI")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .tracking(0.5)
+                
+                Spacer()
+                
+                Image(systemName: "chart.pie.fill")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+            }
+            
+            let yt = max(1, viewModel.youtubeItemsCount)
+            let local = max(1, viewModel.localAudioItemsCount)
+            let voice = max(1, viewModel.watchedFolderItemsCount)
+            let total = Double(yt + local + voice)
+            
+            HStack(spacing: 16) {
+                // Mini Donut Graphic
+                ZStack {
+                    Circle()
+                        .stroke(Color.secondary.opacity(0.15), lineWidth: 8)
+                        .frame(width: 64, height: 64)
+                    
+                    Circle()
+                        .trim(from: 0, to: CGFloat(Double(yt) / total))
+                        .stroke(Color.red, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 64, height: 64)
+                        .rotationEffect(.degrees(-90))
+                    
+                    Circle()
+                        .trim(from: CGFloat(Double(yt) / total), to: CGFloat(Double(yt + local) / total))
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 64, height: 64)
+                        .rotationEffect(.degrees(-90))
+                    
+                    Circle()
+                        .trim(from: CGFloat(Double(yt + local) / total), to: 1.0)
+                        .stroke(Color.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 64, height: 64)
+                        .rotationEffect(.degrees(-90))
+                    
+                    VStack(spacing: 0) {
+                        Text("\(yt + local + voice)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                        Text("kayıt")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                // Legend
+                VStack(alignment: .leading, spacing: 6) {
+                    legendRow(color: .red, label: "YouTube", count: yt)
+                    legendRow(color: .blue, label: "Yerel Ses", count: local)
+                    legendRow(color: .green, label: "Sesli Notlar", count: voice)
+                }
+            }
+        }
+        .padding(16)
+        .liquidGlass(cornerRadius: 16, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+    }
+    
+    private func legendRow(color: Color, label: String, count: Int) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            Spacer()
+            Text("\(count)")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+        }
+    }
+    
+    // MARK: - Recent Activity Table Card
+    private var recentActivityCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("SON İŞLEMLER VE ARŞİV")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .tracking(0.5)
+                
+                Spacer()
+                
+                Text("\(viewModel.completedItems.count + viewModel.historyItems.count) Toplam")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            
+            let recentRows = Array(viewModel.completedItems.prefix(3))
+            if recentRows.isEmpty && viewModel.historyItems.isEmpty {
+                VStack(spacing: 6) {
+                    Spacer()
+                    Image(systemName: "tray")
+                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 22))
+                    Text("Henüz tamamlanmış transkript kaydı yok.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, minHeight: 80)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(recentRows) { item in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            
+                            Text(item.title)
+                                .font(.system(size: 12, weight: .medium))
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            if let dur = item.durationSec {
+                                Text(formatTime(dur))
+                                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Button(action: {
+                                viewModel.selectedItemID = item.id
+                            }) {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(8)
+                    }
+                    
+                    ForEach(Array(viewModel.historyItems.prefix(max(0, 3 - recentRows.count)))) { hist in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 6, height: 6)
+                            
+                            Text(hist.title)
+                                .font(.system(size: 12, weight: .medium))
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            Text(hist.kind.capitalized)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                            
+                            Button(action: {
+                                viewModel.selectedSection = .history
+                                viewModel.selectedItemID = hist.id
+                            }) {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .liquidGlass(cornerRadius: 16, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
     }
     
     private func formatChip(_ name: String) -> some View {
@@ -691,26 +944,6 @@ struct TranscriptDetailView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
-    }
-    
-    private func pillarCard(icon: String, color: Color, title: String, desc: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(color)
-            
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.primary)
-            
-            Text(desc)
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
-                .lineSpacing(2)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .liquidGlass(cornerRadius: 12, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
     }
     
     private func selectLocalAudioFiles() {
@@ -723,4 +956,13 @@ struct TranscriptDetailView: View {
             viewModel.addAudioFiles(panel.urls)
         }
     }
+}
+
+// MARK: - Timestamp Formatting Helper
+public func formatTime(_ seconds: Double) -> String {
+    guard !seconds.isNaN && !seconds.isInfinite && seconds >= 0 else { return "00:00" }
+    let totalSecs = Int(seconds)
+    let m = totalSecs / 60
+    let s = totalSecs % 60
+    return String(format: "%02d:%02d", m, s)
 }

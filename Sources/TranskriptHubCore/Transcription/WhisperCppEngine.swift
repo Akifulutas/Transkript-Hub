@@ -76,6 +76,7 @@ public actor WhisperCppEngine: TranscriptionEngine {
         wparams.print_timestamps = false
         wparams.translate = false
         wparams.no_timestamps = false
+        wparams.token_timestamps = options.tokenTimestamps
         
         // Stream callback wrapper for progress and live segments
         final class StreamCallbackBox: @unchecked Sendable {
@@ -109,7 +110,11 @@ public actor WhisperCppEngine: TranscriptionEngine {
                     let t1 = Double(whisper_full_get_segment_t1(ctx, i)) / 100.0
                     let textPtr = whisper_full_get_segment_text(ctx, i)
                     let text = textPtr != nil ? String(cString: textPtr!) : ""
-                    let segment = Segment(start: t0, end: t1, text: text)
+                    var words = WhisperCppEngine.extractWords(from: ctx, segmentIndex: i, segmentStart: t0, segmentEnd: t1)
+                    if words.isEmpty && !text.isEmpty {
+                        words = Segment.interpolateWords(for: text, start: t0, end: t1)
+                    }
+                    let segment = Segment(start: t0, end: t1, text: text, speaker: nil, words: words)
                     box.onSegment?(segment)
                 }
             }
@@ -157,7 +162,11 @@ public actor WhisperCppEngine: TranscriptionEngine {
             let t1 = Double(whisper_full_get_segment_t1(context, i)) / 100.0
             let textPtr = whisper_full_get_segment_text(context, i)
             let text = textPtr != nil ? String(cString: textPtr!) : ""
-            segments.append(Segment(start: t0, end: t1, text: text))
+            var words = Self.extractWords(from: context, segmentIndex: i, segmentStart: t0, segmentEnd: t1)
+            if words.isEmpty && !text.isEmpty {
+                words = Segment.interpolateWords(for: text, start: t0, end: t1)
+            }
+            segments.append(Segment(start: t0, end: t1, text: text, speaker: nil, words: words))
         }
         
         // Detect language
@@ -167,5 +176,85 @@ public actor WhisperCppEngine: TranscriptionEngine {
         
         progress?(1.0)
         return TranscriptResult(segments: segments, detectedLanguage: detectedLang)
+    }
+    
+    // MARK: - Token Timestamps & Word Extraction
+    
+    public static func extractWords(
+        from ctx: OpaquePointer,
+        segmentIndex: Int32,
+        segmentStart: Double,
+        segmentEnd: Double
+    ) -> [Word] {
+        let nTokens = whisper_full_n_tokens(ctx, segmentIndex)
+        guard nTokens > 0 else { return [] }
+        
+        let eot = whisper_token_eot(ctx)
+        var words: [Word] = []
+        
+        var currentText = ""
+        var currentStart = segmentStart
+        var currentEnd = segmentEnd
+        var currentConfidences: [Float] = []
+        var hasActiveWord = false
+        
+        func flushCurrentWord() {
+            guard hasActiveWord else { return }
+            let trimmed = currentText.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                let avgConf = currentConfidences.isEmpty ? 1.0 : currentConfidences.reduce(0, +) / Float(currentConfidences.count)
+                words.append(Word(
+                    text: trimmed,
+                    start: currentStart,
+                    end: max(currentStart, currentEnd),
+                    confidence: avgConf
+                ))
+            }
+            currentText = ""
+            currentConfidences.removeAll()
+            hasActiveWord = false
+        }
+        
+        for j in 0..<nTokens {
+            let tokenData = whisper_full_get_token_data(ctx, segmentIndex, j)
+            if tokenData.id >= eot { continue }
+            
+            guard let textPtr = whisper_full_get_token_text(ctx, segmentIndex, j) else { continue }
+            let tokenStr = String(cString: textPtr)
+            guard !tokenStr.isEmpty else { continue }
+            
+            if tokenStr.hasPrefix("[_") || tokenStr.hasPrefix("<|") || tokenStr.hasSuffix("|>") {
+                continue
+            }
+            
+            let t0Raw = whisper_full_get_token_t0(ctx, segmentIndex, j)
+            let t1Raw = whisper_full_get_token_t1(ctx, segmentIndex, j)
+            let tokenStart = t0Raw >= 0 ? Double(t0Raw) / 100.0 : segmentStart
+            let tokenEnd = t1Raw >= 0 ? Double(t1Raw) / 100.0 : max(tokenStart, segmentEnd)
+            let confidence = whisper_full_get_token_p(ctx, segmentIndex, j)
+            
+            let trimmed = tokenStr.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                flushCurrentWord()
+                continue
+            }
+            
+            let startsWithSpace = tokenStr.first?.isWhitespace == true
+            if startsWithSpace || !hasActiveWord {
+                flushCurrentWord()
+                currentText = trimmed
+                currentStart = tokenStart
+                currentEnd = tokenEnd
+                currentConfidences = [confidence]
+                hasActiveWord = true
+            } else {
+                currentText.append(tokenStr)
+                currentEnd = max(currentEnd, tokenEnd)
+                currentConfidences.append(confidence)
+            }
+        }
+        
+        flushCurrentWord()
+        return words
     }
 }

@@ -74,7 +74,31 @@ final class NotificationObserverToken: @unchecked Sendable {
 public final class AppViewModel: ObservableObject {
     // Navigation & Selection
     @Published public var selectedSection: SidebarSection = .queue
-    @Published public var selectedItemIDs: Set<String> = []
+    @Published public var selectedItemIDs: Set<String> = [] {
+        didSet {
+            loadAudioForSelectedItem()
+        }
+    }
+    
+    // MARK: - M1 Audio Playback & Media Retention
+    public var sessionMediaDirectory: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("TranskriptHub/SessionMedia", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        return dir
+    }
+    
+    public func loadAudioForSelectedItem() {
+        guard let item = selectedItem else {
+            audioPlayer.stop()
+            return
+        }
+        Task { @MainActor in
+            await self.loadAudio(for: item)
+        }
+    }
     
     public var selectedItemID: String? {
         get { selectedItemIDs.first }
@@ -203,6 +227,48 @@ public final class AppViewModel: ObservableObject {
     @Published public var lastOutputURL: URL? = nil
     @Published public var errorMessage: String? = nil
     @Published public var copiedToast: Bool = false
+    
+    // Audio Playback & Interactive Waveform Scrubbing
+    public let audioPlayer = AudioPlayerController()
+    public let waveformGenerator = AccelerateWaveformGenerator()
+    @Published public var activeWaveformPoints: [WaveformPoint] = []
+    @Published public var isLoadingWaveform: Bool = false
+    @Published public var isKaraokeMode: Bool = true
+    @Published public var currentPlayingItemId: String? = nil
+    
+    // KPI Analytics for Frosted Glass Dashboard
+    public var totalTranscribedCount: Int {
+        completedItems.count + historyItems.count
+    }
+    
+    public var totalAudioSeconds: Double {
+        let queueSecs = queueItems.compactMap(\.durationSec).reduce(0.0, +)
+        let histSecs = Double(historyItems.count) * 180.0
+        return queueSecs + histSecs
+    }
+    
+    public var totalAudioHoursString: String {
+        let hours = totalAudioSeconds / 3600.0
+        return String(format: "%.1f saat", max(hours, 0.1))
+    }
+    
+    public var totalWordCount: Int {
+        let queueWords = queueItems.compactMap(\.transcript).map { $0.split(separator: " ").count }.reduce(0, +)
+        let histWords = historyItems.map { $0.snippet.split(separator: " ").count }.reduce(0, +)
+        return queueWords + histWords
+    }
+    
+    public var youtubeItemsCount: Int {
+        queueItems.filter(\.isYouTube).count + historyItems.filter { $0.kind == "youtube" }.count
+    }
+    
+    public var localAudioItemsCount: Int {
+        queueItems.filter { !$0.isYouTube }.count + historyItems.filter { $0.kind == "audio" }.count
+    }
+    
+    public var watchedFolderItemsCount: Int {
+        queueItems.filter { $0.subtitle.contains("İzlenen") || $0.subtitle.contains("Watched") || $0.subtitle.contains("Sesli Not") }.count
+    }
     
     // System Monitors
     @Published public var isClipboardMonitoring: Bool = true {
@@ -437,6 +503,155 @@ public final class AppViewModel: ObservableObject {
         return historyItems.first(where: { $0.id == id })
     }
     
+    // MARK: - Audio Playback & Interactive Scrubbing Control
+    public func loadAudio(for item: QueueItem) async {
+        guard let url = item.effectiveAudioURL else { return }
+        if currentPlayingItemId == item.id && audioPlayer.currentURL == url {
+            return
+        }
+        do {
+            try await audioPlayer.load(url: url)
+            currentPlayingItemId = item.id
+            loadWaveform(for: url)
+        } catch {
+            Log.error("Could not load audio for queue item \(item.id): \(error)")
+        }
+    }
+    
+    public func loadAudio(for history: HistoryItem) async {
+        let txtURL = URL(fileURLWithPath: history.outputPath)
+        let possibleExtensions = ["m4a", "mp3", "wav", "aac", "caf"]
+        var foundURL: URL? = nil
+        for ext in possibleExtensions {
+            let candidate = txtURL.deletingPathExtension().appendingPathExtension(ext)
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                foundURL = candidate
+                break
+            }
+        }
+        guard let audioURL = foundURL else { return }
+        do {
+            try await audioPlayer.load(url: audioURL)
+            currentPlayingItemId = history.id
+            loadWaveform(for: audioURL)
+        } catch {
+            Log.error("Could not load audio for history item \(history.id): \(error)")
+        }
+    }
+    
+    public func loadWaveform(for audioURL: URL) {
+        isLoadingWaveform = true
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let points = try await self.waveformGenerator.generateWaveform(from: audioURL, targetPoints: 120)
+                await MainActor.run {
+                    self.activeWaveformPoints = points
+                    self.isLoadingWaveform = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoadingWaveform = false
+                }
+            }
+        }
+    }
+    
+    public func togglePlayPause() {
+        if let item = selectedItem, (audioPlayer.currentURL == nil || currentPlayingItemId != item.id), item.effectiveAudioURL != nil {
+            Task {
+                await loadAudio(for: item)
+                audioPlayer.play()
+            }
+        } else {
+            audioPlayer.togglePlayPause()
+        }
+    }
+    
+    public func seekAudio(to time: Double) {
+        audioPlayer.seek(to: time)
+    }
+    
+    public func skipBackward() {
+        audioPlayer.skipBackward(by: 5.0)
+    }
+    
+    public func skipForward() {
+        audioPlayer.skipForward(by: 5.0)
+    }
+    
+    public func setAudioSpeed(_ rate: Float) {
+        audioPlayer.setPlaybackRate(rate)
+    }
+    
+    public func words(for item: QueueItem) -> [WordItem] {
+        if let words = item.words, !words.isEmpty {
+            return words
+        }
+        let text = item.transcript ?? ""
+        guard !text.isEmpty else { return [] }
+        let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        guard !tokens.isEmpty else { return [] }
+        
+        let totalDuration = (item.durationSec ?? (audioPlayer.duration > 0 ? audioPlayer.duration : Double(tokens.count) * 0.35))
+        let durationPerWord = max(0.08, totalDuration / Double(tokens.count))
+        
+        var generated: [WordItem] = []
+        generated.reserveCapacity(tokens.count)
+        for (i, token) in tokens.enumerated() {
+            let start = Double(i) * durationPerWord
+            let end = start + durationPerWord
+            generated.append(WordItem(text: token, start: start, end: end))
+        }
+        return generated
+    }
+    
+    public func words(for history: HistoryItem, text: String) -> [WordItem] {
+        guard !text.isEmpty else { return [] }
+        let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        guard !tokens.isEmpty else { return [] }
+        let totalDuration = audioPlayer.duration > 0 ? audioPlayer.duration : Double(tokens.count) * 0.35
+        let durationPerWord = max(0.08, totalDuration / Double(tokens.count))
+        
+        return tokens.enumerated().map { i, token in
+            let start = Double(i) * durationPerWord
+            let end = start + durationPerWord
+            return WordItem(text: token, start: start, end: end)
+        }
+    }
+    
+    public func segments(for item: QueueItem) -> [Segment] {
+        if !item.segments.isEmpty {
+            return item.segments
+        }
+        let text = item.transcript ?? ""
+        guard !text.isEmpty else { return [] }
+        let lines = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let totalDuration = item.durationSec ?? (audioPlayer.duration > 0 ? audioPlayer.duration : Double(max(1, lines.count)) * 4.0)
+        let step = max(0.5, totalDuration / Double(max(1, lines.count)))
+        
+        return lines.enumerated().map { i, line in
+            let start = Double(i) * step
+            let end = min(totalDuration, start + step)
+            let words = Segment.interpolateWords(for: line, start: start, end: end)
+            return Segment(start: start, end: end, text: line, speaker: "Speaker \((i % 2) + 1)", words: words)
+        }
+    }
+    
+    public func segments(for history: HistoryItem, text: String) -> [Segment] {
+        guard !text.isEmpty else { return [] }
+        let lines = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let totalDuration = audioPlayer.duration > 0 ? audioPlayer.duration : Double(max(1, lines.count)) * 4.0
+        let step = max(0.5, totalDuration / Double(max(1, lines.count)))
+        
+        return lines.enumerated().map { i, line in
+            let start = Double(i) * step
+            let end = min(totalDuration, start + step)
+            let words = Segment.interpolateWords(for: line, start: start, end: end)
+            return Segment(start: start, end: end, text: line, speaker: "Speaker \((i % 2) + 1)", words: words)
+        }
+    }
+    
     public init() {
         let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "en"
         self.appLanguage = AppLanguage(rawValue: savedLang) ?? .english
@@ -516,7 +731,8 @@ public final class AppViewModel: ObservableObject {
                 subtitle: "Önbellekten Yüklendi • Zaten Deşifre Edilmiş",
                 state: .completed,
                 transcript: cached.transcriptText,
-                isNewlyDiscovered: true
+                isNewlyDiscovered: true,
+                audioURL: url
             )
             item.progress = 1.0
             item.durationSec = duration
@@ -538,7 +754,8 @@ public final class AppViewModel: ObservableObject {
             title: title,
             subtitle: "\(sourceLabel(for: url)) • \(url.pathExtension.uppercased())",
             state: .queued,
-            isNewlyDiscovered: true
+            isNewlyDiscovered: true,
+            audioURL: url
         )
         item.durationSec = duration
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
@@ -643,7 +860,8 @@ public final class AppViewModel: ObservableObject {
                 kind: .audioFile(url),
                 title: title,
                 subtitle: "Ses Dosyası • \(url.pathExtension.uppercased())",
-                state: .queued
+                state: .queued,
+                audioURL: url
             )
             item.durationSec = duration
             
@@ -1066,6 +1284,21 @@ public final class AppViewModel: ObservableObject {
                             let formatted = postProcessor.process(segments: result.segments)
                             
                             current.transcript = formatted
+                            
+                            // Session Media Retention: Persist audio file so it survives workspace cleanup
+                            let ext = media.localAudioURL.pathExtension.isEmpty ? "m4a" : media.localAudioURL.pathExtension
+                            let sessionAudioURL = self.sessionMediaDirectory.appendingPathComponent("\(current.id).\(ext)")
+                            if FileManager.default.fileExists(atPath: sessionAudioURL.path) {
+                                try? FileManager.default.removeItem(at: sessionAudioURL)
+                            }
+                            try? FileManager.default.copyItem(at: media.localAudioURL, to: sessionAudioURL)
+                            current.audioURL = sessionAudioURL
+                            current.segments = result.segments
+                            
+                            let waveformGen = WaveformGenerator()
+                            if let aURL = current.audioURL {
+                                current.waveformPoints = try? await waveformGen.generateWaveform(from: aURL, targetPoints: 200)
+                            }
                             current.state = .completed
                             current.progress = 1.0
                             
@@ -1159,6 +1392,10 @@ public final class AppViewModel: ObservableObject {
                             let formatted = postProcessor.process(segments: result.segments)
                             
                             current.transcript = formatted
+                            current.audioURL = fileURL
+                            current.segments = result.segments
+                            let waveformGen = WaveformGenerator()
+                            current.waveformPoints = try? await waveformGen.generateWaveform(from: fileURL, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
                             

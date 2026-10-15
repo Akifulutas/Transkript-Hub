@@ -132,6 +132,15 @@ public struct ContentView: View {
                 },
                 onCommandA: {
                     viewModel.selectAllQueueItems()
+                },
+                onSpace: {
+                    viewModel.audioPlayer.togglePlayPause()
+                },
+                onCommandLeft: {
+                    viewModel.audioPlayer.seek(to: max(0.0, viewModel.audioPlayer.currentTime - 5.0))
+                },
+                onCommandRight: {
+                    viewModel.audioPlayer.seek(to: min(viewModel.audioPlayer.duration, viewModel.audioPlayer.currentTime + 5.0))
                 }
             )
         )
@@ -373,6 +382,27 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     let onCommandV: () -> Void
     let onCommandShiftC: () -> Void
     let onCommandA: () -> Void
+    let onSpace: () -> Void
+    let onCommandLeft: () -> Void
+    let onCommandRight: () -> Void
+    
+    init(
+        onCommandK: @escaping () -> Void,
+        onCommandV: @escaping () -> Void,
+        onCommandShiftC: @escaping () -> Void,
+        onCommandA: @escaping () -> Void,
+        onSpace: @escaping () -> Void = {},
+        onCommandLeft: @escaping () -> Void = {},
+        onCommandRight: @escaping () -> Void = {}
+    ) {
+        self.onCommandK = onCommandK
+        self.onCommandV = onCommandV
+        self.onCommandShiftC = onCommandShiftC
+        self.onCommandA = onCommandA
+        self.onSpace = onSpace
+        self.onCommandLeft = onCommandLeft
+        self.onCommandRight = onCommandRight
+    }
     
     func makeNSView(context: Context) -> NSView {
         let view = KeyInterceptingView()
@@ -380,6 +410,9 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         view.onCommandV = onCommandV
         view.onCommandShiftC = onCommandShiftC
         view.onCommandA = onCommandA
+        view.onSpace = onSpace
+        view.onCommandLeft = onCommandLeft
+        view.onCommandRight = onCommandRight
         return view
     }
     
@@ -391,6 +424,9 @@ private final class KeyInterceptingView: NSView {
     var onCommandV: (() -> Void)?
     var onCommandShiftC: (() -> Void)?
     var onCommandA: (() -> Void)?
+    var onSpace: (() -> Void)?
+    var onCommandLeft: (() -> Void)?
+    var onCommandRight: (() -> Void)?
     
     override var acceptsFirstResponder: Bool { true }
     
@@ -412,6 +448,21 @@ private final class KeyInterceptingView: NSView {
                 return super.performKeyEquivalent(with: event)
             }
             onCommandA?()
+            return true
+        }
+        if flags == .command && (event.keyCode == 123 || chars == "\u{f702}") {
+            onCommandLeft?()
+            return true
+        }
+        if flags == .command && (event.keyCode == 124 || chars == "\u{f703}") {
+            onCommandRight?()
+            return true
+        }
+        if flags.isEmpty && (event.keyCode == 49 || chars == " ") {
+            if let responder = window?.firstResponder, responder is NSTextView || responder is NSTextField {
+                return super.performKeyEquivalent(with: event)
+            }
+            onSpace?()
             return true
         }
         return super.performKeyEquivalent(with: event)

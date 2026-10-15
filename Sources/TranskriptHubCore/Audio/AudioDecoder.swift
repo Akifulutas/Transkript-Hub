@@ -72,7 +72,11 @@ public final class AudioDecoder: Sendable {
                 return nil
             }
             
-            let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: inNumPackets)!
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: inNumPackets) else {
+                readCompleted = true
+                outStatus.pointee = .endOfStream
+                return nil
+            }
             do {
                 try audioFile.read(into: buffer)
                 if buffer.frameLength == 0 {
