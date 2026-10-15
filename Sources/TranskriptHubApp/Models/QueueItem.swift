@@ -87,9 +87,15 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     }
     
     public var effectiveThumbnailURL: URL? {
-        if let thumb = thumbnailURL { return thumb }
+        if let thumb = thumbnailURL {
+            let str = thumb.absoluteString
+            if str.contains("/hqdefault.jpg") {
+                return URL(string: str.replacingOccurrences(of: "/hqdefault.jpg", with: "/mqdefault.jpg"))
+            }
+            return thumb
+        }
         if case .youtube(let video) = kind {
-            return URL(string: "https://i.ytimg.com/vi/\(video.videoID)/hqdefault.jpg")
+            return URL(string: "https://i.ytimg.com/vi/\(video.videoID)/mqdefault.jpg")
         }
         return nil
     }

@@ -91,7 +91,17 @@ public struct PlaylistIngestionSheet: View {
             
             // Scope Selection Cards
             VStack(spacing: 10) {
-                // Option 0: Single Video Only (when watch?v=...&list=...)
+                // Option 1: All Videos (Tüm Videoları İndir / Ekle - En Üstte)
+                sheetOptionCard(
+                    isSelected: selectedScope == .all,
+                    icon: "square.stack.3d.up.fill",
+                    title: isChannel ? "Tüm Kanal Videolarını İndir" : "Tüm Videoları İndir (Tüm Liste)",
+                    description: isChannel ? "Kanalın yüklediği tüm videoları sırayla kuyruğa ekler." : "Listedeki tüm videoları sırayla kuyruğa ekler.",
+                    badge: "Önerilen",
+                    action: { selectedScope = .all }
+                )
+                
+                // Option 2: Single Video Only (when watch?v=...&list=...)
                 if pending.singleVideoID != nil {
                     sheetOptionCard(
                         isSelected: selectedScope == .singleVideoOnly,
@@ -101,16 +111,6 @@ public struct PlaylistIngestionSheet: View {
                         action: { selectedScope = .singleVideoOnly }
                     )
                 }
-                
-                // Option 1: All Videos
-                sheetOptionCard(
-                    isSelected: selectedScope == .all,
-                    icon: "square.stack.3d.up.fill",
-                    title: isChannel ? "Tüm Kanal Videoları" : "Tüm Oynatma Listesi",
-                    description: isChannel ? "Kanalın yüklediği tüm videoları sırayla alır." : "Listedeki tüm videoları sırayla kuyruğa ekler.",
-                    badge: isChannel ? nil : "Önerilen",
-                    action: { selectedScope = .all }
-                )
                 
                 // Option 2: Quick Presets (Son 5, 10, 20)
                 let isQuickSelected: Bool = {

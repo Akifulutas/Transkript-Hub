@@ -357,7 +357,7 @@ public final class AppViewModel: ObservableObject {
         
         let initialTitle = preloadedTitle ?? "Video başlığı alınıyor..."
         let initialSubtitle = "\(source) • Başlık aranıyor"
-        let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(video.videoID)/hqdefault.jpg")
+        let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(video.videoID)/mqdefault.jpg")
         
         let item = QueueItem(
             id: video.videoID,
@@ -561,7 +561,7 @@ public final class AppViewModel: ObservableObject {
                 for entry in entries {
                     guard !queueItems.contains(where: { $0.id == entry.id }) else { continue }
                     let parsed = ParsedYouTubeVideo(videoID: entry.id)
-                    let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(entry.id)/hqdefault.jpg")
+                    let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(entry.id)/mqdefault.jpg")
                     let item = QueueItem(
                         id: entry.id,
                         kind: .youtube(parsed),

@@ -39,8 +39,8 @@ public actor YouTubeMetadataResolver {
             return cached
         }
         
-        // Default deterministic thumbnail URL
-        let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(videoID)/hqdefault.jpg")
+        // Default deterministic thumbnail URL (mqdefault is 16:9 native without black letterbox bars)
+        let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(videoID)/mqdefault.jpg")
         
         let urlString = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=\(videoID)&format=json"
         guard let url = URL(string: urlString) else {
@@ -66,7 +66,12 @@ public actor YouTubeMetadataResolver {
                     // Clean HTML entities if any (e.g. &#39; -> ', &amp; -> &)
                     let cleanTitle = cleanHTMLEntities(rawTitle)
                     let cleanAuthor = decoded.author_name.map { cleanHTMLEntities($0) }
-                    let thumb = decoded.thumbnail_url.flatMap { URL(string: $0) } ?? fallbackThumb
+                    
+                    // Replace /hqdefault.jpg with /mqdefault.jpg to eliminate YouTube's 4:3 black bars
+                    var thumb = decoded.thumbnail_url.flatMap { URL(string: $0) } ?? fallbackThumb
+                    if let t = thumb, t.absoluteString.contains("/hqdefault.jpg") {
+                        thumb = URL(string: t.absoluteString.replacingOccurrences(of: "/hqdefault.jpg", with: "/mqdefault.jpg"))
+                    }
                     
                     let info = YouTubeVideoInfo(
                         videoID: videoID,

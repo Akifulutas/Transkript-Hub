@@ -408,8 +408,9 @@ struct StandardQueueRow: View {
                 case .success(let image):
                     image
                         .resizable()
-                        .aspectRatio(16/9, contentMode: .fill)
-                        .frame(width: 54, height: 32)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 60, height: 34)
+                        .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -421,7 +422,7 @@ struct StandardQueueRow: View {
                     fallbackIcon
                 }
             }
-            .frame(width: 54, height: 32)
+            .frame(width: 60, height: 34)
         } else {
             fallbackIcon
         }
@@ -431,7 +432,7 @@ struct StandardQueueRow: View {
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
-                .frame(width: 44, height: 30)
+                .frame(width: 60, height: 34)
             
             Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
                 .foregroundColor(item.isYouTube ? .red : .purple)
