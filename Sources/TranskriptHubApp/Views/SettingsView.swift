@@ -76,6 +76,28 @@ struct SettingsView: View {
                     }
                     .padding(14)
                     .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
+                    
+                    // Session Media Cache Card
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Oynatma & Kayıt Medya Önbelleği:")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text("Kullanılan Alan: \(viewModel.sessionMediaCacheSizeString)")
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        }
+                        
+                        Spacer()
+                        
+                        Button("Önbelleği Temizle") {
+                            viewModel.evictSessionMediaCache()
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(14)
+                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
                 }
                 
                 // Hardware / Engine Info

@@ -4,6 +4,7 @@ import AppKit
 struct MenuBarMiniWindow: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var quickText: String = ""
+    @State private var isDropTargeted: Bool = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -82,8 +83,44 @@ struct MenuBarMiniWindow: View {
             .padding(.vertical, 5)
             .liquidGlassCapsule(glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
             
+            // Drag & Drop Area for Files
+            VStack(spacing: 4) {
+                Image(systemName: isDropTargeted ? "arrow.down.circle.fill" : "arrow.down.doc")
+                    .font(.system(size: 15))
+                    .foregroundStyle(isDropTargeted ? Color.accentColor : Color.secondary)
+                Text(isDropTargeted ? "Dosyayı Bırakın" : "Ses / Video veya Bağlantı Sürükleyin")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Color.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isDropTargeted ? Color.accentColor.opacity(0.08) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(isDropTargeted ? Color.accentColor : Color.primary.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            )
+            .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
+                handleDrop(providers: providers)
+                return true
+            }
+            
             // Action Buttons
             HStack(spacing: 8) {
+                Button(action: {
+                    Task {
+                        await viewModel.startRecording()
+                    }
+                }) {
+                    Label("Ses Kaydet", systemImage: "mic.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.red)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                
                 Button(action: { viewModel.addFromClipboard() }) {
                     Label("Panodan Al", systemImage: "doc.on.clipboard")
                         .font(.system(size: 11))
@@ -93,7 +130,7 @@ struct MenuBarMiniWindow: View {
                 
                 if let lastText = viewModel.selectedItem?.transcript ?? viewModel.historyItems.first?.snippet {
                     Button(action: { viewModel.copyTranscript(text: lastText) }) {
-                        Label(viewModel.copiedToast ? "Kopyalandı!" : "Son Metni Kopyala", systemImage: "doc.on.doc")
+                        Label(viewModel.copiedToast ? "Kopyalandı!" : "Metni Al", systemImage: "doc.on.doc")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
@@ -142,5 +179,21 @@ struct MenuBarMiniWindow: View {
         viewModel.quickInputText = trimmed
         viewModel.addFromQuickInput()
         quickText = ""
+    }
+    
+    private func handleDrop(providers: [NSItemProvider]) {
+        for provider in providers {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url = url else { return }
+                DispatchQueue.main.async {
+                    if url.isFileURL {
+                        self.viewModel.addAudioFiles([url])
+                    } else {
+                        self.viewModel.quickInputText = url.absoluteString
+                        self.viewModel.addFromQuickInput()
+                    }
+                }
+            }
+        }
     }
 }

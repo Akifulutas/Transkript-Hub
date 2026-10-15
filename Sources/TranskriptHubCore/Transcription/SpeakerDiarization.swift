@@ -117,4 +117,51 @@ public final class AcousticTurnDiarizer: Sendable {
             return copy
         }
     }
+    
+    /// Clusters standard Segment array into speaker turns based on silence boundary transitions
+    public func clusterTurns(segments: [Segment], maxAlternatingSpeakers: Int = 2) -> [Segment] {
+        guard !segments.isEmpty else { return [] }
+        
+        var result: [Segment] = []
+        result.reserveCapacity(segments.count)
+        
+        var currentSpeakerIndex = 1
+        var previousEnd: Double = segments[0].start
+        
+        for (idx, seg) in segments.enumerated() {
+            var updated = seg
+            
+            if idx > 0 {
+                let pauseDuration = seg.start - previousEnd
+                if pauseDuration >= silenceThreshold {
+                    currentSpeakerIndex = (currentSpeakerIndex % maxAlternatingSpeakers) + 1
+                }
+            }
+            
+            updated.speaker = "Speaker \(currentSpeakerIndex)"
+            previousEnd = seg.end
+            result.append(updated)
+        }
+        
+        return result
+    }
+    
+    /// In-place speaker renaming propagation across all matching standard Segments
+    public func renameSpeaker(
+        in segments: [Segment],
+        from oldName: String,
+        to newName: String
+    ) -> [Segment] {
+        guard !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return segments
+        }
+        
+        return segments.map { seg in
+            var copy = seg
+            if copy.speaker == oldName {
+                copy.speaker = newName
+            }
+            return copy
+        }
+    }
 }

@@ -262,7 +262,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func cancelRecording() {
-        try? recordingEngine.cancelRecording()
+        recordingEngine.cancelRecording()
         isRecordingModalPresented = false
         statusMessage = "Kayıt iptal edildi."
     }
@@ -681,6 +681,95 @@ public final class AppViewModel: ObservableObject {
             let words = Segment.interpolateWords(for: line, start: start, end: end)
             return Segment(start: start, end: end, text: line, speaker: "Speaker \((i % 2) + 1)", words: words)
         }
+    }
+    
+    // MARK: - M3 Transcript Summarizer & Speaker Editing
+    public let summarizer = TranscriptSummarizer()
+    
+    public func summary(for item: QueueItem) -> TranscriptSummary {
+        let segs = segments(for: item)
+        if !segs.isEmpty {
+            return summarizer.summarize(segments: segs)
+        }
+        return summarizer.summarize(text: item.transcript ?? "", duration: item.durationSec)
+    }
+    
+    public func summary(for history: HistoryItem, text: String) -> TranscriptSummary {
+        let segs = segments(for: history, text: text)
+        if !segs.isEmpty {
+            return summarizer.summarize(segments: segs)
+        }
+        return summarizer.summarize(text: text, duration: nil)
+    }
+    
+    public func renameSpeaker(in item: QueueItem, from oldName: String, to newName: String) async {
+        guard let index = queueItems.firstIndex(where: { $0.id == item.id }) else { return }
+        let currentSegments = segments(for: queueItems[index])
+        let diarizer = AcousticTurnDiarizer()
+        let updatedSegments = diarizer.renameSpeaker(in: currentSegments, from: oldName, to: newName)
+        
+        queueItems[index].segments = updatedSegments
+        let newFullText = updatedSegments.map(\.text).joined(separator: "\n\n")
+        queueItems[index].transcript = newFullText
+        
+        // Atomic DB Update
+        if let db = try? AppDatabase.makeShared() {
+            try? await db.updateTranscript(jobId: item.id, newText: newFullText, segments: updatedSegments)
+        }
+        
+        // Update on disk if file exists
+        if let outURL = queueItems[index].outputURL {
+            try? newFullText.write(to: outURL, atomically: true, encoding: .utf8)
+        }
+    }
+    
+    public func updateSegmentText(in item: QueueItem, segmentIndex: Int, newText: String) async {
+        guard let index = queueItems.firstIndex(where: { $0.id == item.id }) else { return }
+        var currentSegments = segments(for: queueItems[index])
+        guard segmentIndex >= 0 && segmentIndex < currentSegments.count else { return }
+        
+        currentSegments[segmentIndex].text = newText
+        let words = Segment.interpolateWords(for: newText, start: currentSegments[segmentIndex].start, end: currentSegments[segmentIndex].end)
+        currentSegments[segmentIndex].words = words
+        
+        queueItems[index].segments = currentSegments
+        let newFullText = currentSegments.map(\.text).joined(separator: "\n\n")
+        queueItems[index].transcript = newFullText
+        
+        // Atomic DB Update
+        if let db = try? AppDatabase.makeShared() {
+            try? await db.updateTranscript(jobId: item.id, newText: newFullText, segments: currentSegments)
+        }
+        
+        // Update on disk if file exists
+        if let outURL = queueItems[index].outputURL {
+            try? newFullText.write(to: outURL, atomically: true, encoding: .utf8)
+        }
+    }
+    
+    // MARK: - M5 Media Cache Eviction
+    public var sessionMediaCacheSizeString: String {
+        let dir = sessionMediaDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) else {
+            return "0 KB"
+        }
+        var totalBytes: Int64 = 0
+        for file in files {
+            if let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize {
+                totalBytes += Int64(size)
+            }
+        }
+        return ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+    }
+    
+    public func evictSessionMediaCache() {
+        let dir = sessionMediaDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for file in files {
+            if audioPlayer.currentURL == file { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
+        statusMessage = "Medya önbelleği temizlendi."
     }
     
     public init() {

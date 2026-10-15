@@ -6,6 +6,8 @@ public struct KaraokeTranscriptView: View {
     public let segments: [Segment]
     @ObservedObject var player: AudioPlayerController
     public var fontSize: CGFloat
+    public var onSpeakerRenamed: ((String, String) -> Void)? = nil
+    public var onSegmentTextEdited: ((Int, String) -> Void)? = nil
     
     @State private var isAutoScrollPaused: Bool = false
     @State private var lastScrolledSegmentId: String? = nil
@@ -13,11 +15,15 @@ public struct KaraokeTranscriptView: View {
     public init(
         segments: [Segment],
         player: AudioPlayerController,
-        fontSize: CGFloat = 14
+        fontSize: CGFloat = 14,
+        onSpeakerRenamed: ((String, String) -> Void)? = nil,
+        onSegmentTextEdited: ((Int, String) -> Void)? = nil
     ) {
         self.segments = segments
         self.player = player
         self.fontSize = fontSize
+        self.onSpeakerRenamed = onSpeakerRenamed
+        self.onSegmentTextEdited = onSegmentTextEdited
     }
     
     private var activeSegmentIndex: Int? {
@@ -33,6 +39,7 @@ public struct KaraokeTranscriptView: View {
                         ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
                             SegmentRowView(
                                 segment: segment,
+                                segmentIndex: index,
                                 currentTime: player.currentTime,
                                 isActiveSegment: index == activeSegmentIndex,
                                 fontSize: fontSize,
@@ -51,7 +58,9 @@ public struct KaraokeTranscriptView: View {
                                             proxy.scrollTo(segId, anchor: .center)
                                         }
                                     }
-                                }
+                                },
+                                onSpeakerRenamed: onSpeakerRenamed,
+                                onSegmentTextEdited: onSegmentTextEdited
                             )
                             .id(segment.id)
                         }
@@ -130,45 +139,171 @@ public struct KaraokeTranscriptView: View {
 
 private struct SegmentRowView: View {
     let segment: Segment
+    let segmentIndex: Int
     let currentTime: Double
     let isActiveSegment: Bool
     let fontSize: CGFloat
     let onWordClicked: (Word) -> Void
+    var onSpeakerRenamed: ((String, String) -> Void)? = nil
+    var onSegmentTextEdited: ((Int, String) -> Void)? = nil
+    
+    @State private var isRenamingSpeaker: Bool = false
+    @State private var newSpeakerName: String = ""
+    @State private var isEditingText: Bool = false
+    @State private var editedText: String = ""
+    @State private var isHovered: Bool = false
+    
+    private var higColor: Color {
+        guard let spk = segment.speaker, !spk.isEmpty else { return .purple }
+        let badge = AppleHIGPalette.color(for: spk)
+        switch badge.index {
+        case 0: return .blue
+        case 1: return .purple
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .pink
+        case 5: return .teal
+        case 6: return .indigo
+        case 7: return .yellow
+        default: return .accentColor
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Segment Metadata Header (Timestamp & Speaker Badge)
+            // Segment Metadata Header (Timestamp, Speaker Badge & Edit Action)
             HStack(spacing: 8) {
                 // Time Range
                 Text("\(AudioPlayerController.formatTime(segment.start)) – \(AudioPlayerController.formatTime(segment.end))")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundColor(isActiveSegment ? .accentColor : .secondary)
+                    .foregroundStyle(isActiveSegment ? Color.accentColor : Color.secondary)
                 
-                // Speaker Badge if present
+                // Interactive Speaker Badge
                 if let speaker = segment.speaker, !speaker.isEmpty {
-                    Text(speaker)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.purple)
+                    Button(action: {
+                        newSpeakerName = speaker
+                        isRenamingSpeaker = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(higColor)
+                                .frame(width: 5, height: 5)
+                            Text(speaker)
+                                .font(.system(size: 9, weight: .bold))
+                            Image(systemName: "pencil")
+                                .font(.system(size: 7))
+                                .opacity(0.6)
+                        }
+                        .foregroundStyle(higColor)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 1.5)
-                        .background(Capsule().fill(Color.purple.opacity(0.15)))
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(higColor.opacity(0.12)))
+                        .overlay(Capsule().stroke(higColor.opacity(0.25), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Konuşmacı ismini değiştir")
+                    .popover(isPresented: $isRenamingSpeaker) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Konuşmacıyı Yeniden Adlandır")
+                                .font(.system(size: 11, weight: .bold))
+                            
+                            TextField("Örn: Ahmet Bey, Sunucu...", text: $newSpeakerName)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 190)
+                                .onSubmit {
+                                    commitSpeakerRename()
+                                }
+                            
+                            HStack {
+                                Button("İptal") { isRenamingSpeaker = false }
+                                    .controlSize(.small)
+                                Spacer()
+                                Button("Tümünde Güncelle") {
+                                    commitSpeakerRename()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .disabled(newSpeakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                        .padding(12)
+                    }
                 }
                 
                 Spacer()
+                
+                // Inline Edit Segment Button (Visible on hover or active)
+                if !isEditingText && (isHovered || isActiveSegment) {
+                    Button(action: {
+                        editedText = segment.text
+                        isEditingText = true
+                    }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "pencil.line")
+                                .font(.system(size: 9))
+                            Text("Düzenle")
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.primary.opacity(0.05)))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Bu segmentin metnini yerinde düzenle")
+                    .transition(.opacity)
+                }
             }
             
-            // Words Flow
-            let effectiveWords = segment.words.isEmpty ? Segment.interpolateWords(for: segment.text, start: segment.start, end: segment.end) : segment.words
-            
-            WordFlowLayout(spacing: 4, lineSpacing: 6) {
-                ForEach(effectiveWords) { word in
-                    WordTokenView(
-                        word: word,
-                        currentTime: currentTime,
-                        isActiveSegment: isActiveSegment,
-                        fontSize: fontSize,
-                        onClick: { onWordClicked(word) }
-                    )
+            // Words Flow or Inline Text Editor
+            if isEditingText {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextField("Segment metni...", text: $editedText, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: fontSize))
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.accentColor.opacity(0.5), lineWidth: 1)
+                        )
+                    
+                    HStack {
+                        Button("Vazgeç") {
+                            isEditingText = false
+                        }
+                        .controlSize(.small)
+                        
+                        Spacer()
+                        
+                        Button("Değişikliği Kaydet") {
+                            let trimmed = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty {
+                                onSegmentTextEdited?(segmentIndex, trimmed)
+                            }
+                            isEditingText = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(.top, 4)
+            } else {
+                let effectiveWords = segment.words.isEmpty ? Segment.interpolateWords(for: segment.text, start: segment.start, end: segment.end) : segment.words
+                
+                WordFlowLayout(spacing: 4, lineSpacing: 6) {
+                    ForEach(effectiveWords) { word in
+                        WordTokenView(
+                            word: word,
+                            currentTime: currentTime,
+                            isActiveSegment: isActiveSegment,
+                            fontSize: fontSize,
+                            onClick: { onWordClicked(word) }
+                        )
+                    }
                 }
             }
         }
@@ -184,6 +319,21 @@ private struct SegmentRowView: View {
                     lineWidth: 1
                 )
         )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private func commitSpeakerRename() {
+        let trimmed = newSpeakerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let current = segment.speaker, current != trimmed else {
+            isRenamingSpeaker = false
+            return
+        }
+        onSpeakerRenamed?(current, trimmed)
+        isRenamingSpeaker = false
     }
 }
 

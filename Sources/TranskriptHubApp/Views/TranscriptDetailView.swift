@@ -2,9 +2,27 @@ import SwiftUI
 import AppKit
 import TranskriptHubCore
 
+public enum DetailViewTab: String, CaseIterable, Identifiable, Sendable {
+    case transcript = "Transkript"
+    case summary = "Yapay Zeka Özeti"
+    case chapters = "Bölümler"
+    
+    public var id: String { rawValue }
+    
+    public var icon: String {
+        switch self {
+        case .transcript: return "doc.plaintext"
+        case .summary: return "sparkles"
+        case .chapters: return "list.bullet.indent"
+        }
+    }
+}
+
 public struct TranscriptDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var searchInText: String = ""
+    @State private var selectedTab: DetailViewTab = .transcript
+    @State private var completedActionItems: Set<String> = []
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -75,16 +93,45 @@ public struct TranscriptDetailView: View {
                     
                     Divider()
                     
-                    // 2. Karaoke Synchronized View or Raw Text Reader
-                    if viewModel.isKaraokeMode {
-                        let effectiveSegments: [Segment] = viewModel.segments(for: item)
-                        KaraokeTranscriptView(
-                            segments: effectiveSegments,
-                            player: viewModel.audioPlayer,
-                            fontSize: CGFloat(viewModel.transcriptFontSize)
-                        )
-                    } else {
-                        transcriptReader(text: text)
+                    // Detail Tab Switcher
+                    Picker("", selection: $selectedTab) {
+                        ForEach(DetailViewTab.allCases) { tab in
+                            Label(tab.rawValue, systemImage: tab.icon).tag(tab)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    
+                    Divider()
+                    
+                    // 2. Active Tab Content
+                    switch selectedTab {
+                    case .transcript:
+                        if viewModel.isKaraokeMode {
+                            let effectiveSegments: [Segment] = viewModel.segments(for: item)
+                            KaraokeTranscriptView(
+                                segments: effectiveSegments,
+                                player: viewModel.audioPlayer,
+                                fontSize: CGFloat(viewModel.transcriptFontSize),
+                                onSpeakerRenamed: { oldName, newName in
+                                    Task {
+                                        await viewModel.renameSpeaker(in: item, from: oldName, to: newName)
+                                    }
+                                },
+                                onSegmentTextEdited: { segIdx, newText in
+                                    Task {
+                                        await viewModel.updateSegmentText(in: item, segmentIndex: segIdx, newText: newText)
+                                    }
+                                }
+                            )
+                        } else {
+                            transcriptReader(text: text)
+                        }
+                    case .summary:
+                        summaryView(item: item)
+                    case .chapters:
+                        chaptersView(item: item)
                     }
                 }
                 .task(id: item.id) {
@@ -161,6 +208,166 @@ public struct TranscriptDetailView: View {
             } else {
                 missingHistoryFileView(history: history)
             }
+        }
+    }
+    
+    // MARK: - Smart Local Summary View
+    @ViewBuilder
+    private func summaryView(item: QueueItem) -> some View {
+        let summary = viewModel.summary(for: item)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                // Executive Summary Card
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label("Yönetici Özeti", systemImage: "doc.text.magnifyingglass")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                        Spacer()
+                        Button(action: {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(summary.executiveSummary, forType: .string)
+                        }) {
+                            Label("Kopyala", systemImage: "doc.on.doc")
+                                .font(.system(size: 10))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    
+                    Text(summary.executiveSummary.isEmpty ? "Özet çıkarılamadı." : summary.executiveSummary)
+                        .font(.system(size: 13))
+                        .lineSpacing(4)
+                        .foregroundStyle(Color.primary)
+                }
+                .padding(16)
+                .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.4), material: .ultraThinMaterial)
+                
+                // Key Points Bullets
+                if !summary.keyPoints.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Öne Çıkan Noktalar", systemImage: "star.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.orange)
+                        
+                        ForEach(summary.keyPoints, id: \.self) { point in
+                            HStack(alignment: .top, spacing: 8) {
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 5, height: 5)
+                                    .padding(.top, 6)
+                                Text(point)
+                                    .font(.system(size: 12))
+                                    .lineSpacing(3)
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .liquidGlass(cornerRadius: 14, glowColor: .orange.opacity(0.3), material: .ultraThinMaterial)
+                }
+                
+                // Action Items Checklist
+                if !summary.actionItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Label("Aksiyon Maddeleri & Görevler", systemImage: "checklist")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(Color.green)
+                            Spacer()
+                            Text("\(completedActionItems.intersection(Set(summary.actionItems)).count)/\(summary.actionItems.count) Tamamlandı")
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(Color.secondary)
+                        }
+                        
+                        ForEach(summary.actionItems, id: \.self) { action in
+                            let isDone = completedActionItems.contains(action)
+                            Button(action: {
+                                if isDone {
+                                    completedActionItems.remove(action)
+                                } else {
+                                    completedActionItems.insert(action)
+                                }
+                            }) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(isDone ? Color.green : Color.secondary)
+                                    
+                                    Text(action)
+                                        .font(.system(size: 12))
+                                        .strikethrough(isDone, color: .secondary)
+                                        .foregroundStyle(isDone ? Color.secondary : Color.primary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                    .liquidGlass(cornerRadius: 14, glowColor: .green.opacity(0.3), material: .ultraThinMaterial)
+                }
+            }
+            .padding(20)
+        }
+    }
+    
+    // MARK: - Timestamped Chapters View
+    @ViewBuilder
+    private func chaptersView(item: QueueItem) -> some View {
+        let summary = viewModel.summary(for: item)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if summary.chapters.isEmpty {
+                    Text("Bu kayıt için bölümleme oluşturulmadı.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.secondary)
+                        .padding(20)
+                } else {
+                    ForEach(summary.chapters) { chapter in
+                        Button(action: {
+                            viewModel.audioPlayer.seek(to: chapter.start)
+                            if !viewModel.audioPlayer.isPlaying {
+                                viewModel.audioPlayer.play()
+                            }
+                        }) {
+                            HStack(alignment: .top, spacing: 12) {
+                                // Timestamp badge with play icon
+                                HStack(spacing: 4) {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 8))
+                                    Text(AudioPlayerController.formatTime(chapter.start))
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                }
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(chapter.title)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(Color.primary)
+                                    
+                                    Text(chapter.summary)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.secondary)
+                                        .lineLimit(2)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.secondary.opacity(0.5))
+                            }
+                            .padding(12)
+                            .liquidGlass(cornerRadius: 10, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(20)
         }
     }
     
