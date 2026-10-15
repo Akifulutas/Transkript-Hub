@@ -8,8 +8,6 @@ public struct LiveAudioMeterView: View {
     @ObservedObject var recordingEngine: AudioRecordingEngine
     @Environment(\.dismiss) private var dismiss
     
-    @State private var isPulsing: Bool = false
-    
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
         self.recordingEngine = viewModel.recordingEngine
@@ -17,20 +15,12 @@ public struct LiveAudioMeterView: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // Header with Pulsing Recording Indicator and Close Button
+            // Header with Recording Indicator and Close Button
             HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.red.opacity(0.25))
-                        .frame(width: 24, height: 24)
-                        .scaleEffect(isPulsing && !recordingEngine.isPaused ? 1.3 : 1.0)
-                        .opacity(isPulsing && !recordingEngine.isPaused ? 0.3 : 0.8)
-                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
-                    
-                    Circle()
-                        .fill(recordingEngine.isPaused ? Color.orange : Color.red)
-                        .frame(width: 12, height: 12)
-                }
+                Circle()
+                    .fill(recordingEngine.isPaused ? Color.orange : Color.red)
+                    .frame(width: 10, height: 10)
+                    .shadow(color: (recordingEngine.isPaused ? Color.orange : Color.red).opacity(0.4), radius: 3, x: 0, y: 1)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recordingEngine.isPaused ? "Kayıt Duraklatıldı" : "Ses Kaydediliyor...")
@@ -38,10 +28,20 @@ public struct LiveAudioMeterView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
-                    Text("Apple Silicon vDSP Gerçek Zamanlı Spektrum")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Text(viewModel.recordingSource.displayName)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color.accentColor)
+                        
+                        Text("•")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        
+                        Text("Gerçek Zamanlı Spektrum")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .lineLimit(1)
                 }
                 
                 Spacer()
@@ -203,9 +203,6 @@ public struct LiveAudioMeterView: View {
                 .stroke(Color.white.opacity(0.18), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 8)
-        .onAppear {
-            isPulsing = true
-        }
     }
     
     private func formattedDuration(_ seconds: Double) -> String {

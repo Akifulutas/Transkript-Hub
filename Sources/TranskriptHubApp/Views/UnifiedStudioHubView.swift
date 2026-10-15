@@ -6,6 +6,7 @@ public struct UnifiedStudioHubView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var quickLinkText: String = ""
     @State private var isDropTargeted: Bool = false
+    @State private var isModelAccordionExpanded: Bool = false
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -18,6 +19,16 @@ public struct UnifiedStudioHubView: View {
                 topActionCardsRow
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
+                
+                // Model Selection Accordion (smooth downward expansion)
+                if isModelAccordionExpanded {
+                    modelAccordionSection
+                        .padding(.horizontal, 24)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .top)),
+                            removal: .opacity.combined(with: .move(edge: .top))
+                        ))
+                }
                 
                 // 2. Central Floating Hero Card: Drop & Paste Zone
                 centralHeroCard
@@ -36,37 +47,18 @@ public struct UnifiedStudioHubView: View {
     // MARK: - 1. Top 6 Interactive Action Cards Row
     private var topActionCardsRow: some View {
         HStack(spacing: 10) {
-            // Card 1: Model Selection (Clickable Menu)
-            Menu {
-                if viewModel.downloadedModels.isEmpty {
-                    Text("İndirilmiş Model Yok")
-                } else {
-                    ForEach(viewModel.downloadedModels, id: \.self) { model in
-                        Button {
-                            viewModel.selectedModel = model
-                        } label: {
-                            HStack {
-                                Label(modelDisplayName(model), systemImage: modelSystemIcon(model))
-                                if viewModel.selectedModel == model {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
+            // Card 1: Model Selection (Interactive Accordion Toggle)
+            Button(action: {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    isModelAccordionExpanded.toggle()
                 }
-                Divider()
-                Button {
-                    viewModel.openSettings(tab: .models)
-                } label: {
-                    Label("Model Kataloğu & İndir...", systemImage: "gearshape")
-                }
-            } label: {
+            }) {
                 interactiveCard(
                     icon: "cpu.fill",
                     badgeColor: .orange,
                     caption: "YAPAY ZEKA MODELİ",
                     title: viewModel.selectedModelTitle,
-                    subtitle: "Modeli Değiştir",
+                    subtitle: isModelAccordionExpanded ? "Listeyi Kapat" : "Modeli Değiştir",
                     showsChevron: true
                 )
             }
@@ -79,10 +71,6 @@ public struct UnifiedStudioHubView: View {
                 languageMenuButton(code: "tr", title: "🇹🇷 Türkçe")
                 languageMenuButton(code: "en", title: "🇬🇧 İngilizce")
                 languageMenuButton(code: "de", title: "🇩🇪 Almanca")
-                languageMenuButton(code: "fr", title: "🇫🇷 Fransızca")
-                languageMenuButton(code: "es", title: "🇪🇸 İspanyolca")
-                languageMenuButton(code: "ru", title: "🇷🇺 Rusça")
-                languageMenuButton(code: "ar", title: "🇸🇦 Arapça")
             } label: {
                 interactiveCard(
                     icon: "globe",
@@ -112,18 +100,31 @@ public struct UnifiedStudioHubView: View {
             }
             .buttonStyle(.plain)
             
-            // Card 4: Live Audio Recording (Triggers Recording Modal)
-            Button(action: {
-                Task {
-                    await viewModel.startRecording()
+            // Card 4: Live Audio Recording (Dual Mode: Microphone & System Audio)
+            Menu {
+                Button {
+                    Task {
+                        await viewModel.startRecording(source: .microphone)
+                    }
+                } label: {
+                    Label("🎙️ Canlı Mikrofon", systemImage: "mic.fill")
                 }
-            }) {
+                
+                Button {
+                    Task {
+                        await viewModel.startRecording(source: .systemAudio)
+                    }
+                } label: {
+                    Label("🖥️ Bilgisayar / Zoom Sesi", systemImage: "display")
+                }
+            } label: {
                 interactiveCard(
-                    icon: "mic.fill",
+                    icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
                     badgeColor: .red,
-                    caption: "CANLI MİKROFON",
-                    title: "Ses Kaydet",
-                    subtitle: "Anında Deşifre (⌘R)"
+                    caption: "SES KAYDI",
+                    title: viewModel.recordingSource == .microphone ? "Mikrofon" : "Sistem Sesi",
+                    subtitle: "Mod Seç (⌘R)",
+                    showsChevron: true
                 )
             }
             .buttonStyle(.plain)
@@ -155,6 +156,188 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
+    
+    // MARK: - Model Selection Accordion Section
+    private var modelAccordionSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "cpu.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.orange)
+                    Text("Whisper Yapay Zeka Modelleri")
+                        .font(.system(size: 13, weight: .bold))
+                    Text("• \(WhisperModelCatalog.availableModels.count) Model")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        isModelAccordionExpanded = false
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Text("Kapat")
+                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            Divider()
+            
+            VStack(spacing: 8) {
+                ForEach(WhisperModelCatalog.availableModels) { spec in
+                    accordionModelRow(spec: spec)
+                    if spec.id != WhisperModelCatalog.availableModels.last?.id {
+                        Divider().opacity(0.4)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .liquidGlass(cornerRadius: 16, glowColor: .orange.opacity(0.3), material: .ultraThinMaterial)
+    }
+    
+    private func accordionModelRow(spec: WhisperModelSpec) -> some View {
+        let isDownloaded = viewModel.modelManager.isModelDownloaded(spec.model)
+        let isActive = viewModel.selectedModel == spec.model
+        let visuals = modelSpecVisuals(spec)
+        
+        return HStack(spacing: 12) {
+            // Colorful Model Icon Badge
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(visuals.color.opacity(0.18))
+                    .frame(width: 32, height: 32)
+                Image(systemName: visuals.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(visuals.color)
+            }
+            
+            // Model Info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(spec.displayName)
+                        .font(.system(size: 13, weight: .bold))
+                    
+                    Text(spec.sizeDescription)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    
+                    if let badge = spec.badge {
+                        Text(badge)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(visuals.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(visuals.color.opacity(0.12)))
+                    }
+                    
+                    if isActive {
+                        Text("Aktif")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .liquidGlassCapsule(glowColor: .accentColor, material: .ultraThinMaterial)
+                    }
+                }
+                
+                Text(spec.summary)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            
+            Spacer()
+            
+            // Inline Action Buttons: Seç, İndir, Sil
+            if isDownloaded {
+                HStack(spacing: 8) {
+                    if !isActive {
+                        Button("Seç") {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                viewModel.selectedModel = spec.model
+                                isModelAccordionExpanded = false
+                            }
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    
+                    Button(role: .destructive) {
+                        viewModel.deleteModelInSettings(spec.model)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 10))
+                            Text("Sil")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.red.opacity(0.85))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Model dosyasını diskten sil")
+                }
+            } else if viewModel.downloadingModel == spec.model {
+                VStack(alignment: .trailing, spacing: 4) {
+                    ProgressView(value: viewModel.modelDownloadFraction)
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
+                    Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Button(action: {
+                    viewModel.downloadModelInSettings(spec.model)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 11))
+                        Text("İndir")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(.accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func modelSpecVisuals(_ spec: WhisperModelSpec) -> (icon: String, color: Color) {
+        switch spec.model {
+        case .largeV3Turbo:
+            return ("rocket.fill", .purple)
+        case .largeV3TurboQ5:
+            return ("bolt.badge.automatic.fill", .cyan)
+        case .small:
+            return ("sparkles", .green)
+        case .base:
+            return ("hare.fill", .orange)
+        case .tiny:
+            return ("leaf.fill", .mint)
+        case .medium:
+            return ("books.vertical.fill", .blue)
         }
     }
     
@@ -392,7 +575,7 @@ public struct UnifiedStudioHubView: View {
             if viewModel.isProcessing {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(viewModel.currentOperation.isEmpty ? "Metal GPU ile deşifre ediliyor..." : viewModel.currentOperation)
+                        Text(viewModel.currentOperation.isEmpty ? "Deşifre ediliyor..." : viewModel.currentOperation)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Color.primary)
                         Spacer()
@@ -588,8 +771,6 @@ public struct UnifiedStudioHubView: View {
         case "tr": return "Türkçe"
         case "en": return "İngilizce"
         case "de": return "Almanca"
-        case "fr": return "Fransızca"
-        case "es": return "İspanyolca"
         default: return code.uppercased()
         }
     }

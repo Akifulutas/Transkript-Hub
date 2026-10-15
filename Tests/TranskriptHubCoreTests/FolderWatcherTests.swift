@@ -74,4 +74,43 @@ final class FolderWatcherTests: XCTestCase {
         watcher.stopWatching()
         XCTAssertFalse(watcher.isWatching)
     }
+    
+    @MainActor
+    func testTriggerImmediateScanWhenNotWatching() {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        watcher.watchiCloudDrive = false
+        watcher.watchVoiceMemos = false
+        XCTAssertFalse(watcher.isWatching)
+        
+        // Immediate scan must proceed even when watcher timer is not running
+        watcher.triggerImmediateScan()
+        // Should not crash and should remain false for isWatching
+        XCTAssertFalse(watcher.isWatching)
+    }
+    
+    @MainActor
+    func testForceDownloadAllCloudItemsSafeExecution() async {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        
+        await watcher.forceDownloadAllCloudItems()
+        // Verifies directory creation and safe execution without throwing
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FolderWatcher.iCloudTranskriptDirectory.path))
+    }
+    
+    func testWhisperModelDisplayNames() {
+        for model in WhisperModel.allCases {
+            XCTAssertFalse(model.displayName.isEmpty)
+        }
+        XCTAssertEqual(WhisperModel.largeV3Turbo.displayName, "Large-v3-Turbo")
+        XCTAssertEqual(WhisperModel.largeV3TurboQ5.displayName, "Large-v3-Turbo (Q5_0)")
+        XCTAssertEqual(WhisperModel.small.displayName, "Small")
+        XCTAssertEqual(WhisperModel.base.displayName, "Base")
+        XCTAssertEqual(WhisperModel.tiny.displayName, "Tiny")
+        XCTAssertEqual(WhisperModel.medium.displayName, "Medium")
+    }
 }

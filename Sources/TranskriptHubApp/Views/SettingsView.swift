@@ -100,37 +100,6 @@ struct SettingsView: View {
                     .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
                 }
                 
-                // Hardware / Engine Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(viewModel.t("settings_hardware"))
-                        .font(.system(size: 14, weight: .bold))
-                    
-                    HStack(spacing: 12) {
-                        Image(systemName: "cpu")
-                            .font(.system(size: 20))
-                            .foregroundColor(.accentColor)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.t("settings_metal_active"))
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(viewModel.t("settings_metal_desc"))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Text("Apple Silicon")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
-                }
-                
                 Spacer()
             }
             .padding(20)

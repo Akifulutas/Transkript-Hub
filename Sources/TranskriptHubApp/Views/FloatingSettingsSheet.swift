@@ -91,7 +91,7 @@ public struct FloatingSettingsSheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Transkript Hub")
                     .font(.system(size: 12, weight: .semibold))
-                Text("v\(UpdateChecker.currentVersion) • Apple Silicon Metal")
+                Text("v\(UpdateChecker.currentVersion)")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.secondary)
             }
@@ -119,12 +119,14 @@ public struct FloatingSettingsSheet: View {
                 
                 Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -202,8 +204,6 @@ public struct FloatingSettingsSheet: View {
                         Text("🇹🇷 Türkçe").tag("tr")
                         Text("🇬🇧 İngilizce").tag("en")
                         Text("🇩🇪 Almanca").tag("de")
-                        Text("🇫🇷 Fransızca").tag("fr")
-                        Text("🇪🇸 İspanyolca").tag("es")
                     }
                     .frame(maxWidth: 240)
                 }
@@ -280,26 +280,6 @@ public struct FloatingSettingsSheet: View {
             }
             .padding(16)
             .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.5), material: .ultraThinMaterial)
-            
-            // Hardware Acceleration Status Card
-            cardSection(title: "Donanım Hızlandırması", icon: "cpu") {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Apple Silicon Metal Hızlandırması: Aktif")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("whisper.cpp v1.9.2 GPU Unified Memory mimarisi doğrudan devrede.")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Text("Metal GPU")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
-                }
-            }
         }
     }
     

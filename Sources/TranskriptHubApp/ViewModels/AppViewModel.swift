@@ -238,15 +238,31 @@ public final class AppViewModel: ObservableObject {
     @Published public var isKaraokeMode: Bool = true
     @Published public var currentPlayingItemId: String? = nil
     
-    // In-App Microphone Recording Engine (Milestone 2)
+public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
+    case microphone = "microphone"
+    case systemAudio = "systemAudio"
+    
+    public var id: String { rawValue }
+    
+    public var displayName: String {
+        switch self {
+        case .microphone: return "🎙️ Canlı Mikrofon"
+        case .systemAudio: return "🖥️ Bilgisayar / Zoom Sesi"
+        }
+    }
+}
+
+    // In-App Microphone / System Audio Recording Engine (Milestone 2)
     public let recordingEngine = AudioRecordingEngine()
     @Published public var isRecordingModalPresented: Bool = false
+    @Published public var recordingSource: AudioRecordingSource = .microphone
     
-    public func startRecording() async {
+    public func startRecording(source: AudioRecordingSource = .microphone) async {
+        self.recordingSource = source
         do {
             _ = try await recordingEngine.startRecording()
             isRecordingModalPresented = true
-            statusMessage = "Mikrofon kaydı başladı..."
+            statusMessage = source == .microphone ? "Mikrofon kaydı başladı..." : "Sistem / Zoom sesi kaydı başladı..."
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -361,11 +377,14 @@ public final class AppViewModel: ObservableObject {
     
     public func triggerFolderScan() {
         folderWatcher.triggerImmediateScan()
+        statusMessage = "İzlenen klasörler tarandı."
     }
     
     public func triggerCloudScan() {
+        statusMessage = "iCloud ses dosyaları denetleniyor..."
         Task {
             await folderWatcher.forceDownloadAllCloudItems()
+            statusMessage = "iCloud taraması tamamlandı."
         }
     }
     
@@ -863,9 +882,6 @@ public final class AppViewModel: ObservableObject {
             }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
-                if selectedItemID == nil {
-                    selectedItemID = item.id
-                }
             }
             return
         }
@@ -882,9 +898,6 @@ public final class AppViewModel: ObservableObject {
         item.durationSec = duration
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
-            if selectedItemID == nil {
-                selectedItemID = item.id
-            }
         }
         startProcessingQueue()
     }
@@ -913,9 +926,6 @@ public final class AppViewModel: ObservableObject {
         )
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
-            if selectedItemID == nil {
-                selectedItemID = item.id
-            }
         }
         
         // Fast asynchronous title, author and thumbnail resolution (~100ms)
@@ -989,9 +999,6 @@ public final class AppViewModel: ObservableObject {
             
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
-                if selectedItemID == nil {
-                    selectedItemID = item.id
-                }
             }
             
             // Check cache by filename and audio duration
@@ -1160,9 +1167,6 @@ public final class AppViewModel: ObservableObject {
                         thumbnailURL: fallbackThumb
                     )
                     queueItems.append(item)
-                    if selectedItemID == nil {
-                        selectedItemID = item.id
-                    }
                 }
                 statusMessage = "\(entries.count) video kuyruğa eklendi."
                 pendingBatchIngestion = nil
@@ -1184,7 +1188,7 @@ public final class AppViewModel: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll(where: { $0.id == id })
             if selectedItemID == id {
-                selectedItemID = queueItems.first?.id
+                selectedItemID = nil
             }
         }
     }
@@ -1218,7 +1222,7 @@ public final class AppViewModel: ObservableObject {
         guard !undoBackupItems.isEmpty else { return }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems = undoBackupItems
-            selectedItemID = queueItems.first?.id
+            selectedItemID = nil
             undoBackupItems.removeAll()
             showUndoToast = false
         }
@@ -1315,7 +1319,9 @@ public final class AppViewModel: ObservableObject {
                     }
                     
                     self.statusMessage = "[\(index + 1)/\(totalCount)] \(item.title) işleniyor..."
-                    self.selectedItemID = item.id
+                    if self.selectedItemID != nil {
+                        self.selectedItemID = item.id
+                    }
                     
                     // Create an isolated workspace directory specifically for this video to avoid file collision
                     let itemWorkspace = FileManager.default.temporaryDirectory
@@ -1664,6 +1670,46 @@ public final class AppViewModel: ObservableObject {
         } catch {
             Log.error("History load error: \(error.localizedDescription)")
         }
+    }
+    
+    public func clearAllHistory() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            historyItems.removeAll()
+            if selectedHistoryItem != nil {
+                selectedItemID = nil
+            }
+        }
+        Task { [weak self] in
+            guard let db = self?.appDatabase else { return }
+            do {
+                try await db.dbQueue.write { db in
+                    try db.execute(sql: "DELETE FROM history")
+                }
+            } catch {
+                Log.error("Clear all history error: \(error.localizedDescription)")
+            }
+        }
+        statusMessage = "Tüm geçmiş temizlendi."
+    }
+    
+    public func deleteHistoryItem(id: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            historyItems.removeAll(where: { $0.id == id })
+            if selectedItemID == id {
+                selectedItemID = nil
+            }
+        }
+        Task { [weak self] in
+            guard let db = self?.appDatabase else { return }
+            do {
+                try await db.dbQueue.write { db in
+                    try db.execute(sql: "DELETE FROM history WHERE external_id = ?", arguments: [id])
+                }
+            } catch {
+                Log.error("Delete history item error: \(error.localizedDescription)")
+            }
+        }
+        statusMessage = "Kayıt geçmişten silindi."
     }
     
     // MARK: - Actions

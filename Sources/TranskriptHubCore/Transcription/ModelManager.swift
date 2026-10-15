@@ -25,6 +25,17 @@ public enum WhisperModel: String, Sendable, CaseIterable {
             return URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(filename)")!
         }
     }
+    
+    public var displayName: String {
+        switch self {
+        case .largeV3Turbo: return "Large-v3-Turbo"
+        case .largeV3TurboQ5: return "Large-v3-Turbo (Q5_0)"
+        case .small: return "Small"
+        case .base: return "Base"
+        case .tiny: return "Tiny"
+        case .medium: return "Medium"
+        }
+    }
 }
 
 public final class ModelManager: Sendable {

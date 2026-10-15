@@ -57,7 +57,7 @@ public struct WhisperModelCatalog {
             displayName: "Large-v3-Turbo (Q5_0)",
             sizeDescription: "1.1 GB",
             sizeBytes: 1_100_000_000,
-            badge: "⚡️ Metal GPU Optimize",
+            badge: "⚡️ Hızlı & Optimize",
             speedRating: 5,
             accuracyRating: 5,
             summary: "Apple Silicon bellek mimarisi için özel 5-bit kuantize edilmiş turbo model. %30 daha az RAM, sıfır kalite kaybı.",

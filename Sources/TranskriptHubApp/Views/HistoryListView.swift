@@ -33,6 +33,37 @@ struct HistoryListView: View {
                 }
                 .padding(20)
             } else {
+                HStack(alignment: .center) {
+                    Text("\(viewModel.historyItems.count) Kayıt")
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Button(role: .destructive, action: {
+                        viewModel.clearAllHistory()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                            Text("Geçmişi Temizle")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(.red.opacity(0.85))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Tüm geçmiş kayıtları veritabanından kalıcı olarak sil")
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                
+                Divider()
+                
                 List(selection: $viewModel.selectedItemID) {
                     ForEach(filteredHistory) { item in
                         VStack(alignment: .leading, spacing: 4) {
@@ -41,9 +72,23 @@ struct HistoryListView: View {
                                     .font(.system(size: 13, weight: .semibold))
                                     .lineLimit(1)
                                 Spacer()
-                                Text(formattedDate(item.date))
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
+                                HStack(spacing: 6) {
+                                    Text(formattedDate(item.date))
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                    
+                                    Button(role: .destructive, action: {
+                                        viewModel.deleteHistoryItem(id: item.id)
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary.opacity(0.6))
+                                            .padding(3)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Bu kaydı geçmişten sil")
+                                }
                             }
                             
                             if !item.snippet.isEmpty {
@@ -63,6 +108,12 @@ struct HistoryListView: View {
                                 if let content = try? String(contentsOfFile: item.outputPath, encoding: .utf8) {
                                     viewModel.copyTranscript(text: content)
                                 }
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                viewModel.deleteHistoryItem(id: item.id)
+                            } label: {
+                                Label("Geçmişten Sil", systemImage: "trash")
                             }
                         }
                     }

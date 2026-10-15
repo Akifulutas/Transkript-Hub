@@ -108,7 +108,7 @@ public struct L10n {
             "status_failed": "Error",
             "status_ready": "Ready",
             "status_live_transcribing": "LIVE TRANSCRIBING",
-            "status_metal_active": "Transcribing with Apple Silicon GPU Metal...",
+            "status_metal_active": "Transcribing audio...",
             "status_fetching_audio": "Downloading YouTube audio (yt-dlp)...",
             
             // Sheets
@@ -131,7 +131,7 @@ public struct L10n {
             
             // Detail & Live Stream
             "status_live_stream_header": "Live Transcript Stream",
-            "status_live_stream_desc": "Words decoded with Metal GPU are displayed in real-time",
+            "status_live_stream_desc": "Words decoded by AI are displayed in real-time",
             "detail_session_combined": "Combined Session (%d)",
             "detail_single_video": "Single Video",
             "detail_no_transcript": "No transcript completed yet.",
@@ -153,12 +153,12 @@ public struct L10n {
             "settings_language": "Interface Language",
             "settings_language_desc": "Language used for application menus, buttons, and notifications.",
             "settings_whisper_models": "Whisper AI Models",
-            "settings_whisper_desc": "Models are stored locally on your Mac and utilize Apple Silicon Metal GPU acceleration.",
+            "settings_whisper_desc": "Models are stored locally on your Mac for fast and private on-device transcription.",
             "settings_output_dir": "Output Directory",
             "settings_open_folder": "Open Folder",
             "settings_hardware": "Hardware & Acceleration",
-            "settings_metal_active": "Apple Silicon Metal Acceleration: Active",
-            "settings_metal_desc": "On-device local engine (whisper.cpp v1.9.2 Metal framework)",
+            "settings_metal_active": "Acceleration: Active",
+            "settings_metal_desc": "On-device local engine (whisper.cpp v1.9.2)",
             "settings_download": "Download",
             "settings_downloaded": "Downloaded",
             "settings_active": "Active"
@@ -246,7 +246,7 @@ public struct L10n {
             "status_failed": "Hata",
             "status_ready": "Hazır",
             "status_live_transcribing": "CANLI TRANSKRİPT EDİLİYOR",
-            "status_metal_active": "Apple Silicon GPU Metal ile transkript ediliyor...",
+            "status_metal_active": "Yapay zeka sesi metne dönüştürüyor...",
             "status_fetching_audio": "YouTube sesi indiriliyor (yt-dlp)...",
             
             // Sheets
@@ -269,7 +269,7 @@ public struct L10n {
             
             // Detail & Live Stream
             "status_live_stream_header": "Canlı Transkript Akışı",
-            "status_live_stream_desc": "Metal GPU ile çözümlenen kelimeler anlık görüntüleniyor",
+            "status_live_stream_desc": "Çözümlenen kelimeler anlık görüntüleniyor",
             "detail_session_combined": "Birleşik Oturum (%d)",
             "detail_single_video": "Tekil Video",
             "detail_no_transcript": "Henüz tamamlanan transkript bulunmuyor.",
@@ -291,12 +291,12 @@ public struct L10n {
             "settings_language": "Arayüz Dili",
             "settings_language_desc": "Uygulamanın menü, buton ve mesajlarında kullanılacak dil.",
             "settings_whisper_models": "Whisper Yapay Zeka Modelleri",
-            "settings_whisper_desc": "Modeller yerel olarak Mac'inizde saklanır ve Apple Silicon Metal GPU hızlandırıcısını doğrudan kullanır.",
+            "settings_whisper_desc": "Modeller yerel olarak Mac'inizde saklanır ve doğrudan cihazınızda hızlıca işlenir.",
             "settings_output_dir": "Çıktı Dizini",
             "settings_open_folder": "Klasörü Aç",
             "settings_hardware": "Donanım ve Hızlandırma",
-            "settings_metal_active": "Apple Silicon Metal Hızlandırması: Aktif",
-            "settings_metal_desc": "Cihaz içi yerel motor (whisper.cpp v1.9.2 Metal framework)",
+            "settings_metal_active": "Hızlandırma: Aktif",
+            "settings_metal_desc": "Cihaz içi yerel motor (whisper.cpp v1.9.2)",
             "settings_download": "İndir",
             "settings_downloaded": "İndirildi",
             "settings_active": "Aktif"
@@ -384,7 +384,7 @@ public struct L10n {
             "status_failed": "Fehler",
             "status_ready": "Bereit",
             "status_live_transcribing": "LIVE-TRANSKRIPTION",
-            "status_metal_active": "Transkription mit Apple Silicon GPU Metal...",
+            "status_metal_active": "Transkription läuft...",
             "status_fetching_audio": "YouTube-Audio wird heruntergeladen (yt-dlp)...",
             
             // Sheets
@@ -407,7 +407,7 @@ public struct L10n {
             
             // Detail & Live Stream
             "status_live_stream_header": "Live-Transkriptionsstream",
-            "status_live_stream_desc": "Mit Metal-GPU decodierte Wörter werden in Echtzeit angezeigt",
+            "status_live_stream_desc": "Decodierte Wörter werden in Echtzeit angezeigt",
             "detail_session_combined": "Kombinierte Sitzung (%d)",
             "detail_single_video": "Einzelnes Video",
             "detail_no_transcript": "Noch kein Transkript abgeschlossen.",
@@ -429,12 +429,12 @@ public struct L10n {
             "settings_language": "Sprache der Benutzeroberfläche",
             "settings_language_desc": "Sprache für Menüs, Schaltflächen und Benachrichtigungen.",
             "settings_whisper_models": "Whisper KI-Modelle",
-            "settings_whisper_desc": "Modelle werden lokal auf Ihrem Mac gespeichert und nutzen die Apple Silicon Metal GPU-Beschleunigung.",
+            "settings_whisper_desc": "Modelle werden lokal auf Ihrem Mac gespeichert und schnell direkt auf Ihrem Gerät ausgeführt.",
             "settings_output_dir": "Ausgabeverzeichnis",
             "settings_open_folder": "Ordner öffnen",
             "settings_hardware": "Hardware & Beschleunigung",
-            "settings_metal_active": "Apple Silicon Metal Beschleunigung: Aktiv",
-            "settings_metal_desc": "Lokale On-Device-Engine (whisper.cpp v1.9.2 Metal framework)",
+            "settings_metal_active": "Beschleunigung: Aktiv",
+            "settings_metal_desc": "Lokale On-Device-Engine (whisper.cpp v1.9.2)",
             "settings_download": "Herunterladen",
             "settings_downloaded": "Heruntergeladen",
             "settings_active": "Aktiv"

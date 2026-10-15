@@ -146,7 +146,6 @@ public final class FolderWatcher: ObservableObject {
     }
     
     public func triggerImmediateScan() {
-        guard isWatching else { return }
         Task {
             await scanDirectory()
         }
@@ -161,6 +160,9 @@ public final class FolderWatcher: ObservableObject {
     }
     
     public func forceDownloadAllCloudItems() async {
+        if watchiCloudDrive && !FileManager.default.fileExists(atPath: Self.iCloudTranskriptDirectory.path) {
+            try? FileManager.default.createDirectory(at: Self.iCloudTranskriptDirectory, withIntermediateDirectories: true)
+        }
         await scanDirectory()
     }
     

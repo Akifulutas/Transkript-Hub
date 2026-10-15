@@ -49,6 +49,7 @@ public struct LiquidGlassCardModifier: ViewModifier {
                         ),
                         lineWidth: 1
                     )
+                    .allowsHitTesting(false)
             )
             .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
     }
@@ -83,6 +84,7 @@ public struct LiquidGlassCapsuleModifier: ViewModifier {
                         ),
                         lineWidth: 1
                     )
+                    .allowsHitTesting(false)
             )
             .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
     }
