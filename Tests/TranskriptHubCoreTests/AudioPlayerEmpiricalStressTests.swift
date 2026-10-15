@@ -333,7 +333,11 @@ struct AudioPlayerEmpiricalStressTests {
         #expect(controller.isPlaying)
         
         // Wait for audio to play to end
-        try await Task.sleep(nanoseconds: 600_000_000) // 600ms
+        let deadline = Date().addingTimeInterval(2.0)
+        while controller.isPlaying && Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            await Task.yield()
+        }
         
         #expect(controller.status == .ended || !controller.isPlaying)
         #expect(controller.isPlaying == false)

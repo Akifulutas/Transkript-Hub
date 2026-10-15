@@ -4,47 +4,6 @@ import Accelerate
 import AVFoundation
 @testable import TranskriptHubCore
 
-// MARK: - Protocol and State Types (PROJECT.md)
-
-@MainActor
-public protocol AudioRecordingControlling: AnyObject, ObservableObject {
-    var isRecording: Bool { get }
-    var currentMeteringLevel: Float { get } // 0.0 to 1.0 (RMS dB scaled)
-    var frequencyBands: [Float] { get }      // 16 bands via vDSP FFT
-    func startRecording() async throws -> URL
-    func stopRecording() async throws -> URL
-}
-
-public enum RecordingEngineError: Error, LocalizedError, Equatable {
-    case alreadyRecording
-    case notRecording
-    case invalidState(String)
-    case permissionDenied
-    case bufferAllocationFailed
-    
-    public var errorDescription: String? {
-        switch self {
-        case .alreadyRecording:
-            return "Kayıt zaten aktif durumda."
-        case .notRecording:
-            return "Aktif kayıt bulunmuyor."
-        case .invalidState(let msg):
-            return "Geçersiz kayıt durumu: \(msg)"
-        case .permissionDenied:
-            return "Mikrofon izni reddedildi."
-        case .bufferAllocationFailed:
-            return "Ses tamponu tahsis edilemedi."
-        }
-    }
-}
-
-public enum RecordingState: String, Sendable, Equatable {
-    case idle
-    case recording
-    case paused
-    case stopped
-}
-
 // MARK: - Headless Audio Recording Engine Harness
 
 @MainActor
@@ -61,6 +20,10 @@ public final class HeadlessAudioRecordingEngine: AudioRecordingControlling {
     
     public var isPaused: Bool {
         state == .paused
+    }
+    
+    public var recordedDuration: Double {
+        Double(capturedFramesCount) / 44100.0
     }
     
     private let outputDirectory: URL

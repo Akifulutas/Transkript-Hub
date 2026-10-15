@@ -1,4 +1,4 @@
-# BRIEFING — 2026-10-15T17:34:00Z
+# BRIEFING — 2026-10-15T18:13:00Z
 
 ## Mission
 Transform Transkript Hub into an AAA Apple 1st-Party quality, privacy-first, ultra-optimized macOS transcription powerhouse that rivals and surpasses MacWhisper Pro and Superwhisper in speed, elegance, and Apple ecosystem integration, while maintaining a lean binary size (<10MB DMG) and zero unnecessary third-party package dependencies.
@@ -16,7 +16,7 @@ Transform Transkript Hub into an AAA Apple 1st-Party quality, privacy-first, ult
 1. **Decompose**: Survey complete (3 parallel explorers). Feature inventory (22 features) and 7 milestones established in PROJECT.md. Interface contracts defined.
 2. **Dispatch & Execute**:
    - M0: E2E Test Suite Track [DONE - 77/77 tests passing, TEST_READY.md published]
-   - M1: Audio Playback, Karaoke Sync & Interactive Waveform [Gate Review in-progress]
+   - M1: Audio Playback, Karaoke Sync & Interactive Waveform [Iteration 2 Gate verification in-progress]
    - M2: Audio/Microphone Recording Engine & Live Meter [pending]
    - M3: Speaker Diarization, Inline Transcript Editor & Summarization [pending]
    - M4: Menu Bar Extra & Floating Drop-Zone [pending]
@@ -33,14 +33,14 @@ Transform Transkript Hub into an AAA Apple 1st-Party quality, privacy-first, ult
 - **Work items**:
   1. Survey & Architecture Mapping [done]
   2. M0: E2E Testing Suite Track [done]
-  3. M1: Audio Playback, Karaoke Sync & Interactive Waveform [in-progress: Gate evaluation]
+  3. M1: Audio Playback, Karaoke Sync & Interactive Waveform [Iteration 2: Gate verification running]
   4. M2: Audio/Microphone Recording Engine & Live Meter [pending]
   5. M3: Speaker Diarization, Inline Transcript Editor & Summarization [pending]
   6. M4: Menu Bar Extra & Floating Drop-Zone [pending]
   7. M5: Sequoia HIG, Command Palette, Shortcuts & Polish [pending]
   8. M6: Final Milestone: E2E Integration Pass & Hardening [pending]
-- **Current phase**: 2B (Gate Verification for M1)
-- **Current focus**: Reviewers, Challengers, and Forensic Auditor for M1
+- **Current phase**: 2B (Iteration 2 Gate for M1)
+- **Current focus**: Evaluating Gate for Milestone 1 Round 2
 
 ## 🔒 Key Constraints
 - DISPATCH-ONLY: NEVER write, modify, or create source code files directly.
@@ -57,38 +57,30 @@ Transform Transkript Hub into an AAA Apple 1st-Party quality, privacy-first, ult
 - Updated: 2026-10-15T16:36:00Z
 
 ## Key Decisions Made
-- M0 signed off: TEST_INFRA.md and TEST_READY.md published. 77/77 tests passing.
-- worker_m1_1 delivered implementation of Milestone 1. 96/96 tests pass in 0.181s with 0 compiler warnings.
-- Dispatched 2 Reviewers, 2 Challengers, and 1 Forensic Auditor for Milestone 1 Gate verification.
+- M0 signed off: TEST_INFRA.md and TEST_READY.md published.
+- worker_m1_r2 completed all remediations: readiness guards, monotonic seekGeneration, isolated deinit { stop() }, 4 new unit tests, shortcuts, and AppKit ScrollEventDetector. 122/122 tests pass in 4.27s.
+- Dispatched Round 2 Gate verification team (2 Reviewers, 2 Challengers, 1 Auditor).
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_survey_1 | teamwork_preview_explorer | Codebase Architecture Survey | completed | b28c5e07-ddfc-4266-981d-46c65b3d51e2 |
-| explorer_survey_2 | teamwork_preview_explorer | Test Suite & Verification Survey | completed | 203a7497-23b7-45d5-b0d2-c2b26c40c5a1 |
-| spec_miner_survey_3 | teamwork_preview_spec_miner | Requirements & Gap Analysis | completed | 095c4a90-3c40-41aa-97aa-d400415960aa |
-| test_writer_m0_1 | teamwork_preview_test_writer | E2E Test Suite & TEST_INFRA.md | completed | abf1302f-5d63-4fb3-aed7-4a7133341160 |
-| explorer_m1_1 | teamwork_preview_explorer | Token Timestamps & Models | completed | c617efad-460b-44f1-b9cf-305483efc69a |
-| explorer_m1_2 | teamwork_preview_explorer | AudioPlayer & WaveformGenerator | completed | 5f529101-c322-481c-849b-f5f06bf46ba0 |
-| explorer_m1_3 | teamwork_preview_explorer | Karaoke UI & Media Retention | completed | 192dc7f2-10e7-4ec3-b346-3b4644f28aa9 |
-| worker_m1_1 | teamwork_preview_worker | Milestone 1 Implementation | completed | 2f3c6fa1-1ae2-48db-a625-441f64c97165 |
-| reviewer_m1_1 | teamwork_preview_reviewer | Core & Concurrency Review | in-progress | 934e263c-7122-4ef2-bf14-bc502abbe104 |
-| reviewer_m1_2 | teamwork_preview_reviewer | UI & HIG Review | in-progress | d5598559-4441-47ac-8f80-3f1d8d54044f |
-| challenger_m1_1 | teamwork_preview_challenger | Playback Seek Challenger | in-progress | c8b69b4b-8381-48d0-af3b-29c0c2d2497c |
-| challenger_m1_2 | teamwork_preview_challenger | DSP & Models Challenger | in-progress | 422d808a-01f3-4fa8-9bca-d2fe01465f67 |
-| auditor_m1_1 | teamwork_preview_auditor | Forensic Integrity Auditor | in-progress | ecde5d63-a06f-4de8-a809-663a378a8f11 |
+| worker_m1_r2 | teamwork_preview_worker | Milestone 1 Remediation | completed | 20844f90-0805-448a-bf8d-dfd022d251fb |
+| reviewer_m1_r2_1 | teamwork_preview_reviewer | Core Concurrency Review | in-progress | 9c9c0af3-a824-42d5-be99-65713b9f3fd4 |
+| reviewer_m1_r2_2 | teamwork_preview_reviewer | UI & Ergonomics Review | in-progress | 99193b94-7038-414f-93e9-af2e41cc4ccc |
+| challenger_m1_r2_1 | teamwork_preview_challenger | Seek & Deinit Challenger | in-progress | 221b0c80-132f-41a1-8e2b-91d62245f603 |
+| challenger_m1_r2_2 | teamwork_preview_challenger | UI Shortcuts & Scroll Challenger | in-progress | d0e6d0a0-d9b1-4021-bf98-643dd97b2ac4 |
+| auditor_m1_r2_1 | teamwork_preview_auditor | Forensic Integrity Auditor | in-progress | 4027bce3-c1e0-40ac-8ff0-f80c685224c9 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 13 / 16
-- Pending subagents: 934e263c-7122-4ef2-bf14-bc502abbe104, d5598559-4441-47ac-8f80-3f1d8d54044f, c8b69b4b-8381-48d0-af3b-29c0c2d2497c, 422d808a-01f3-4fa8-9bca-d2fe01465f67, ecde5d63-a06f-4de8-a809-663a378a8f11
+- Spawn count: 22 / 128
+- Pending subagents: 9c9c0af3-a824-42d5-be99-65713b9f3fd4, 99193b94-7038-414f-93e9-af2e41cc4ccc, 221b0c80-132f-41a1-8e2b-91d62245f603, d0e6d0a0-d9b1-4021-bf98-643dd97b2ac4, 4027bce3-c1e0-40ac-8ff0-f80c685224c9
 - Predecessor: none
-- Successor: not yet spawned
+- Successor: not applicable
 
 ## Active Timers
-- Heartbeat cron: 0d9ca05f-b7f9-46d5-ab31-ea1bd16a8782/task-10
+- Heartbeat cron: 0d9ca05f-b7f9-46d5-ab31-ea1bd16a8782/task-233
 - Safety timer: none
-- On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
 
 ## Artifact Index

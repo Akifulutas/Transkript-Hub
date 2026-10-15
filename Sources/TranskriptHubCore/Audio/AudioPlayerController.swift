@@ -129,7 +129,7 @@ public final class AudioPlayerController: ObservableObject, AudioPlaybackControl
     public func play() {
         guard let player = player, status == .ready || status == .paused || status == .ended else { return }
         
-        if status == .ended || currentTime >= duration {
+        if status == .ended || currentTime >= duration - 0.05 {
             seek(to: 0.0)
         }
         

@@ -93,6 +93,10 @@ public extension View {
         self.modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius, glowColor: glowColor, material: material))
     }
     
+    func liquidGlassCard(cornerRadius: CGFloat = 14, glowColor: Color = .white, material: Material = .ultraThinMaterial) -> some View {
+        self.modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius, glowColor: glowColor, material: material))
+    }
+    
     func liquidGlassCapsule(glowColor: Color = .white, material: Material = .ultraThinMaterial) -> some View {
         self.modifier(LiquidGlassCapsuleModifier(glowColor: glowColor, material: material))
     }

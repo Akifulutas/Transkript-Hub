@@ -56,6 +56,9 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isSettingsPresented) {
                 FloatingSettingsSheet(viewModel: viewModel)
             }
+            .sheet(isPresented: $viewModel.isRecordingModalPresented) {
+                LiveAudioMeterView(viewModel: viewModel)
+            }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
             if viewModel.showUndoToast {
@@ -141,6 +144,11 @@ public struct ContentView: View {
                 },
                 onCommandRight: {
                     viewModel.audioPlayer.skipForward(by: 5.0)
+                },
+                onCommandR: {
+                    Task {
+                        await viewModel.startRecording()
+                    }
                 }
             )
         )
@@ -273,6 +281,35 @@ public struct ContentView: View {
         }
         
         ToolbarItem(placement: .automatic) {
+            // In-App Microphone Recording Trigger
+            Button(action: {
+                Task {
+                    await viewModel.startRecording()
+                }
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.red)
+                    Text("Ses Kaydet")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.red.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.red.opacity(0.35), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .help("Mikrofondan Canlı Ses Kaydet & Deşifre Et (⌘R)")
+        }
+        
+        ToolbarItem(placement: .automatic) {
             // ⌘K Quick Button in Toolbar
             Button(action: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
@@ -385,6 +422,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     let onSpace: () -> Void
     let onCommandLeft: () -> Void
     let onCommandRight: () -> Void
+    let onCommandR: () -> Void
     
     init(
         onCommandK: @escaping () -> Void,
@@ -393,7 +431,8 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         onCommandA: @escaping () -> Void,
         onSpace: @escaping () -> Void = {},
         onCommandLeft: @escaping () -> Void = {},
-        onCommandRight: @escaping () -> Void = {}
+        onCommandRight: @escaping () -> Void = {},
+        onCommandR: @escaping () -> Void = {}
     ) {
         self.onCommandK = onCommandK
         self.onCommandV = onCommandV
@@ -402,6 +441,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         self.onSpace = onSpace
         self.onCommandLeft = onCommandLeft
         self.onCommandRight = onCommandRight
+        self.onCommandR = onCommandR
     }
     
     func makeNSView(context: Context) -> NSView {
@@ -413,6 +453,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         view.onSpace = onSpace
         view.onCommandLeft = onCommandLeft
         view.onCommandRight = onCommandRight
+        view.onCommandR = onCommandR
         return view
     }
     
@@ -427,6 +468,7 @@ private final class KeyInterceptingView: NSView {
     var onSpace: (() -> Void)?
     var onCommandLeft: (() -> Void)?
     var onCommandRight: (() -> Void)?
+    var onCommandR: (() -> Void)?
     
     override var acceptsFirstResponder: Bool { true }
     
@@ -434,6 +476,10 @@ private final class KeyInterceptingView: NSView {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
         
+        if flags == .command && chars == "r" {
+            onCommandR?()
+            return true
+        }
         if flags == .command && chars == "k" {
             onCommandK?()
             return true

@@ -61,6 +61,8 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Transkript Hub, ses kayıtlarınızı doğrudan metne dönüştürmek için mikrofonunuza erişim sağlar.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026. All rights reserved.</string>
 </dict>

@@ -236,6 +236,37 @@ public final class AppViewModel: ObservableObject {
     @Published public var isKaraokeMode: Bool = true
     @Published public var currentPlayingItemId: String? = nil
     
+    // In-App Microphone Recording Engine (Milestone 2)
+    public let recordingEngine = AudioRecordingEngine()
+    @Published public var isRecordingModalPresented: Bool = false
+    
+    public func startRecording() async {
+        do {
+            _ = try await recordingEngine.startRecording()
+            isRecordingModalPresented = true
+            statusMessage = "Mikrofon kaydı başladı..."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    public func stopRecordingAndTranscribe() async {
+        do {
+            let url = try await recordingEngine.stopRecording()
+            isRecordingModalPresented = false
+            statusMessage = "Kayıt tamamlandı, deşifre ediliyor..."
+            addAudioFiles([url])
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    public func cancelRecording() {
+        try? recordingEngine.cancelRecording()
+        isRecordingModalPresented = false
+        statusMessage = "Kayıt iptal edildi."
+    }
+    
     // KPI Analytics for Frosted Glass Dashboard
     public var totalTranscribedCount: Int {
         completedItems.count + historyItems.count

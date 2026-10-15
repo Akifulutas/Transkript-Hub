@@ -10,6 +10,10 @@
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
     
+    <!-- Microphone Hardware Input Access for In-App Audio Recording -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    
     <!-- Hardened Runtime JIT & Memory Access for Whisper Metal / Local Execution -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
