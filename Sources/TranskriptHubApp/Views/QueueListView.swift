@@ -194,11 +194,19 @@ struct QueueListView: View {
     @ViewBuilder
     private func queueRow(for item: QueueItem) -> some View {
         if viewModel.densityMode == .compact {
-            CompactQueueRow(item: item, isSelected: viewModel.selectedItemID == item.id)
-                .contextMenu { rowContextMenu(item: item) }
+            CompactQueueRow(
+                item: item,
+                isSelected: viewModel.selectedItemID == item.id,
+                onRemove: { viewModel.removeItem(id: item.id) }
+            )
+            .contextMenu { rowContextMenu(item: item) }
         } else {
-            StandardQueueRow(item: item, isSelected: viewModel.selectedItemID == item.id)
-                .contextMenu { rowContextMenu(item: item) }
+            StandardQueueRow(
+                item: item,
+                isSelected: viewModel.selectedItemID == item.id,
+                onRemove: { viewModel.removeItem(id: item.id) }
+            )
+            .contextMenu { rowContextMenu(item: item) }
         }
     }
     
@@ -344,43 +352,32 @@ struct QueueListView: View {
     }
 }
 
-// MARK: - Standard View Row (13pt Desktop Hierarchy, Anti-AI Slop)
+// MARK: - Standard View Row (Apple Studio Hierarchy)
 struct StandardQueueRow: View {
     let item: QueueItem
     let isSelected: Bool
+    var onRemove: (() -> Void)? = nil
+    @State private var isHovered: Bool = false
     
     var body: some View {
-        HStack(spacing: 10) {
-            // Kind Icon
-            ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(item.isYouTube ? Color.red.opacity(0.12) : Color.purple.opacity(0.12))
-                    .frame(width: 32, height: 32)
-                
-                Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
-                    .foregroundColor(item.isYouTube ? .red : .purple)
-                    .font(.system(size: 13))
-            }
+        HStack(spacing: 12) {
+            // Video Thumbnail or Kind Icon
+            thumbnailView
             
             // Text Details
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(item.title)
-                        .font(.system(size: 13, weight: .medium))
-                        .lineLimit(1)
-                    
-                    if item.isNewlyDiscovered {
-                        Text("Yeni")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Color.accentColor.opacity(0.2))
-                            .foregroundColor(.accentColor)
-                            .clipShape(Capsule())
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
                 
                 HStack(spacing: 6) {
+                    if item.isNewlyDiscovered {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 6, height: 6)
+                    }
+                    
                     Text(item.subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -397,10 +394,68 @@ struct StandardQueueRow: View {
             
             Spacer()
             
-            // Liquid Glass Status Pill (H / 2 Capsule Rule)
+            // Hover action: quick delete button
+            if isHovered && !item.isInProgress {
+                Button(action: { onRemove?() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color.secondary.opacity(0.18)))
+                }
+                .buttonStyle(.plain)
+                .help("Kuyruktan Çıkar")
+                .transition(.opacity)
+            }
+            
+            // Liquid Glass Status Pill
             LiquidStatusPill(state: item.state)
         }
         .padding(.vertical, 3)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var thumbnailView: some View {
+        if let thumbURL = item.thumbnailURL {
+            AsyncImage(url: thumbURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 48, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                        )
+                case .failure, .empty:
+                    fallbackIcon
+                @unknown default:
+                    fallbackIcon
+                }
+            }
+            .frame(width: 48, height: 32)
+        } else {
+            fallbackIcon
+        }
+    }
+    
+    private var fallbackIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
+                .frame(width: 40, height: 30)
+            
+            Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
+                .foregroundColor(item.isYouTube ? .red : .purple)
+                .font(.system(size: 13))
+        }
     }
 }
 
@@ -408,6 +463,8 @@ struct StandardQueueRow: View {
 struct CompactQueueRow: View {
     let item: QueueItem
     let isSelected: Bool
+    var onRemove: (() -> Void)? = nil
+    @State private var isHovered: Bool = false
     
     var body: some View {
         HStack(spacing: 8) {
@@ -422,9 +479,27 @@ struct CompactQueueRow: View {
             
             Spacer()
             
+            if isHovered && !item.isInProgress {
+                Button(action: { onRemove?() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 16, height: 16)
+                        .background(Circle().fill(Color.secondary.opacity(0.18)))
+                }
+                .buttonStyle(.plain)
+                .help("Kuyruktan Çıkar")
+                .transition(.opacity)
+            }
+            
             LiquidStatusPill(state: item.state, compact: true)
         }
         .padding(.vertical, 1)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 

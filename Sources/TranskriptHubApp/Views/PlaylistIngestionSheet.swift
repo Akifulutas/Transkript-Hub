@@ -8,15 +8,17 @@ public struct PlaylistIngestionSheet: View {
     
     @State private var selectedScope: BatchScopeSelection
     @State private var customCount: Int = 15
+    @State private var quickCountChoice: Int = 10
     
     public init(viewModel: AppViewModel, pending: PendingBatchIngestion) {
         self.viewModel = viewModel
         self.pending = pending
-        // Default to latest10 for channels (channels can have thousands of videos), or all for playlists
         if case .channel = pending.type {
             _selectedScope = State(initialValue: .latest10)
+            _quickCountChoice = State(initialValue: 10)
         } else {
-            _selectedScope = State(initialValue: pending.singleVideoID != nil ? .all : .all)
+            _selectedScope = State(initialValue: .all)
+            _quickCountChoice = State(initialValue: 10)
         }
     }
     
@@ -28,34 +30,34 @@ public struct PlaylistIngestionSheet: View {
     private var actionLabel: String {
         switch selectedScope {
         case .all:
-            return "Tüm Videoları Ekle"
+            return "Tüm Videoları Kuyruğa Ekle"
         case .latest5:
-            return "Son 5 Videoyu Ekle"
+            return "Son 5 Videoyu Kuyruğa Ekle"
         case .latest10:
-            return "Son 10 Videoyu Ekle"
+            return "Son 10 Videoyu Kuyruğa Ekle"
         case .latest20:
-            return "Son 20 Videoyu Ekle"
+            return "Son 20 Videoyu Kuyruğa Ekle"
         case .custom:
-            return "\(customCount) Videoyu Ekle"
+            return "\(customCount) Videoyu Kuyruğa Ekle"
         case .singleVideoOnly:
-            return "Yalnızca Tek Videoyu Ekle"
+            return "Yalnızca Bu Videoyu Ekle"
         }
     }
     
     public var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             // Header
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: isChannel ? [.purple.opacity(0.35), .blue.opacity(0.2)] : [.red.opacity(0.35), .orange.opacity(0.2)],
+                                colors: isChannel ? [.purple.opacity(0.4), .blue.opacity(0.25)] : [.red.opacity(0.4), .orange.opacity(0.25)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 46, height: 46)
+                        .frame(width: 44, height: 44)
                     
                     Image(systemName: isChannel ? "play.tv.fill" : "music.note.list")
                         .font(.system(size: 20, weight: .semibold))
@@ -77,50 +79,147 @@ public struct PlaylistIngestionSheet: View {
                             .clipShape(Capsule())
                     }
                     
-                    Text(pending.subtitle)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    Text("Kaç adet videonun kuyruğa eklenmesini istersiniz?")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
                 }
                 
                 Spacer()
             }
-            .padding(.bottom, 2)
             
-            // Subtitle Description
-            Text("Bu bağlantıda birden fazla video bulunuyor. Kuyruğa kaç adet videonun aktarılmasını istersiniz?")
-                .font(.system(size: 12.5))
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
             
-            // Scope Selection Grid / List
-            VStack(spacing: 8) {
-                // If single video ID is available (e.g. watch?v=...&list=...)
+            // Scope Selection Cards
+            VStack(spacing: 10) {
+                // Option 0: Single Video Only (when watch?v=...&list=...)
                 if pending.singleVideoID != nil {
-                    selectionCard(
-                        scope: .singleVideoOnly,
+                    sheetOptionCard(
+                        isSelected: selectedScope == .singleVideoOnly,
                         icon: "play.circle.fill",
                         title: "Yalnızca Bu Tek Videoyu Ekle",
-                        subtitle: "Oynatma listesini yoksay, sadece açtığınız videoyu kuyruğa al"
+                        description: "Listeyi yoksayar, sadece açtığınız videoyu kuyruğa alır.",
+                        action: { selectedScope = .singleVideoOnly }
                     )
                 }
                 
-                selectionCard(
-                    scope: .all,
+                // Option 1: All Videos
+                sheetOptionCard(
+                    isSelected: selectedScope == .all,
                     icon: "square.stack.3d.up.fill",
                     title: isChannel ? "Tüm Kanal Videoları" : "Tüm Oynatma Listesi",
-                    subtitle: isChannel ? "Kanalın yüklediği tüm videoları kuyruğa alır" : "Listedeki tüm videoları sırayla kuyruğa ekler",
-                    badge: isChannel ? nil : "Önerilen"
+                    description: isChannel ? "Kanalın yüklediği tüm videoları sırayla alır." : "Listedeki tüm videoları sırayla kuyruğa ekler.",
+                    badge: isChannel ? nil : "Önerilen",
+                    action: { selectedScope = .all }
                 )
                 
-                HStack(spacing: 8) {
-                    compactScopeButton(scope: .latest5, title: "Son 5", icon: "5.circle.fill")
-                    compactScopeButton(scope: .latest10, title: "Son 10", icon: "10.circle.fill", badge: isChannel ? "Önerilen" : nil)
-                    compactScopeButton(scope: .latest20, title: "Son 20", icon: "20.circle.fill")
+                // Option 2: Quick Presets (Son 5, 10, 20)
+                let isQuickSelected: Bool = {
+                    switch selectedScope {
+                    case .latest5, .latest10, .latest20: return true
+                    default: return false
+                    }
+                }()
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: isQuickSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(isQuickSelected ? .accentColor : .secondary.opacity(0.5))
+                            .font(.system(size: 16))
+                        
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 14))
+                            .foregroundColor(isQuickSelected ? .accentColor : .secondary)
+                            .frame(width: 18)
+                        
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("En Yeni Videoları Al")
+                                .font(.system(size: 13, weight: isQuickSelected ? .semibold : .medium))
+                                .foregroundColor(.primary)
+                            Text("Kanal veya listedeki en son yayınlananları seçin")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    // Segmented quick choices
+                    HStack(spacing: 8) {
+                        quickChoicePill(count: 5, label: "Son 5")
+                        quickChoicePill(count: 10, label: "Son 10", badge: isChannel ? "Önerilen" : nil)
+                        quickChoicePill(count: 20, label: "Son 20")
+                    }
+                    .padding(.leading, 30)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(isQuickSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isQuickSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !isQuickSelected {
+                        applyQuickChoice(quickCountChoice)
+                    }
                 }
                 
-                // Custom Count Tile
-                customCountCard
+                // Option 3: Custom Count
+                let isCustomSelected: Bool = {
+                    if case .custom = selectedScope { return true }
+                    return false
+                }()
+                
+                HStack(spacing: 12) {
+                    Image(systemName: isCustomSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(isCustomSelected ? .accentColor : .secondary.opacity(0.5))
+                        .font(.system(size: 16))
+                    
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14))
+                        .foregroundColor(isCustomSelected ? .accentColor : .secondary)
+                        .frame(width: 18)
+                    
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Özel Sayı Belirle")
+                            .font(.system(size: 13, weight: isCustomSelected ? .semibold : .medium))
+                            .foregroundColor(.primary)
+                        Text("İstediğiniz sayıda videoyu en yeniden başlayarak alır")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 8) {
+                        Text("\(customCount) video")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundColor(isCustomSelected ? .accentColor : .primary)
+                            .frame(width: 70, alignment: .trailing)
+                        
+                        Stepper("", value: $customCount, in: 1...250, step: 5)
+                            .labelsHidden()
+                            .onChange(of: customCount) { _, newVal in
+                                selectedScope = .custom(newVal)
+                            }
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(isCustomSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isCustomSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedScope = .custom(customCount)
+                }
             }
             
             // Error Display
@@ -154,21 +253,19 @@ public struct PlaylistIngestionSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
-            Spacer(minLength: 4)
+            Divider()
             
-            // Action Buttons
+            // Footer Buttons
             HStack(spacing: 12) {
-                Button(action: {
+                Button("Vazgeç") {
                     viewModel.cancelBatchIngestion()
-                }) {
-                    Text("Vazgeç")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(minWidth: 80)
                 }
+                .keyboardShortcut(.cancelAction)
                 .buttonStyle(.plain)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
-                .liquidGlassCapsule(glowColor: .white.opacity(0.2), material: .ultraThinMaterial)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Capsule())
                 .disabled(viewModel.isResolvingBatch)
                 
                 Spacer()
@@ -186,184 +283,132 @@ public struct PlaylistIngestionSheet: View {
                             ProgressView()
                                 .controlSize(.small)
                         } else {
-                            Image(systemName: "plus.square.fill.on.square.fill")
-                                .font(.system(size: 12))
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 13))
                         }
                         Text(actionLabel)
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .frame(minWidth: 140)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .keyboardShortcut(.defaultAction)
                 .disabled(viewModel.isResolvingBatch)
             }
         }
         .padding(24)
-        .frame(width: 480)
+        .frame(width: 490)
         .background(
             VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
                 .ignoresSafeArea()
         )
     }
     
-    // MARK: - Subviews
-    private func selectionCard(
-        scope: BatchScopeSelection,
+    // MARK: - Subviews & Helpers
+    private func sheetOptionCard(
+        isSelected: Bool,
         icon: String,
         title: String,
-        subtitle: String,
-        badge: String? = nil
+        description: String,
+        badge: String? = nil,
+        action: @escaping () -> Void
     ) -> some View {
-        let isSelected = selectedScope == scope
-        return Button(action: {
-            selectedScope = scope
-        }) {
-            HStack(spacing: 12) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isSelected ? .accentColor : .secondary.opacity(0.5))
-                    .font(.system(size: 16))
-                
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
-                    .frame(width: 20)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(title)
-                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                            .foregroundColor(.primary)
-                        
-                        if let b = badge {
-                            Text(b)
-                                .font(.system(size: 9, weight: .bold))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.green.opacity(0.2))
-                                .foregroundColor(.green)
-                                .clipShape(Capsule())
-                        }
-                    }
-                    
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private func compactScopeButton(
-        scope: BatchScopeSelection,
-        title: String,
-        icon: String,
-        badge: String? = nil
-    ) -> some View {
-        let isSelected = selectedScope == scope
-        return Button(action: {
-            selectedScope = scope
-        }) {
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
+        HStack(spacing: 12) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(isSelected ? .accentColor : .secondary.opacity(0.5))
+                .font(.system(size: 16))
+            
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(isSelected ? .accentColor : .secondary)
+                .frame(width: 18)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
                     Text(title)
-                        .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                        .foregroundColor(.primary)
+                    
                     if let b = badge {
                         Text(b)
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 4)
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 1)
                             .background(Color.green.opacity(0.2))
                             .foregroundColor(.green)
                             .clipShape(Capsule())
                     }
                 }
-                .foregroundColor(isSelected ? .accentColor : .primary)
+                
+                Text(description)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            action()
+        }
+    }
+    
+    private func quickChoicePill(count: Int, label: String, badge: String? = nil) -> some View {
+        let isChosen: Bool = {
+            switch selectedScope {
+            case .latest5: return count == 5
+            case .latest10: return count == 10
+            case .latest20: return count == 20
+            default: return false
+            }
+        }()
+        
+        return Button(action: {
+            applyQuickChoice(count)
+        }) {
+            HStack(spacing: 5) {
+                Text(label)
+                    .font(.system(size: 11, weight: isChosen ? .bold : .medium))
+                
+                if let b = badge {
+                    Text(b)
+                        .font(.system(size: 8, weight: .bold))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.green.opacity(0.2))
+                        .foregroundColor(.green)
+                        .clipShape(Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(isChosen ? Color.accentColor : Color.white.opacity(0.08))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
-            )
+            .foregroundColor(isChosen ? .white : .primary)
         }
         .buttonStyle(.plain)
     }
     
-    private var customCountCard: some View {
-        let isSelected: Bool = {
-            if case .custom = selectedScope { return true }
-            return false
-        }()
-        
-        return Button(action: {
-            selectedScope = .custom(customCount)
-        }) {
-            HStack(spacing: 12) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isSelected ? .accentColor : .secondary.opacity(0.5))
-                    .font(.system(size: 16))
-                
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
-                    .frame(width: 20)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Özel Sayı")
-                        .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                        .foregroundColor(.primary)
-                    Text("Belirttiğiniz sayıda en yeni videoyu aktarır")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Stepper control
-                HStack(spacing: 6) {
-                    Text("\(customCount) video")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundColor(isSelected ? .accentColor : .secondary)
-                        .frame(width: 70, alignment: .trailing)
-                    
-                    Stepper("", value: $customCount, in: 1...500, step: 5)
-                        .labelsHidden()
-                        .onChange(of: customCount) { _, newVal in
-                            selectedScope = .custom(newVal)
-                        }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
-            )
+    private func applyQuickChoice(_ count: Int) {
+        quickCountChoice = count
+        switch count {
+        case 5: selectedScope = .latest5
+        case 10: selectedScope = .latest10
+        case 20: selectedScope = .latest20
+        default: selectedScope = .custom(count)
         }
-        .buttonStyle(.plain)
     }
 }

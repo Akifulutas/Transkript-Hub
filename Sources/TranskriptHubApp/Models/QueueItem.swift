@@ -27,6 +27,8 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var errorMessage: String?
     public var isNewlyDiscovered: Bool
     public let addedAt: Date
+    public var thumbnailURL: URL?
+    public var channelTitle: String?
     
     public init(
         id: String = UUID().uuidString,
@@ -40,7 +42,9 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         outputURL: URL? = nil,
         errorMessage: String? = nil,
         isNewlyDiscovered: Bool = false,
-        addedAt: Date = Date()
+        addedAt: Date = Date(),
+        thumbnailURL: URL? = nil,
+        channelTitle: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -54,6 +58,8 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.errorMessage = errorMessage
         self.isNewlyDiscovered = isNewlyDiscovered
         self.addedAt = addedAt
+        self.thumbnailURL = thumbnailURL
+        self.channelTitle = channelTitle
     }
     
     public var isYouTube: Bool {

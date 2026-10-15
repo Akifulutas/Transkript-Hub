@@ -295,6 +295,7 @@ public final class AppViewModel: ObservableObject {
                 self.jobManager = JobManager(database: db, outputWriter: self.outputWriter)
                 try await self.jobManager?.recoverState()
                 await self.loadHistoryFromDatabase()
+                await self.resolvePendingVideoTitles()
             } catch {
                 self.errorMessage = "Veritabanı başlatılamadı: \(error.localizedDescription)"
             }
@@ -303,21 +304,7 @@ public final class AppViewModel: ObservableObject {
     
     // MARK: - Zero-Touch Ingestion Handlers
     private func handleClipboardDiscoveredVideo(_ video: ParsedYouTubeVideo) {
-        guard !queueItems.contains(where: { $0.id == video.videoID }) else { return }
-        let item = QueueItem(
-            id: video.videoID,
-            kind: .youtube(video),
-            title: video.canonicalURL,
-            subtitle: "Pano Otomatik Yakaladı • ID: \(video.videoID)",
-            state: .queued,
-            isNewlyDiscovered: true
-        )
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-            queueItems.append(item)
-            if selectedItemID == nil {
-                selectedItemID = item.id
-            }
-        }
+        addYouTubeVideo(video, source: "Pano", isNewlyDiscovered: true)
     }
     
     private func handleAutoDiscoveredAudio(_ url: URL) async {
@@ -328,7 +315,7 @@ public final class AppViewModel: ObservableObject {
             id: url.path,
             kind: .audioFile(url),
             title: url.deletingPathExtension().lastPathComponent,
-            subtitle: "Sesli Notlar / iCloud • \(url.pathExtension.uppercased())",
+            subtitle: "Sesli Notlar • \(url.pathExtension.uppercased())",
             state: .queued,
             isNewlyDiscovered: true
         )
@@ -342,19 +329,64 @@ public final class AppViewModel: ObservableObject {
     }
     
     // MARK: - Queue Management
-    public func addYouTubeVideo(_ video: ParsedYouTubeVideo) {
+    public func addYouTubeVideo(
+        _ video: ParsedYouTubeVideo,
+        source: String = "YouTube",
+        preloadedTitle: String? = nil,
+        isNewlyDiscovered: Bool = false
+    ) {
         guard !queueItems.contains(where: { $0.id == video.videoID }) else { return }
+        
+        let initialTitle = preloadedTitle ?? "Video başlığı alınıyor..."
+        let initialSubtitle = "\(source) • Başlık aranıyor"
+        let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(video.videoID)/hqdefault.jpg")
+        
         let item = QueueItem(
             id: video.videoID,
             kind: .youtube(video),
-            title: video.canonicalURL,
-            subtitle: "YouTube • ID: \(video.videoID)",
-            state: .queued
+            title: initialTitle,
+            subtitle: initialSubtitle,
+            state: .queued,
+            isNewlyDiscovered: isNewlyDiscovered,
+            thumbnailURL: fallbackThumb
         )
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
             if selectedItemID == nil {
                 selectedItemID = item.id
+            }
+        }
+        
+        // Fast asynchronous title, author and thumbnail resolution (~100ms)
+        Task { @MainActor [weak self] in
+            await self?.resolveMetadata(for: video.videoID, source: source)
+        }
+    }
+    
+    @MainActor
+    public func resolveMetadata(for videoID: String, source: String) async {
+        let info = await YouTubeMetadataResolver.shared.resolve(videoID: videoID)
+        guard let index = queueItems.firstIndex(where: { $0.id == videoID }) else { return }
+        
+        withAnimation(.easeOut(duration: 0.2)) {
+            if queueItems[index].title == "Video başlığı alınıyor..." || queueItems[index].title.hasPrefix("http") {
+                queueItems[index].title = info.title
+            }
+            let channel = info.authorName ?? "YouTube"
+            queueItems[index].subtitle = "\(channel) • \(source)"
+            if let thumb = info.thumbnailURL {
+                queueItems[index].thumbnailURL = thumb
+            }
+            queueItems[index].channelTitle = info.authorName
+        }
+    }
+    
+    public func resolvePendingVideoTitles() async {
+        for item in queueItems {
+            if case .youtube(let video) = item.kind {
+                if item.title.hasPrefix("http") || item.title == "Video başlığı alınıyor..." || item.channelTitle == nil {
+                    await resolveMetadata(for: video.videoID, source: "YouTube")
+                }
             }
         }
     }
@@ -388,7 +420,7 @@ public final class AppViewModel: ObservableObject {
         if let detected = URLParser.detectType(trimmed) {
             switch detected {
             case .singleVideo(let video):
-                addYouTubeVideo(video)
+                addYouTubeVideo(video, source: "Hızlı Giriş")
             case .playlist, .channel:
                 presentBatchIngestion(for: detected)
             }
@@ -400,7 +432,7 @@ public final class AppViewModel: ObservableObject {
         let parsedList = URLParser.parseBulk(trimmed)
         if !parsedList.isEmpty {
             for p in parsedList {
-                addYouTubeVideo(p)
+                addYouTubeVideo(p, source: "Hızlı Giriş")
             }
         } else {
             let fileURL = URL(fileURLWithPath: trimmed)
@@ -418,7 +450,7 @@ public final class AppViewModel: ObservableObject {
         if let detected = URLParser.detectType(trimmed) {
             switch detected {
             case .singleVideo(let video):
-                addYouTubeVideo(video)
+                addYouTubeVideo(video, source: "Pano")
             case .playlist, .channel:
                 presentBatchIngestion(for: detected)
             }
@@ -427,7 +459,7 @@ public final class AppViewModel: ObservableObject {
         
         let parsed = URLParser.parseBulk(text)
         for p in parsed {
-            addYouTubeVideo(p)
+            addYouTubeVideo(p, source: "Pano")
         }
     }
     
@@ -511,13 +543,15 @@ public final class AppViewModel: ObservableObject {
                 for entry in entries {
                     guard !queueItems.contains(where: { $0.id == entry.id }) else { continue }
                     let parsed = ParsedYouTubeVideo(videoID: entry.id)
+                    let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(entry.id)/hqdefault.jpg")
                     let item = QueueItem(
                         id: entry.id,
                         kind: .youtube(parsed),
                         title: entry.title,
-                        subtitle: "\(pending.title) • ID: \(entry.id)",
+                        subtitle: pending.title,
                         state: .queued,
-                        isNewlyDiscovered: true
+                        isNewlyDiscovered: false,
+                        thumbnailURL: fallbackThumb
                     )
                     queueItems.append(item)
                     if selectedItemID == nil {
