@@ -53,6 +53,9 @@ public struct ContentView: View {
                     }
                 )
             }
+            .sheet(isPresented: $viewModel.isSettingsPresented) {
+                FloatingSettingsSheet(viewModel: viewModel)
+            }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
             if viewModel.showUndoToast {
@@ -145,12 +148,10 @@ public struct ContentView: View {
                     .tag(SidebarSection.history)
                 Label(viewModel.t("section_watched_folder"), systemImage: "folder.badge.gearshape")
                     .tag(SidebarSection.watchedFolder)
-                Label(viewModel.t("section_settings"), systemImage: "gearshape")
-                    .tag(SidebarSection.settings)
             }
             .pickerStyle(.segmented)
             .controlSize(.regular)
-            .frame(maxWidth: 430)
+            .frame(maxWidth: 350)
         }
         
         ToolbarItem(placement: .automatic) {
@@ -174,9 +175,9 @@ public struct ContentView: View {
                 Divider()
                 
                 Button {
-                    viewModel.selectedSection = .settings
+                    viewModel.openSettings(tab: .models)
                 } label: {
-                    Label("Model İndir / Yönet... (Ayarlar)", systemImage: "gearshape")
+                    Label("Model Kataloğu & Yeni Model İndir...", systemImage: "gearshape")
                 }
             } label: {
                 HStack(spacing: 5) {
@@ -278,6 +279,22 @@ public struct ContentView: View {
             }
             .buttonStyle(.plain)
             .help("Hızlı Komut Paleti (⌘K)")
+        }
+        
+        ToolbarItem(placement: .automatic) {
+            // Settings Floating Modal Button
+            Button(action: {
+                viewModel.openSettings()
+            }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+            }
+            .buttonStyle(.plain)
+            .help("Ayarlar (⌘,)")
         }
         
         ToolbarItem(placement: .primaryAction) {

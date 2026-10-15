@@ -69,8 +69,7 @@ struct WatchedFolderView: View {
                             Spacer()
                             
                             Button("Finder'da Göster") {
-                                let url = URL(fileURLWithPath: viewModel.watchedDirectoryPath)
-                                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path)
+                                viewModel.openInFinder(path: viewModel.watchedDirectoryPath)
                             }
                             .font(.system(size: 11))
                             .buttonStyle(.bordered)

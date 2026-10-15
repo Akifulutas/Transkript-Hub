@@ -51,12 +51,33 @@ public final class FolderWatcher: ObservableObject {
         Log.info("FolderWatcher durduruldu.")
     }
     
+    public var voiceMemosDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings", isDirectory: true)
+    }
+    
+    public var isVoiceMemosDirectlyAccessible: Bool {
+        FileManager.default.fileExists(atPath: voiceMemosDirectory.path) &&
+        FileManager.default.isReadableFile(atPath: voiceMemosDirectory.path)
+    }
+    
     public func scanDirectory() async {
+        var directoriesToScan = [watchedDirectory]
+        if isVoiceMemosDirectlyAccessible {
+            directoriesToScan.append(voiceMemosDirectory)
+        }
+        
+        for dir in directoriesToScan {
+            await scanSingleDirectory(dir)
+        }
+    }
+    
+    private func scanSingleDirectory(_ directory: URL) async {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: watchedDirectory.path) else { return }
+        guard fm.fileExists(atPath: directory.path) else { return }
         
         guard let items = try? fm.contentsOfDirectory(
-            at: watchedDirectory,
+            at: directory,
             includingPropertiesForKeys: [.fileSizeKey, .ubiquitousItemDownloadingStatusKey],
             options: [.skipsHiddenFiles]
         ) else { return }

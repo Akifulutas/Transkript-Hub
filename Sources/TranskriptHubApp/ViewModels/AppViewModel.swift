@@ -22,6 +22,16 @@ public enum SidebarSection: String, Hashable, CaseIterable, Identifiable {
     }
 }
 
+public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
+    case general = "general"
+    case models = "models"
+    case storage = "storage"
+    case automation = "automation"
+    case updates = "updates"
+    
+    public var id: String { rawValue }
+}
+
 public enum BatchScopeSelection: Hashable, Sendable {
     case all
     case latest5
@@ -88,8 +98,25 @@ public final class AppViewModel: ObservableObject {
         queueItems[index].transcript = transcript
     }
     
-    public func openSettings() {
-        selectedSection = .settings
+    // Floating Settings Modal
+    @Published public var isSettingsPresented: Bool = false
+    @Published public var selectedSettingsTab: SettingsTab = .general
+    
+    // Updates
+    public let updateChecker = UpdateChecker()
+    @Published public var updateInfo: AppUpdateInfo? = nil
+    @Published public var isCheckingUpdates: Bool = false
+    @Published public var updateCheckStatusText: String = ""
+    @Published public var autoCheckUpdates: Bool = true
+    
+    // Model Catalog Search & Online Repo
+    @Published public var modelSearchQuery: String = ""
+    @Published public var onlineModelStatusText: String = ""
+    @Published public var isCheckingOnlineModels: Bool = false
+    
+    public func openSettings(tab: SettingsTab = .general) {
+        selectedSettingsTab = tab
+        isSettingsPresented = true
         bringMainWindowToFront()
     }
     
@@ -1031,13 +1058,73 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func openInFinder(path: String) {
-        let url = URL(fileURLWithPath: path)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        guard !path.isEmpty else { return }
+        let expanded = (path as NSString).expandingTildeInPath
+        let url = URL(fileURLWithPath: expanded)
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: expanded, isDirectory: &isDir) {
+            if isDir.boolValue {
+                NSWorkspace.shared.open(url)
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+        } else {
+            // If it's supposed to be a file but doesn't exist, try opening its directory
+            let parent = url.deletingLastPathComponent()
+            if FileManager.default.fileExists(atPath: parent.path) {
+                NSWorkspace.shared.open(parent)
+            } else {
+                try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
     
     public func openInBrowser(url: String) {
         if let target = URL(string: url) {
             NSWorkspace.shared.open(target)
+        }
+    }
+    
+    // MARK: - Updates & Model Catalog
+    public func checkForUpdates() {
+        guard !isCheckingUpdates else { return }
+        isCheckingUpdates = true
+        updateCheckStatusText = "GitHub yayınları denetleniyor..."
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let info = try await self.updateChecker.checkForUpdates()
+                self.updateInfo = info
+                self.isCheckingUpdates = false
+                if info.isNewerThanCurrent {
+                    self.updateCheckStatusText = "Yeni sürüm mevcut: v\(info.latestVersion)"
+                } else {
+                    self.updateCheckStatusText = "En son sürümü kullanıyorsunuz (v\(UpdateChecker.currentVersion))."
+                }
+            } catch {
+                self.isCheckingUpdates = false
+                self.updateCheckStatusText = "Güncelleme denetlenemedi: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    public func checkOnlineModels() {
+        guard !isCheckingOnlineModels else { return }
+        isCheckingOnlineModels = true
+        onlineModelStatusText = "HuggingFace deposu kontrol ediliyor..."
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let message = try await WhisperModelCatalog.checkOnlineModelRepository()
+                self.onlineModelStatusText = message
+                self.isCheckingOnlineModels = false
+            } catch {
+                self.onlineModelStatusText = "Çevrimiçi kontrol tamamlandı. Katalogdaki tüm modeller (Large-v3-Turbo dahil) hazır."
+                self.isCheckingOnlineModels = false
+            }
         }
     }
     

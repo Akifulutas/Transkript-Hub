@@ -40,13 +40,6 @@ struct TranskriptHubApp: App {
                     viewModel.bringMainWindowToFront()
                 }
                 .keyboardShortcut("3", modifiers: .command)
-                
-                Divider()
-                
-                Button("Ayarlar") {
-                    viewModel.openSettings()
-                }
-                .keyboardShortcut(",", modifiers: .command)
             }
             
             CommandMenu("İşlemler") {
@@ -90,19 +83,6 @@ struct TranskriptHubApp: App {
                     viewModel.selectAllQueueItems()
                 }
                 .keyboardShortcut("a", modifiers: .command)
-            }
-            
-            CommandMenu(viewModel.t("settings_language")) {
-                ForEach(AppLanguage.allCases) { lang in
-                    Button(action: { viewModel.appLanguage = lang }) {
-                        HStack {
-                            Text(lang.displayName)
-                            if viewModel.appLanguage == lang {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
             }
         }
         
