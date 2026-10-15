@@ -128,9 +128,9 @@ public struct UnifiedStudioHubView: View {
             }
             .buttonStyle(.plain)
             
-            // Card 5: Watched Folder (Navigates to Folder Section)
+            // Card 5: Watched Folder (Opens Native Sheet)
             Button(action: {
-                viewModel.selectedSection = .watchedFolder
+                viewModel.isWatchedFolderPresented = true
             }) {
                 interactiveCard(
                     icon: "folder.badge.gearshape.fill",
@@ -231,12 +231,6 @@ public struct UnifiedStudioHubView: View {
                 
                 Text("YouTube Bağlantısı Yapıştırın veya Ses Dosyası Bırakın")
                     .font(.system(size: 15, weight: .bold))
-                
-                Text("Panodaki bir linki almak için doğrudan ⌘V tuşlayabilir veya ses/video dosyalarını buraya sürükleyebilirsiniz.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
             }
             
             // Integrated URL Input Field

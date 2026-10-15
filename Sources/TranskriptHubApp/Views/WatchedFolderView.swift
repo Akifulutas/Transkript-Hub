@@ -482,3 +482,60 @@ struct WatchedFolderView: View {
         }
     }
 }
+
+// MARK: - Dedicated Native Modal Sheet
+public struct WatchedFolderSheet: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    public init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    public var body: some View {
+        VStack(spacing: 0) {
+            // Sheet Header with Apple-Style Done Button
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.teal.opacity(0.18))
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "folder.badge.gearshape.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.teal)
+                }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("İzlenen Klasörler & Otomasyon")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Otomatik Ses ve iCloud İçe Aktarımı")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.secondary)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    dismiss()
+                }) {
+                    Text("Bitti")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial)
+            
+            Divider()
+            
+            WatchedFolderView(viewModel: viewModel)
+        }
+        .frame(width: 680, height: 520)
+        .background(.ultraThinMaterial)
+    }
+}

@@ -63,6 +63,9 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isRecordingModalPresented) {
                 LiveAudioMeterView(viewModel: viewModel)
             }
+            .sheet(isPresented: $viewModel.isWatchedFolderPresented) {
+                WatchedFolderSheet(viewModel: viewModel)
+            }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
             if viewModel.showUndoToast {
@@ -104,8 +107,11 @@ public struct ContentView: View {
                 window.isOpaque = false
                 window.backgroundColor = .clear
                 window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+                window.title = ""
             }
         )
+        .navigationTitle("")
         .background(
             VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
                 .ignoresSafeArea()

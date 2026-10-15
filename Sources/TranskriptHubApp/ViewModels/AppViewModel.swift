@@ -137,6 +137,8 @@ public final class AppViewModel: ObservableObject {
     // Floating Settings Modal
     @Published public var isSettingsPresented: Bool = false
     @Published public var selectedSettingsTab: SettingsTab = .general
+    @Published public var isWatchedFolderPresented: Bool = false
+    @Published public var isHistoryPresented: Bool = false
     
     // Updates
     public let updateChecker = UpdateChecker()
@@ -489,7 +491,7 @@ public final class AppViewModel: ObservableObject {
     
     public var selectedItem: QueueItem? {
         guard selectedSection == .queue else { return nil }
-        guard let id = selectedItemID else { return queueItems.first }
+        guard let id = selectedItemID else { return nil }
         return queueItems.first(where: { $0.id == id })
     }
     
@@ -530,7 +532,7 @@ public final class AppViewModel: ObservableObject {
     
     public var selectedHistoryItem: HistoryItem? {
         guard selectedSection == .history else { return nil }
-        guard let id = selectedItemID else { return historyItems.first }
+        guard let id = selectedItemID else { return nil }
         return historyItems.first(where: { $0.id == id })
     }
     
