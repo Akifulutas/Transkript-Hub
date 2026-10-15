@@ -214,7 +214,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public private(set) var clipboardMonitor: ClipboardMonitor!
-    public private(set) var folderWatcher: FolderWatcher!
+    public var folderWatcher: FolderWatcher!
     public let modelManager = ModelManager()
     public let outputWriter = OutputWriter()
     private var jobManager: JobManager?
@@ -235,6 +235,10 @@ public final class AppViewModel: ObservableObject {
         folderWatcher.watchedDirectory.path
     }
     
+    public var activeWatchedDirectoriesCount: Int {
+        folderWatcher.activeWatchedDirectories.count
+    }
+    
     public var activeCloudDownloads: Set<String> {
         folderWatcher.activeCloudDownloads
     }
@@ -243,9 +247,55 @@ public final class AppViewModel: ObservableObject {
         !folderWatcher.activeCloudDownloads.isEmpty
     }
     
+    public func triggerFolderScan() {
+        folderWatcher.triggerImmediateScan()
+    }
+    
     public func triggerCloudScan() {
         Task {
             await folderWatcher.forceDownloadAllCloudItems()
+        }
+    }
+    
+    public func selectCustomWatchedFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = t("action_add")
+        panel.message = t("watched_choose_folder_prompt")
+        
+        if let current = folderWatcher.customFolderURL {
+            panel.directoryURL = current
+        } else {
+            panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        }
+        
+        if panel.runModal() == .OK, let selectedURL = panel.url {
+            folderWatcher.customFolderURL = selectedURL
+            folderWatcher.watchCustomFolder = true
+            Task {
+                await folderWatcher.scanDirectory()
+            }
+        }
+    }
+    
+    public func resetCustomWatchedFolder() {
+        folderWatcher.customFolderURL = nil
+        folderWatcher.watchCustomFolder = false
+    }
+    
+    public func sourceLabel(for url: URL) -> String {
+        let path = url.path
+        if path.contains("group.com.apple.VoiceMemos.shared") {
+            return "Apple Sesli Notlar"
+        } else if path.contains("com~apple~CloudDocs") {
+            return "iCloud Drive"
+        } else if let custom = folderWatcher.customFolderURL, path.hasPrefix(custom.path) {
+            return custom.lastPathComponent
+        } else {
+            return "İzlenen Klasör"
         }
     }
     
@@ -472,7 +522,7 @@ public final class AppViewModel: ObservableObject {
             id: url.path,
             kind: .audioFile(url),
             title: title,
-            subtitle: "Sesli Notlar • \(url.pathExtension.uppercased())",
+            subtitle: "\(sourceLabel(for: url)) • \(url.pathExtension.uppercased())",
             state: .queued,
             isNewlyDiscovered: true
         )

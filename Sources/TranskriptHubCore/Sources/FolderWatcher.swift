@@ -7,6 +7,42 @@ public final class FolderWatcher: ObservableObject {
     @Published public var processedFilesCount: Int = 0
     @Published public var lastProcessedFile: String? = nil
     
+    // Configurable Sources
+    @Published public var watchiCloudDrive: Bool {
+        didSet {
+            UserDefaults.standard.set(watchiCloudDrive, forKey: "FolderWatcher.watchiCloudDrive")
+            triggerImmediateScan()
+        }
+    }
+    
+    @Published public var watchiCloudRoot: Bool {
+        didSet {
+            UserDefaults.standard.set(watchiCloudRoot, forKey: "FolderWatcher.watchiCloudRoot")
+            triggerImmediateScan()
+        }
+    }
+    
+    @Published public var watchVoiceMemos: Bool {
+        didSet {
+            UserDefaults.standard.set(watchVoiceMemos, forKey: "FolderWatcher.watchVoiceMemos")
+            triggerImmediateScan()
+        }
+    }
+    
+    @Published public var watchCustomFolder: Bool {
+        didSet {
+            UserDefaults.standard.set(watchCustomFolder, forKey: "FolderWatcher.watchCustomFolder")
+            triggerImmediateScan()
+        }
+    }
+    
+    @Published public var customFolderURL: URL? {
+        didSet {
+            UserDefaults.standard.set(customFolderURL?.path, forKey: "FolderWatcher.customFolderPath")
+            triggerImmediateScan()
+        }
+    }
+    
     private var timer: Timer?
     private var knownFiles: [String: Int64] = [:] // Path -> size
     private var processedPaths: Set<String> = []
@@ -15,16 +51,72 @@ public final class FolderWatcher: ObservableObject {
     
     public var onNewAudioDiscovered: ((URL) async -> Void)?
     
+    public static var iCloudRootDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs", isDirectory: true)
+    }
+    
+    public static var iCloudTranskriptDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Transkript", isDirectory: true)
+    }
+    
+    public static var voiceMemosDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings", isDirectory: true)
+    }
+    
+    public var isVoiceMemosDirectlyAccessible: Bool {
+        let path = Self.voiceMemosDirectory.path
+        guard FileManager.default.fileExists(atPath: path) else { return false }
+        if let dir = opendir(path) {
+            closedir(dir)
+            return true
+        }
+        return false
+    }
+    
+    public var activeWatchedDirectories: [URL] {
+        var dirs: [URL] = []
+        if watchiCloudDrive {
+            if watchiCloudRoot {
+                dirs.append(Self.iCloudRootDirectory)
+            }
+            dirs.append(Self.iCloudTranskriptDirectory)
+        }
+        if watchVoiceMemos && isVoiceMemosDirectlyAccessible {
+            dirs.append(Self.voiceMemosDirectory)
+        }
+        if watchCustomFolder, let custom = customFolderURL {
+            dirs.append(custom)
+        }
+        if dirs.isEmpty {
+            dirs.append(watchedDirectory)
+        }
+        return dirs
+    }
+    
     public init(watchedDirectory: URL? = nil) {
+        let defaultiCloud = Self.iCloudTranskriptDirectory
         if let dir = watchedDirectory {
             self.watchedDirectory = dir
         } else {
-            let home = FileManager.default.homeDirectoryForCurrentUser
-            let iCloud = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Transkript", isDirectory: true)
-            self.watchedDirectory = iCloud
+            self.watchedDirectory = defaultiCloud
         }
         
-        let saved = UserDefaults.standard.stringArray(forKey: "FolderWatcher.processedPaths") ?? []
+        let ud = UserDefaults.standard
+        self.watchiCloudDrive = ud.object(forKey: "FolderWatcher.watchiCloudDrive") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudDrive")
+        self.watchiCloudRoot = ud.object(forKey: "FolderWatcher.watchiCloudRoot") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudRoot")
+        self.watchVoiceMemos = ud.object(forKey: "FolderWatcher.watchVoiceMemos") == nil ? true : ud.bool(forKey: "FolderWatcher.watchVoiceMemos")
+        self.watchCustomFolder = ud.bool(forKey: "FolderWatcher.watchCustomFolder")
+        
+        if let customPath = ud.string(forKey: "FolderWatcher.customFolderPath"), !customPath.isEmpty {
+            self.customFolderURL = URL(fileURLWithPath: customPath, isDirectory: true)
+        } else {
+            self.customFolderURL = nil
+        }
+        
+        let saved = ud.stringArray(forKey: "FolderWatcher.processedPaths") ?? []
         self.processedPaths = Set(saved)
     }
     
@@ -43,7 +135,7 @@ public final class FolderWatcher: ObservableObject {
                 await self?.scanDirectory()
             }
         }
-        Log.info("FolderWatcher started: \(watchedDirectory.path)")
+        Log.info("FolderWatcher started. Monitoring \(activeWatchedDirectories.count) directories.")
     }
     
     public func stopWatching() {
@@ -53,29 +145,35 @@ public final class FolderWatcher: ObservableObject {
         Log.info("FolderWatcher stopped.")
     }
     
-    public var voiceMemosDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings", isDirectory: true)
+    public func triggerImmediateScan() {
+        guard isWatching else { return }
+        Task {
+            await scanDirectory()
+        }
     }
     
-    public var isVoiceMemosDirectlyAccessible: Bool {
-        FileManager.default.fileExists(atPath: voiceMemosDirectory.path) &&
-        FileManager.default.isReadableFile(atPath: voiceMemosDirectory.path)
-    }
-    
-    public func scanDirectory() async {
-        var directoriesToScan = [watchedDirectory]
-        if isVoiceMemosDirectlyAccessible {
-            directoriesToScan.append(voiceMemosDirectory)
-        }
-        
-        for dir in directoriesToScan {
-            await scanSingleDirectory(dir)
-        }
+    public func resetProcessedPaths() {
+        processedPaths.removeAll()
+        knownFiles.removeAll()
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.processedPaths")
+        Log.info("FolderWatcher processed paths reset.")
+        triggerImmediateScan()
     }
     
     public func forceDownloadAllCloudItems() async {
         await scanDirectory()
+    }
+    
+    public func scanDirectory() async {
+        // Ensure iCloud Transkript directory exists if iCloud watching is enabled
+        if watchiCloudDrive && !FileManager.default.fileExists(atPath: Self.iCloudTranskriptDirectory.path) {
+            try? FileManager.default.createDirectory(at: Self.iCloudTranskriptDirectory, withIntermediateDirectories: true)
+        }
+        
+        let dirs = activeWatchedDirectories
+        for dir in dirs {
+            await scanSingleDirectory(dir)
+        }
     }
     
     private func scanSingleDirectory(_ directory: URL) async {
@@ -87,6 +185,7 @@ public final class FolderWatcher: ObservableObject {
             at: directory,
             includingPropertiesForKeys: [
                 .fileSizeKey,
+                .contentModificationDateKey,
                 .ubiquitousItemDownloadingStatusKey,
                 .ubiquitousItemIsDownloadingKey
             ],
@@ -98,6 +197,11 @@ public final class FolderWatcher: ObservableObject {
             
             // Exclude system meta files
             if filename == ".DS_Store" || filename.hasPrefix("._") || filename == "." || filename == ".." {
+                continue
+            }
+            
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: fileURL.path, isDirectory: &isDir), isDir.boolValue {
                 continue
             }
             
@@ -158,29 +262,36 @@ public final class FolderWatcher: ObservableObject {
             let path = fileURL.path
             guard !processedPaths.contains(path) else { continue }
             
-            // 4. Size stability check (2 measurements, > 0)
+            // 4. Size stability check (> 0 bytes)
             guard let attrs = try? fm.attributesOfItem(atPath: path),
                   let currentSize = attrs[.size] as? Int64,
                   currentSize > 0 else { continue }
             
-            if let previousSize = knownFiles[path] {
-                if previousSize == currentSize {
-                    // Size is stable! Validate audio
-                    if let _ = try? AudioValidator.validate(fileURL: fileURL) {
-                        processedPaths.insert(path)
-                        UserDefaults.standard.set(Array(processedPaths), forKey: "FolderWatcher.processedPaths")
-                        knownFiles.removeValue(forKey: path)
-                        processedFilesCount += 1
-                        lastProcessedFile = filename
-                        
-                        Log.info("New audio file detected: \(filename)")
-                        await onNewAudioDiscovered?(fileURL)
-                    }
-                } else {
-                    knownFiles[path] = currentSize
-                }
+            let modDate = (attrs[.modificationDate] as? Date) ?? Date()
+            let isOldEnough = Date().timeIntervalSince(modDate) > 4.0
+            
+            let isStable: Bool
+            if isOldEnough {
+                isStable = true
+            } else if let previousSize = knownFiles[path], previousSize == currentSize {
+                isStable = true
             } else {
+                isStable = false
                 knownFiles[path] = currentSize
+            }
+            
+            if isStable {
+                // Size is stable! Validate audio
+                if let _ = try? AudioValidator.validate(fileURL: fileURL) {
+                    processedPaths.insert(path)
+                    UserDefaults.standard.set(Array(processedPaths), forKey: "FolderWatcher.processedPaths")
+                    knownFiles.removeValue(forKey: path)
+                    processedFilesCount += 1
+                    lastProcessedFile = filename
+                    
+                    Log.info("New audio file detected: \(filename)")
+                    await onNewAudioDiscovered?(fileURL)
+                }
             }
         }
     }

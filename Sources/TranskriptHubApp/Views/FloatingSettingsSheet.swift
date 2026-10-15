@@ -441,14 +441,14 @@ public struct FloatingSettingsSheet: View {
     // MARK: - 4. Automation & Voice Memos Tab
     private var automationTab: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Folder Watching Toggle
+            // Folder Watching Toggle & Configurable Sources
             cardSection(title: "Klasör ve Sesli Notlar Dinleyicisi", icon: "waveform.badge.magnifyingglass") {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(viewModel.isFolderWatching ? "Klasör İzleme Aktif (Arka Planda Dinleniyor)" : "Klasör İzleme Kapalı")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text("iCloud Drive veya yerel klasöre yeni sesler düştüğünde sıfır temasla transkript edilir.")
+                            Text("iCloud Drive, Apple Sesli Notlar veya özel klasörünüze yeni sesler düştüğünde sıfır temasla transkript edilir.")
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
@@ -459,22 +459,122 @@ public struct FloatingSettingsSheet: View {
                     
                     Divider()
                     
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("İzlenen Dizin:")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Text(viewModel.watchedDirectoryPath)
-                                .font(.system(size: 11, design: .monospaced))
-                                .lineLimit(1)
+                    // Source 1: iCloud Drive
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("iCloud Drive", systemImage: "icloud.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.blue)
+                            Spacer()
+                            Toggle("", isOn: $viewModel.folderWatcher.watchiCloudDrive)
+                                .toggleStyle(.switch)
                         }
-                        Spacer()
-                        Button("Finder'da Göster") {
-                            viewModel.openInFinder(path: viewModel.watchedDirectoryPath)
+                        if viewModel.folderWatcher.watchiCloudDrive {
+                            Toggle("Tüm iCloud Drive kök dizinini izle", isOn: $viewModel.folderWatcher.watchiCloudRoot)
+                                .toggleStyle(.checkbox)
+                                .font(.system(size: 11))
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(8)
+                    
+                    // Source 2: Apple Voice Memos
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("Apple Sesli Notlar (Apple Watch & iPhone)", systemImage: "waveform")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.orange)
+                            Spacer()
+                            Toggle("", isOn: $viewModel.folderWatcher.watchVoiceMemos)
+                                .toggleStyle(.switch)
+                        }
+                        if viewModel.folderWatcher.watchVoiceMemos {
+                            HStack {
+                                Text(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? "Erişilebilir (FDA Aktif)" : "Tam Disk Erişimi Gerekli")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? .green : .orange)
+                                Spacer()
+                                if !viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
+                                    Button("Ayarları Aç") {
+                                        viewModel.openFullDiskAccessSettings()
+                                    }
+                                    .font(.system(size: 10))
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.mini)
+                                }
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(8)
+                    
+                    // Source 3: Custom Folder
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("Özel Klasör (WhatsApp, Telegram vb.)", systemImage: "folder.badge.plus")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.purple)
+                            Spacer()
+                            Toggle("", isOn: $viewModel.folderWatcher.watchCustomFolder)
+                                .toggleStyle(.switch)
+                        }
+                        if viewModel.folderWatcher.watchCustomFolder {
+                            HStack {
+                                if let customURL = viewModel.folderWatcher.customFolderURL {
+                                    Text(customURL.path)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Button("Değiştir...") {
+                                        viewModel.selectCustomWatchedFolder()
+                                    }
+                                    .font(.system(size: 10))
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.mini)
+                                    
+                                    Button("Sıfırla") {
+                                        viewModel.resetCustomWatchedFolder()
+                                    }
+                                    .font(.system(size: 10))
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.red.opacity(0.8))
+                                } else {
+                                    Text("Henüz bir klasör seçilmedi")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button("Klasör Seç...") {
+                                        viewModel.selectCustomWatchedFolder()
+                                    }
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.mini)
+                                }
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(8)
+                    
+                    HStack {
+                        Button("Şimdi Tara") {
+                            viewModel.triggerFolderScan()
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        
+                        Button("iCloud'u Tara") {
+                            viewModel.triggerCloudScan()
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        
+                        Spacer()
                     }
                 }
             }
