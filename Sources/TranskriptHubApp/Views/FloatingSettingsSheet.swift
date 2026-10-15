@@ -307,6 +307,7 @@ public struct FloatingSettingsSheet: View {
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Color.purple.opacity(0.12)))
+                                .lineLimit(1)
                         }
                         
                         if isActive {

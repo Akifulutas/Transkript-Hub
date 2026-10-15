@@ -168,7 +168,7 @@ public struct UnifiedStudioHubView: View {
             }
         }
         .padding(14)
-        .frame(width: 380)
+        .frame(width: 500)
     }
     
     private func popoverModelRow(spec: WhisperModelSpec) -> some View {
@@ -176,7 +176,7 @@ public struct UnifiedStudioHubView: View {
         let isActive = viewModel.selectedModel == spec.model
         let visuals = modelSpecVisuals(spec)
         
-        return HStack(spacing: 10) {
+        return HStack(spacing: 8) {
             // Colorful Model Icon Badge
             ZStack {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -192,10 +192,14 @@ public struct UnifiedStudioHubView: View {
                 HStack(spacing: 6) {
                     Text(spec.displayName)
                         .font(.system(size: 12, weight: .bold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     
                     Text(spec.sizeDescription)
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     
                     if let badge = spec.badge {
                         Text(badge)
@@ -204,6 +208,8 @@ public struct UnifiedStudioHubView: View {
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1.5)
                             .background(Capsule().fill(visuals.color.opacity(0.12)))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                 }
                 
@@ -213,24 +219,25 @@ public struct UnifiedStudioHubView: View {
                     .lineLimit(1)
             }
             
-            Spacer()
+            Spacer(minLength: 8)
             
             // Inline Action Buttons & Status Badges
             if isDownloaded {
                 HStack(spacing: 6) {
                     if isActive {
-                        HStack(spacing: 3) {
+                        HStack(spacing: 4) {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 9, weight: .bold))
-                            Text("✓ Aktif Model")
+                            Text("Aktif Model")
                                 .font(.system(size: 10, weight: .bold))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(Color.accentColor))
+                        .fixedSize(horizontal: true, vertical: false)
                     } else {
-                        Button("Kullan / Aktif Yap") {
+                        Button("Aktif Yap") {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 viewModel.selectedModel = spec.model
                                 isModelPickerPresented = false
@@ -239,6 +246,7 @@ public struct UnifiedStudioHubView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        .fixedSize(horizontal: true, vertical: false)
                     }
                     
                     Button(role: .destructive) {
@@ -257,7 +265,7 @@ public struct UnifiedStudioHubView: View {
                 VStack(alignment: .trailing, spacing: 3) {
                     ProgressView(value: viewModel.modelDownloadFraction)
                         .progressViewStyle(.linear)
-                        .frame(width: 90)
+                        .frame(width: 80)
                     Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.secondary)
@@ -279,6 +287,7 @@ public struct UnifiedStudioHubView: View {
                     .clipShape(.rect(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
+                .fixedSize(horizontal: true, vertical: false)
             }
         }
         .padding(.vertical, 2)
@@ -353,7 +362,7 @@ public struct UnifiedStudioHubView: View {
     private func modelSpecVisuals(_ spec: WhisperModelSpec) -> (icon: String, color: Color) {
         switch spec.model {
         case .largeV3Turbo:
-            return ("rocket.fill", .purple)
+            return ("flame.fill", .purple)
         case .largeV3TurboQ5:
             return ("bolt.badge.automatic.fill", .cyan)
         case .small:
@@ -438,7 +447,7 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(Color.accentColor)
                 }
                 
-                Text("YouTube Bağlantısı Yapıştırın veya Ses Dosyası Bırakın")
+                Text(isDropTargeted ? "Dosyaları Buraya Bırakın" : "Ses Dosyası veya Bağlantı Ekleyin")
                     .font(.system(size: 15, weight: .bold))
             }
             
@@ -448,7 +457,7 @@ public struct UnifiedStudioHubView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Color.secondary)
                 
-                TextField("YouTube linki veya ses dosyası yolu yapıştırın...", text: $quickLinkText)
+                TextField("YouTube bağlantısı yapıştırın...", text: $quickLinkText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .onSubmit {
@@ -474,16 +483,6 @@ public struct UnifiedStudioHubView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
             .frame(maxWidth: 500)
-            
-            // Format Chips (H / 2 Capsule Rule)
-            HStack(spacing: 6) {
-                formatChip("YouTube")
-                formatChip("M4A")
-                formatChip("MP3")
-                formatChip("WAV")
-                formatChip("Sesli Notlar")
-                formatChip("iCloud")
-            }
             
             // Quick Action Buttons
             HStack(spacing: 12) {
@@ -765,15 +764,6 @@ public struct UnifiedStudioHubView: View {
         case .completed: return .green
         case .failed: return .orange
         }
-    }
-    
-    private func formatChip(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(Color.secondary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 3)
-            .background(Capsule().fill(Color.primary.opacity(0.05)))
     }
     
     private func submitQuickLink() {
