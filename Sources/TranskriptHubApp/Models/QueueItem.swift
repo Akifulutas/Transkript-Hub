@@ -26,6 +26,8 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var outputURL: URL?
     public var errorMessage: String?
     public var isNewlyDiscovered: Bool
+    public var autoProcess: Bool
+    public var isWatchedFolderItem: Bool
     public let addedAt: Date
     public var thumbnailURL: URL?
     public var channelTitle: String?
@@ -48,6 +50,8 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         outputURL: URL? = nil,
         errorMessage: String? = nil,
         isNewlyDiscovered: Bool = false,
+        autoProcess: Bool = false,
+        isWatchedFolderItem: Bool = false,
         addedAt: Date = Date(),
         thumbnailURL: URL? = nil,
         channelTitle: String? = nil,
@@ -67,6 +71,8 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.outputURL = outputURL
         self.errorMessage = errorMessage
         self.isNewlyDiscovered = isNewlyDiscovered
+        self.autoProcess = autoProcess
+        self.isWatchedFolderItem = isWatchedFolderItem
         self.addedAt = addedAt
         self.thumbnailURL = thumbnailURL
         self.channelTitle = channelTitle

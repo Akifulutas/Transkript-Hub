@@ -50,11 +50,11 @@ public struct SessionSaveModeSheet: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Transkript Kayıt Formatı")
+                    Text(viewModel.t("sheet_save_mode_title"))
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.primary)
                     
-                    Text("Kuyrukta \(itemCount) video bulunuyor. Dosyalar nasıl kaydedilsin?")
+                    Text(String(format: viewModel.t("sheet_save_mode_desc"), itemCount))
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -69,23 +69,23 @@ public struct SessionSaveModeSheet: View {
                 modeCard(
                     mode: .both,
                     icon: "square.2.layers.3d.top.filled",
-                    title: "Her İkisi (Ayrı + Birleşik)",
-                    description: "Hem her videonun kendi bağımsız dosyasını hem de tüm oturumu içeren tek birleşik dosyayı kaydeder.",
-                    badge: "Önerilen"
+                    title: viewModel.t("sheet_save_both_title"),
+                    description: viewModel.t("sheet_save_both_desc"),
+                    badge: viewModel.t("sheet_save_both_badge")
                 )
                 
                 modeCard(
                     mode: .individual,
                     icon: "doc.on.doc.fill",
-                    title: "Ayrı Ayrı Dosyalar",
-                    description: "Her video için kendi başlığıyla bağımsız bir .txt dosyası oluşturur."
+                    title: viewModel.t("sheet_save_separate_title"),
+                    description: viewModel.t("sheet_save_separate_desc")
                 )
                 
                 modeCard(
                     mode: .combined,
                     icon: "doc.text.fill",
-                    title: "Yalnızca Tek Birleşik Dosya",
-                    description: "Tüm videoların transkriptlerini sırayla tek bir oturum dosyasında birleştirir."
+                    title: viewModel.t("sheet_save_combined_title"),
+                    description: viewModel.t("sheet_save_combined_desc")
                 )
             }
             
@@ -93,7 +93,7 @@ public struct SessionSaveModeSheet: View {
             
             // Action Buttons
             HStack(spacing: 12) {
-                Button("Vazgeç") {
+                Button(viewModel.t("action_cancel")) {
                     onCancel()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -111,7 +111,7 @@ public struct SessionSaveModeSheet: View {
                     HStack(spacing: 6) {
                         Image(systemName: "play.fill")
                             .font(.system(size: 11))
-                        Text("Transkripti Başlat")
+                        Text(viewModel.t("action_transcribe_queue"))
                             .font(.system(size: 12, weight: .semibold))
                     }
                     .padding(.horizontal, 16)

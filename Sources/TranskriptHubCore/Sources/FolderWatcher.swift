@@ -11,6 +11,10 @@ public final class FolderWatcher: ObservableObject {
     @Published public var watchiCloudDrive: Bool {
         didSet {
             UserDefaults.standard.set(watchiCloudDrive, forKey: "FolderWatcher.watchiCloudDrive")
+            if watchiCloudDrive {
+                resetProcessedPaths(under: Self.iCloudRootDirectory)
+                resetProcessedPaths(under: Self.iCloudTranskriptDirectory)
+            }
             triggerImmediateScan()
         }
     }
@@ -18,6 +22,9 @@ public final class FolderWatcher: ObservableObject {
     @Published public var watchiCloudRoot: Bool {
         didSet {
             UserDefaults.standard.set(watchiCloudRoot, forKey: "FolderWatcher.watchiCloudRoot")
+            if watchiCloudRoot {
+                resetProcessedPaths(under: Self.iCloudRootDirectory)
+            }
             triggerImmediateScan()
         }
     }
@@ -25,6 +32,9 @@ public final class FolderWatcher: ObservableObject {
     @Published public var watchVoiceMemos: Bool {
         didSet {
             UserDefaults.standard.set(watchVoiceMemos, forKey: "FolderWatcher.watchVoiceMemos")
+            if watchVoiceMemos {
+                resetProcessedPaths(under: Self.voiceMemosDirectory)
+            }
             triggerImmediateScan()
         }
     }
@@ -32,6 +42,9 @@ public final class FolderWatcher: ObservableObject {
     @Published public var watchCustomFolder: Bool {
         didSet {
             UserDefaults.standard.set(watchCustomFolder, forKey: "FolderWatcher.watchCustomFolder")
+            if watchCustomFolder, let url = customFolderURL {
+                resetProcessedPaths(under: url)
+            }
             triggerImmediateScan()
         }
     }
@@ -39,17 +52,31 @@ public final class FolderWatcher: ObservableObject {
     @Published public var customFolderURL: URL? {
         didSet {
             UserDefaults.standard.set(customFolderURL?.path, forKey: "FolderWatcher.customFolderPath")
+            if let url = customFolderURL {
+                resetProcessedPaths(under: url)
+            }
             triggerImmediateScan()
         }
     }
     
+    /// Whether newly discovered audio files in watched folders should be transcribed immediately
+    /// without waiting for the user to manually start the queue. Defaults to true.
+    @Published public var autoTranscribe: Bool {
+        didSet {
+            UserDefaults.standard.set(autoTranscribe, forKey: "FolderWatcher.autoTranscribe")
+            onAutoTranscribeChanged?(autoTranscribe)
+        }
+    }
+    
     private var timer: Timer?
+    private var followUpScanTask: Task<Void, Never>?
     private var knownFiles: [String: Int64] = [:] // Path -> size
     private var processedPaths: Set<String> = []
     
     @Published public var activeCloudDownloads: Set<String> = [] // Filenames currently being downloaded from iCloud
     
-    public var onNewAudioDiscovered: ((URL) async -> Void)?
+    public var onNewAudioDiscovered: (@MainActor (URL) async -> Void)?
+    public var onAutoTranscribeChanged: (@MainActor (Bool) -> Void)?
     
     public static var iCloudRootDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -109,6 +136,7 @@ public final class FolderWatcher: ObservableObject {
         self.watchiCloudRoot = ud.object(forKey: "FolderWatcher.watchiCloudRoot") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudRoot")
         self.watchVoiceMemos = ud.object(forKey: "FolderWatcher.watchVoiceMemos") == nil ? true : ud.bool(forKey: "FolderWatcher.watchVoiceMemos")
         self.watchCustomFolder = ud.bool(forKey: "FolderWatcher.watchCustomFolder")
+        self.autoTranscribe = ud.object(forKey: "FolderWatcher.autoTranscribe") == nil ? true : ud.bool(forKey: "FolderWatcher.autoTranscribe")
         
         if let customPath = ud.string(forKey: "FolderWatcher.customFolderPath"), !customPath.isEmpty {
             self.customFolderURL = URL(fileURLWithPath: customPath, isDirectory: true)
@@ -116,8 +144,9 @@ public final class FolderWatcher: ObservableObject {
             self.customFolderURL = nil
         }
         
-        let saved = ud.stringArray(forKey: "FolderWatcher.processedPaths") ?? []
-        self.processedPaths = Set(saved)
+        // Keep processedPaths in-memory per session so untranscribed files from previous runs are not skipped;
+        // already-transcribed files are deduplicated persistently by TranscriptCacheManager.
+        self.processedPaths = []
     }
     
     public func startWatching() {
@@ -142,6 +171,8 @@ public final class FolderWatcher: ObservableObject {
         isWatching = false
         timer?.invalidate()
         timer = nil
+        followUpScanTask?.cancel()
+        followUpScanTask = nil
         Log.info("FolderWatcher stopped.")
     }
     
@@ -157,6 +188,20 @@ public final class FolderWatcher: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.processedPaths")
         Log.info("FolderWatcher processed paths reset.")
         triggerImmediateScan()
+    }
+    
+    public func resetProcessedPaths(under directory: URL) {
+        let rawPrefix = directory.standardizedFileURL.path
+        let resolvedPrefix = directory.resolvingSymlinksInPath().standardizedFileURL.path
+        let matchesPrefix: (String) -> Bool = { path in
+            let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+            return path.hasPrefix(rawPrefix) ||
+                   path.hasPrefix(resolvedPrefix) ||
+                   resolvedPath.hasPrefix(rawPrefix) ||
+                   resolvedPath.hasPrefix(resolvedPrefix)
+        }
+        processedPaths = processedPaths.filter { !matchesPrefix($0) }
+        knownFiles = knownFiles.filter { !matchesPrefix($0.key) }
     }
     
     public func forceDownloadAllCloudItems() async {
@@ -286,7 +331,6 @@ public final class FolderWatcher: ObservableObject {
                 // Size is stable! Validate audio
                 if let _ = try? AudioValidator.validate(fileURL: fileURL) {
                     processedPaths.insert(path)
-                    UserDefaults.standard.set(Array(processedPaths), forKey: "FolderWatcher.processedPaths")
                     knownFiles.removeValue(forKey: path)
                     processedFilesCount += 1
                     lastProcessedFile = filename
@@ -294,6 +338,20 @@ public final class FolderWatcher: ObservableObject {
                     Log.info("New audio file detected: \(filename)")
                     await onNewAudioDiscovered?(fileURL)
                 }
+            } else {
+                scheduleFollowUpScanIfNeeded()
+            }
+        }
+    }
+    
+    private func scheduleFollowUpScanIfNeeded() {
+        guard followUpScanTask == nil else { return }
+        followUpScanTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled, let self = self else { return }
+            self.followUpScanTask = nil
+            if !self.knownFiles.isEmpty {
+                await self.scanDirectory()
             }
         }
     }

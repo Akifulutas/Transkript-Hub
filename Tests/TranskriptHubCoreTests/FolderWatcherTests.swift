@@ -11,6 +11,7 @@ final class FolderWatcherTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchVoiceMemos")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchCustomFolder")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.autoTranscribe")
     }
     
     override func tearDown() {
@@ -19,6 +20,7 @@ final class FolderWatcherTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchVoiceMemos")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchCustomFolder")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.autoTranscribe")
         super.tearDown()
     }
     
@@ -31,7 +33,31 @@ final class FolderWatcherTests: XCTestCase {
         XCTAssertTrue(watcher.watchiCloudDrive)
         XCTAssertTrue(watcher.watchiCloudRoot)
         XCTAssertTrue(watcher.watchVoiceMemos)
+        XCTAssertTrue(watcher.autoTranscribe)
         XCTAssertFalse(watcher.isWatching)
+    }
+    
+    @MainActor
+    func testAutoTranscribePersistenceAndCallback() {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertTrue(watcher.autoTranscribe)
+        
+        var callbackValues: [Bool] = []
+        watcher.onAutoTranscribeChanged = { newValue in
+            callbackValues.append(newValue)
+        }
+        
+        watcher.autoTranscribe = false
+        XCTAssertEqual(callbackValues, [false])
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "FolderWatcher.autoTranscribe"))
+        
+        let secondWatcher = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertFalse(secondWatcher.autoTranscribe)
+        
+        watcher.autoTranscribe = true
+        XCTAssertEqual(callbackValues, [false, true])
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "FolderWatcher.autoTranscribe"))
     }
     
     @MainActor
@@ -93,6 +119,67 @@ final class FolderWatcherTests: XCTestCase {
     }
     
     @MainActor
+    func testCustomWatchedFolderAudioDiscoveryAndReset() async throws {
+        let customDir = FileManager.default.temporaryDirectory.appendingPathComponent("WatchedAudioTest_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: customDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: customDir) }
+        
+        let audioFile = customDir.appendingPathComponent("sample_note.wav")
+        let wavData = Self.makeValidWAVData(durationSeconds: 1.0, sampleRate: 16_000)
+        try wavData.write(to: audioFile)
+        // Set modification date 10 seconds in the past so size is considered stable immediately
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-10)], ofItemAtPath: audioFile.path)
+        
+        let watcher = FolderWatcher(watchedDirectory: customDir)
+        watcher.watchiCloudDrive = false
+        watcher.watchVoiceMemos = false
+        watcher.customFolderURL = customDir
+        watcher.watchCustomFolder = true
+        
+        var discoveredURLs: [URL] = []
+        watcher.onNewAudioDiscovered = { url in
+            discoveredURLs.append(url)
+        }
+        
+        watcher.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertEqual(discoveredURLs.map(\.standardizedFileURL.path), [audioFile.standardizedFileURL.path])
+        
+        // Second scan without reset should not duplicate discovery
+        watcher.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertEqual(discoveredURLs.count, 1)
+        
+        // Resetting processed paths under customDir allows re-discovery
+        watcher.resetProcessedPaths(under: customDir)
+        watcher.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertEqual(discoveredURLs.count, 2)
+    }
+    
+    private static func makeValidWAVData(durationSeconds: Double, sampleRate: Int) -> Data {
+        let numSamples = Int(durationSeconds * Double(sampleRate))
+        let dataSize = UInt32(numSamples * 2)
+        let fileSize = UInt32(36) + dataSize
+        var header = Data()
+        header.append(contentsOf: "RIFF".utf8)
+        withUnsafeBytes(of: fileSize.littleEndian) { header.append(contentsOf: $0) }
+        header.append(contentsOf: "WAVE".utf8)
+        header.append(contentsOf: "fmt ".utf8)
+        withUnsafeBytes(of: UInt32(16).littleEndian) { header.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt16(1).littleEndian) { header.append(contentsOf: $0) } // PCM
+        withUnsafeBytes(of: UInt16(1).littleEndian) { header.append(contentsOf: $0) } // Mono
+        withUnsafeBytes(of: UInt32(sampleRate).littleEndian) { header.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt32(sampleRate * 2).littleEndian) { header.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt16(2).littleEndian) { header.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt16(16).littleEndian) { header.append(contentsOf: $0) }
+        header.append(contentsOf: "data".utf8)
+        withUnsafeBytes(of: dataSize.littleEndian) { header.append(contentsOf: $0) }
+        header.append(Data(count: Int(dataSize)))
+        return header
+    }
+    
+    @MainActor
     func testForceDownloadAllCloudItemsSafeExecution() async {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let watcher = FolderWatcher(watchedDirectory: tempDir)
@@ -126,5 +213,11 @@ final class FolderWatcherTests: XCTestCase {
         }
         XCTAssertEqual(models.first?.model, .tiny)
         XCTAssertEqual(models.last?.model, .largeV3Turbo)
+        
+        // Verify model descriptions are concise
+        for spec in models {
+            XCTAssertFalse(spec.summary.isEmpty)
+            XCTAssertLessThanOrEqual(spec.summary.count, 40, "Model summary '\(spec.summary)' should be concise")
+        }
     }
 }

@@ -23,13 +23,13 @@ public struct LiveAudioMeterView: View {
                     .shadow(color: (recordingEngine.isPaused ? Color.orange : Color.red).opacity(0.4), radius: 3, x: 0, y: 1)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(recordingEngine.isPaused ? "Kayıt Duraklatıldı" : "Ses Kaydediliyor...")
+                    Text(recordingEngine.isPaused ? viewModel.t("live_recording_paused") : viewModel.t("live_recording_active"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
                     HStack(spacing: 5) {
-                        Text(viewModel.recordingSource.displayName)
+                        Text(viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"))
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(Color.accentColor)
                         
@@ -37,7 +37,7 @@ public struct LiveAudioMeterView: View {
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                         
-                        Text("Gerçek Zamanlı Spektrum")
+                        Text(viewModel.t("live_realtime_spectrum"))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(.secondary)
                     }
@@ -65,7 +65,7 @@ public struct LiveAudioMeterView: View {
                         .foregroundStyle(Color.secondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
-                .help("Kaydı İptal Et (Esc)")
+                .help("\(viewModel.t("live_cancel_help")) (Esc)")
                 .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 20)
@@ -126,7 +126,7 @@ public struct LiveAudioMeterView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 11, weight: .semibold))
-                            Text("İptal Et")
+                            Text(viewModel.t("action_cancel"))
                                 .font(.system(size: 12, weight: .medium))
                         }
                         .foregroundColor(.secondary)
@@ -150,7 +150,7 @@ public struct LiveAudioMeterView: View {
                         HStack(spacing: 6) {
                             Image(systemName: recordingEngine.isPaused ? "play.fill" : "pause.fill")
                                 .font(.system(size: 11, weight: .semibold))
-                            Text(recordingEngine.isPaused ? "Devam Et" : "Duraklat")
+                            Text(recordingEngine.isPaused ? viewModel.t("live_resume") : viewModel.t("live_pause"))
                                 .font(.system(size: 12, weight: .medium))
                                 .frame(width: 58)
                         }
@@ -171,7 +171,7 @@ public struct LiveAudioMeterView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 12, weight: .bold))
-                            Text("Kaydı Tamamla & Deşifre Et")
+                            Text(viewModel.t("live_finish_transcribe"))
                                 .font(.system(size: 12, weight: .bold))
                                 .lineLimit(1)
                         }

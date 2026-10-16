@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 import AppKit
 import TranskriptHubCore
@@ -126,9 +127,12 @@ public final class AppViewModel: ObservableObject {
     }
     
     // Interface Language (English, Deutsch, Türkçe)
-    @Published public var appLanguage: AppLanguage = .english {
+    @Published public var appLanguage: AppLanguage = .turkish {
         didSet {
             UserDefaults.standard.set(appLanguage.rawValue, forKey: "appInterfaceLanguage")
+            if statusMessage == "Hazır" || statusMessage == "Ready" || statusMessage == "Bereit" {
+                statusMessage = t("status_ready")
+            }
         }
     }
     
@@ -205,7 +209,7 @@ public final class AppViewModel: ObservableObject {
     
     // Session Save Mode Prompt
     @Published public var isSaveModePromptPresented: Bool = false
-    @Published public var sessionSaveMode: SessionSaveMode = .both
+    @Published public var sessionSaveMode: SessionSaveMode = .individual
     
     // Quick Add Inputs
     @Published public var quickInputText: String = ""
@@ -290,7 +294,7 @@ public final class AppViewModel: ObservableObject {
             let url = try await recordingEngine.stopRecording()
             isRecordingModalPresented = false
             statusMessage = "Kayıt tamamlandı, deşifre ediliyor..."
-            addAudioFiles([url])
+            addAudioFiles([url], autoProcess: true)
         } catch {
             isRecordingModalPresented = false
             presentRecordingError(error)
@@ -353,7 +357,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public var watchedFolderItemsCount: Int {
-        queueItems.filter { $0.subtitle.contains("İzlenen") || $0.subtitle.contains("Watched") || $0.subtitle.contains("Sesli Not") }.count
+        queueItems.filter { $0.isWatchedFolderItem || $0.subtitle.contains("İzlenen") || $0.subtitle.contains("Watched") || $0.subtitle.contains("Sesli Not") || $0.subtitle.contains("iCloud") }.count
     }
     
     // System Monitors
@@ -377,14 +381,54 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public var autoTranscribeWatchedFolders: Bool {
+        get { folderWatcher.autoTranscribe }
+        set {
+            folderWatcher.autoTranscribe = newValue
+            objectWillChange.send()
+        }
+    }
+    
     public private(set) var clipboardMonitor: ClipboardMonitor!
     public var folderWatcher: FolderWatcher!
+    private var folderWatcherCancellable: AnyCancellable?
     public let modelManager = ModelManager()
     public let outputWriter = OutputWriter()
+    @Published public var outputDirectoryURL: URL = OutputWriter.systemDefaultOutputDirectory
     private var jobManager: JobManager?
     private var appDatabase: AppDatabase?
     public private(set) var transcriptCacheManager: TranscriptCacheManager?
     private var didBecomeActiveObserver: NotificationObserverToken?
+    
+    public var isCustomOutputDirectory: Bool {
+        outputWriter.isUsingCustomOutputDirectory
+    }
+    
+    public func selectOutputDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = t("action_select_folder")
+        panel.message = t("watched_output_choose_prompt")
+        panel.directoryURL = outputWriter.defaultOutputDirectory
+        
+        if panel.runModal() == .OK, let selectedURL = panel.url {
+            try? outputWriter.ensureDirectoryExists(at: selectedURL)
+            outputWriter.setCustomOutputDirectory(selectedURL)
+            outputDirectoryURL = outputWriter.defaultOutputDirectory
+            statusMessage = "Çıktı klasörü güncellendi: \(selectedURL.lastPathComponent)"
+            objectWillChange.send()
+        }
+    }
+    
+    public func resetOutputDirectory() {
+        outputWriter.setCustomOutputDirectory(nil)
+        outputDirectoryURL = outputWriter.defaultOutputDirectory
+        statusMessage = "Çıktı klasörü varsayılana sıfırlandı."
+        objectWillChange.send()
+    }
     
     @Published public var fullDiskAccessStatus: FullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
     
@@ -413,7 +457,19 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func triggerFolderScan() {
-        folderWatcher.triggerImmediateScan()
+        folderWatcher.resetProcessedPaths()
+        if folderWatcher.autoTranscribe {
+            var hasQueuedWatched = false
+            for i in queueItems.indices {
+                if queueItems[i].state == .queued && queueItems[i].isWatchedFolderItem {
+                    queueItems[i].autoProcess = true
+                    hasQueuedWatched = true
+                }
+            }
+            if hasQueuedWatched {
+                startAutoProcessingWatchedItems()
+            }
+        }
         statusMessage = "İzlenen klasörler tarandı."
     }
     
@@ -443,6 +499,10 @@ public final class AppViewModel: ObservableObject {
         if panel.runModal() == .OK, let selectedURL = panel.url {
             folderWatcher.customFolderURL = selectedURL
             folderWatcher.watchCustomFolder = true
+            if !isFolderWatching {
+                isFolderWatching = true
+            }
+            objectWillChange.send()
             Task {
                 await folderWatcher.scanDirectory()
             }
@@ -452,6 +512,7 @@ public final class AppViewModel: ObservableObject {
     public func resetCustomWatchedFolder() {
         folderWatcher.customFolderURL = nil
         folderWatcher.watchCustomFolder = false
+        objectWillChange.send()
     }
     
     public func sourceLabel(for url: URL) -> String {
@@ -461,7 +522,7 @@ public final class AppViewModel: ObservableObject {
         } else if path.contains("com~apple~CloudDocs") {
             return "iCloud Drive"
         } else if let custom = folderWatcher.customFolderURL, path.hasPrefix(custom.path) {
-            return custom.lastPathComponent
+            return "İzlenen Klasör (\(custom.lastPathComponent))"
         } else {
             return "İzlenen Klasör"
         }
@@ -831,11 +892,24 @@ public final class AppViewModel: ObservableObject {
     }
     
     public init() {
-        let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "en"
-        self.appLanguage = AppLanguage(rawValue: savedLang) ?? .english
+        let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
+        let initialLang = AppLanguage(rawValue: savedLang) ?? .turkish
+        self.appLanguage = initialLang
+        self.statusMessage = L10n.tr("status_ready", lang: initialLang)
+        self.outputDirectoryURL = self.outputWriter.defaultOutputDirectory
         
         if let bestDownloaded = self.modelManager.downloadedModels().first {
             self.selectedModel = bestDownloaded
+        }
+        
+        // Initialize database and cache synchronously BEFORE starting folder watcher so initial scan has cache ready
+        do {
+            let db = try AppDatabase.makeShared()
+            self.appDatabase = db
+            self.jobManager = JobManager(database: db, outputWriter: self.outputWriter)
+            self.transcriptCacheManager = TranscriptCacheManager(database: db)
+        } catch {
+            self.errorMessage = "Veritabanı başlatılamadı: \(error.localizedDescription)"
         }
         
         self.clipboardMonitor = ClipboardMonitor { [weak self] video in
@@ -849,6 +923,25 @@ public final class AppViewModel: ObservableObject {
         self.folderWatcher.onNewAudioDiscovered = { [weak self] audioURL in
             await self?.handleAutoDiscoveredAudio(audioURL)
         }
+        self.folderWatcher.onAutoTranscribeChanged = { [weak self] enabled in
+            guard let self = self, enabled else { return }
+            var hasQueuedWatched = false
+            for i in self.queueItems.indices {
+                if self.queueItems[i].state == .queued && self.queueItems[i].isWatchedFolderItem {
+                    self.queueItems[i].autoProcess = true
+                    hasQueuedWatched = true
+                }
+            }
+            if hasQueuedWatched {
+                self.startAutoProcessingWatchedItems()
+            }
+        }
+        self.folderWatcherCancellable = self.folderWatcher.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.objectWillChange.send()
+            }
+        }
+        
         if self.isFolderWatching {
             self.folderWatcher.startWatching()
         }
@@ -862,22 +955,22 @@ public final class AppViewModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.checkFullDiskAccess()
+                guard let self = self else { return }
+                self.checkFullDiskAccess()
+                if self.isFolderWatching {
+                    self.folderWatcher.triggerImmediateScan()
+                }
             }
         }
         self.didBecomeActiveObserver = NotificationObserverToken(token)
         
         Task {
             do {
-                let db = try AppDatabase.makeShared()
-                self.appDatabase = db
-                self.jobManager = JobManager(database: db, outputWriter: self.outputWriter)
-                self.transcriptCacheManager = TranscriptCacheManager(database: db)
                 try await self.jobManager?.recoverState()
                 await self.loadHistoryFromDatabase()
                 await self.resolvePendingVideoTitles()
             } catch {
-                self.errorMessage = "Veritabanı başlatılamadı: \(error.localizedDescription)"
+                self.errorMessage = "Veritabanı kurtarma hatası: \(error.localizedDescription)"
             }
         }
     }
@@ -889,7 +982,13 @@ public final class AppViewModel: ObservableObject {
     
     private func handleAutoDiscoveredAudio(_ url: URL) async {
         guard AudioValidator.isExtensionSupported(url.pathExtension) else { return }
-        guard !queueItems.contains(where: { $0.id == url.path }) else { return }
+        if let existingIdx = queueItems.firstIndex(where: { $0.id == url.path }) {
+            if queueItems[existingIdx].state == .queued && folderWatcher.autoTranscribe {
+                queueItems[existingIdx].autoProcess = true
+                startAutoProcessingWatchedItems()
+            }
+            return
+        }
         
         let title = url.deletingPathExtension().lastPathComponent
         let duration = try? AudioValidator.validate(fileURL: url)
@@ -902,27 +1001,42 @@ public final class AppViewModel: ObservableObject {
             externalID: url.path
         ) {
             Log.info("Audio file previously processed, retrieved from cache: \(title)")
+            var resolvedOutURL: URL? = nil
+            if let outPath = cached.outputPath, FileManager.default.fileExists(atPath: outPath) {
+                resolvedOutURL = URL(fileURLWithPath: outPath)
+            } else if !cached.transcriptText.isEmpty {
+                let targetURL = outputWriter.resolveUniqueURL(
+                    forBaseName: title,
+                    in: outputWriter.defaultOutputDirectory,
+                    allowOverwrite: true,
+                    matchingContent: cached.transcriptText
+                )
+                try? outputWriter.write(content: cached.transcriptText, to: targetURL)
+                resolvedOutURL = targetURL
+            }
+            
             var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
                 title: title,
-                subtitle: "Önbellekten Yüklendi • Zaten Deşifre Edilmiş",
+                subtitle: "\(sourceLabel(for: url)) • Önbellekten Yüklendi",
                 state: .completed,
                 transcript: cached.transcriptText,
                 isNewlyDiscovered: true,
+                autoProcess: false,
+                isWatchedFolderItem: true,
                 audioURL: url
             )
             item.progress = 1.0
             item.durationSec = duration
-            if let outPath = cached.outputPath {
-                item.outputURL = URL(fileURLWithPath: outPath)
-            }
+            item.outputURL = resolvedOutURL
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
             }
             return
         }
         
+        let shouldAutoStart = folderWatcher.autoTranscribe
         var item = QueueItem(
             id: url.path,
             kind: .audioFile(url),
@@ -930,13 +1044,20 @@ public final class AppViewModel: ObservableObject {
             subtitle: "\(sourceLabel(for: url)) • \(url.pathExtension.uppercased())",
             state: .queued,
             isNewlyDiscovered: true,
+            autoProcess: shouldAutoStart,
+            isWatchedFolderItem: true,
             audioURL: url
         )
         item.durationSec = duration
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
         }
-        startProcessingQueue()
+        
+        if shouldAutoStart {
+            startAutoProcessingWatchedItems()
+        } else {
+            statusMessage = "Yeni ses kuyruğa eklendi (onay bekliyor): \(title)"
+        }
     }
     
     // MARK: - Queue Management
@@ -959,6 +1080,8 @@ public final class AppViewModel: ObservableObject {
             subtitle: initialSubtitle,
             state: .queued,
             isNewlyDiscovered: isNewlyDiscovered,
+            autoProcess: false,
+            isWatchedFolderItem: false,
             thumbnailURL: fallbackThumb
         )
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
@@ -1016,7 +1139,8 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    public func addAudioFiles(_ urls: [URL]) {
+    public func addAudioFiles(_ urls: [URL], autoProcess: Bool = false) {
+        var anyAddedForAuto = false
         for url in urls {
             guard AudioValidator.isExtensionSupported(url.pathExtension) else { continue }
             guard !queueItems.contains(where: { $0.id == url.path }) else { continue }
@@ -1030,12 +1154,17 @@ public final class AppViewModel: ObservableObject {
                 title: title,
                 subtitle: "Ses Dosyası • \(url.pathExtension.uppercased())",
                 state: .queued,
+                autoProcess: autoProcess,
+                isWatchedFolderItem: false,
                 audioURL: url
             )
             item.durationSec = duration
             
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
+            }
+            if autoProcess {
+                anyAddedForAuto = true
             }
             
             // Check cache by filename and audio duration
@@ -1059,6 +1188,9 @@ public final class AppViewModel: ObservableObject {
                     }
                 }
             }
+        }
+        if anyAddedForAuto {
+            startAutoProcessingWatchedItems()
         }
     }
     
@@ -1278,6 +1410,7 @@ public final class AppViewModel: ObservableObject {
         for i in 0..<queueItems.count {
             if queueItems[i].state == .failed {
                 queueItems[i].state = .queued
+                queueItems[i].autoProcess = true
                 queueItems[i].errorMessage = nil
             }
         }
@@ -1287,6 +1420,7 @@ public final class AppViewModel: ObservableObject {
     public func retryItem(id: String) {
         if let idx = queueItems.firstIndex(where: { $0.id == id }) {
             queueItems[idx].state = .queued
+            queueItems[idx].autoProcess = true
             queueItems[idx].errorMessage = nil
             startProcessingQueue()
         }
@@ -1294,37 +1428,67 @@ public final class AppViewModel: ObservableObject {
     
     // MARK: - Unified Processing Loop
     public func requestStartQueue() {
-        guard !isProcessing else { return }
-        let totalCount = queueItems.count
         let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
-        if totalCount > 1 || pending.count > 1 {
+        let pendingYouTube = pending.filter { $0.isYouTube }
+        // Save mode prompt (combined vs individual) is strictly for multi-video YouTube batches.
+        // Audio files and Voice Memos are always saved individually as single .txt files.
+        if pendingYouTube.count > 1 {
             isSaveModePromptPresented = true
         } else if !pending.isEmpty {
             startProcessingQueue(saveMode: .individual)
         }
     }
     
-    public func startProcessingQueue(saveMode: SessionSaveMode = .both) {
+    /// Automatically starts processing any queued watched-folder items (when `folderWatcher.autoTranscribe` is enabled)
+    /// without touching unconfirmed YouTube queue items.
+    public func startAutoProcessingWatchedItems() {
+        guard folderWatcher.autoTranscribe else { return }
+        self.sessionSaveMode = .individual
+        var hasEligible = false
+        for i in 0..<queueItems.count {
+            if queueItems[i].isWatchedFolderItem && queueItems[i].state == .queued {
+                queueItems[i].autoProcess = true
+                hasEligible = true
+            }
+        }
+        guard hasEligible || queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
+        runQueueProcessor()
+    }
+    
+    public func startProcessingQueue(saveMode: SessionSaveMode = .individual) {
         guard !queueItems.isEmpty else { return }
-        guard !isProcessing else {
-            Log.info("Queue is already processing. Concurrent execution prevented.")
-            return
+        self.sessionSaveMode = saveMode
+        
+        for i in 0..<queueItems.count {
+            if queueItems[i].state == .queued || queueItems[i].state == .failed {
+                queueItems[i].state = .queued
+                queueItems[i].autoProcess = true
+                queueItems[i].errorMessage = nil
+            }
         }
         
-        self.sessionSaveMode = saveMode
+        runQueueProcessor()
+    }
+    
+    private func runQueueProcessor() {
+        guard !isProcessing else {
+            Log.info("Queue processor is already active; newly marked autoProcess items will be picked up automatically.")
+            return
+        }
+        guard queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
+        
         isProcessing = true
         progressFraction = 0.05
         statusMessage = "İşlem başlatılıyor..."
         errorMessage = nil
         
-        let totalCount = queueItems.count
         let model = selectedModel
         let lang = selectedLanguage == "auto" ? nil : selectedLanguage
         
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                // 1. Ensure Model and Tools
+                // 1. Ensure Whisper Model is available
                 try self.modelManager.ensureDirectoryExists()
                 let modelURL: URL
                 if !self.modelManager.isModelDownloaded(model) {
@@ -1345,22 +1509,19 @@ public final class AppViewModel: ObservableObject {
                 let whisperEngine = try WhisperCppEngine(modelPath: modelURL.path)
                 let audioDecoder = AudioDecoder()
                 let postProcessor = TranscriptPostProcessor()
-                let toolMgr = ToolManager()
-                try await toolMgr.ensureToolsReady()
-                let ytdlp = YTDLPClient(toolManager: toolMgr)
+                var ytdlpClient: YTDLPClient? = nil
                 
-                for (index, item) in self.queueItems.enumerated() {
-                    // Skip already completed items
-                    if item.state == .completed {
-                        continue
-                    }
+                var processedCount = 0
+                while let item = self.queueItems.first(where: { $0.state == .queued && $0.autoProcess }) {
+                    processedCount += 1
+                    let totalEligible = max(processedCount, self.queueItems.filter { $0.autoProcess || $0.state == .completed }.count)
                     
-                    self.statusMessage = "[\(index + 1)/\(totalCount)] \(item.title) işleniyor..."
+                    self.statusMessage = "[\(processedCount)/\(totalEligible)] \(item.title) işleniyor..."
                     if self.selectedItemID != nil {
                         self.selectedItemID = item.id
                     }
                     
-                    // Create an isolated workspace directory specifically for this video to avoid file collision
+                    // Create an isolated workspace directory specifically for this item to avoid file collision
                     let itemWorkspace = FileManager.default.temporaryDirectory
                         .appendingPathComponent("transkript_\(item.id)_\(UUID().uuidString)", isDirectory: true)
                     try FileManager.default.createDirectory(at: itemWorkspace, withIntermediateDirectories: true)
@@ -1368,6 +1529,7 @@ public final class AppViewModel: ObservableObject {
                     
                     var current = item
                     current.isNewlyDiscovered = false
+                    current.autoProcess = false
                     
                     switch item.kind {
                     case .youtube(let video):
@@ -1395,6 +1557,17 @@ public final class AppViewModel: ObservableObject {
                         self.currentOperation = "Downloading YouTube audio (yt-dlp)..."
                         
                         do {
+                            let ytdlp: YTDLPClient
+                            if let existing = ytdlpClient {
+                                ytdlp = existing
+                            } else {
+                                let toolMgr = ToolManager()
+                                try await toolMgr.ensureToolsReady()
+                                let created = YTDLPClient(toolManager: toolMgr)
+                                ytdlpClient = created
+                                ytdlp = created
+                            }
+                            
                             let media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
@@ -1521,9 +1694,20 @@ public final class AppViewModel: ObservableObject {
                                 current.state = .completed
                                 current.progress = 1.0
                                 current.subtitle = "Loaded from Cache • Already Transcribed (\(Int(duration))s)"
-                                if let outPath = cached.outputPath {
+                                if let outPath = cached.outputPath, FileManager.default.fileExists(atPath: outPath) {
                                     current.outputURL = URL(fileURLWithPath: outPath)
                                     self.lastOutputURL = current.outputURL
+                                } else if current.isWatchedFolderItem || self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
+                                    let baseName = fileURL.deletingPathExtension().lastPathComponent
+                                    let targetURL = self.outputWriter.resolveUniqueURL(
+                                        forBaseName: baseName,
+                                        in: self.outputWriter.defaultOutputDirectory,
+                                        allowOverwrite: true,
+                                        matchingContent: cached.transcriptText
+                                    )
+                                    try? self.outputWriter.write(content: cached.transcriptText, to: targetURL)
+                                    current.outputURL = targetURL
+                                    self.lastOutputURL = targetURL
                                 }
                                 self.updateItem(current)
                                 continue
@@ -1566,7 +1750,7 @@ public final class AppViewModel: ObservableObject {
                             
                             var targetURLPath: String? = nil
                             let baseName = fileURL.deletingPathExtension().lastPathComponent
-                            if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
+                            if current.isWatchedFolderItem || self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
                                 let targetURL = self.outputWriter.resolveUniqueURL(
                                     forBaseName: baseName,
                                     in: self.outputWriter.defaultOutputDirectory,
@@ -1603,14 +1787,19 @@ public final class AppViewModel: ObservableObject {
                     }
                     
                     self.updateItem(current)
-                    self.progressFraction = Double(index + 1) / Double(totalCount)
+                    self.progressFraction = Double(processedCount) / Double(max(1, totalEligible))
                 }
                 
-                // If combined mode is requested and multiple videos were in queue, write the combined session file
-                if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && totalCount > 1 {
-                    let completed = self.queueItems.filter { $0.state == .completed && ($0.transcript != nil) }
-                    if !completed.isEmpty {
-                        let combinedText = self.combinedTranscript
+                // Combined session file is ONLY for multi-video YouTube batches if explicitly requested.
+                // Audio files / Sesli Notlar ALWAYS produce single individual .txt files and NEVER create a Toplu_Oturum file.
+                let completedYouTube = self.queueItems.filter { $0.state == .completed && $0.isYouTube && ($0.transcript != nil) }
+                if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && completedYouTube.count > 1 {
+                    let combinedText = completedYouTube.compactMap { item -> String? in
+                        guard let t = item.transcript, !t.isEmpty else { return nil }
+                        return "=== \(item.title) ===\n\n\(t)"
+                    }.joined(separator: "\n\n" + String(repeating: "-", count: 40) + "\n\n")
+                    
+                    if !combinedText.isEmpty {
                         let formatter = DateFormatter()
                         formatter.dateFormat = "yyyy-MM-dd_HH-mm"
                         let dateStr = formatter.string(from: Date())
@@ -1624,7 +1813,7 @@ public final class AppViewModel: ObservableObject {
                         )
                         try? self.outputWriter.write(content: combinedText, to: targetURL)
                         self.saveToHistory(
-                            title: "\(combinedName) (\(completed.count) Video)",
+                            title: "\(combinedName) (\(completedYouTube.count) Video)",
                             kind: "combined",
                             outputPath: targetURL.path,
                             snippet: String(combinedText.prefix(200))
@@ -1642,6 +1831,10 @@ public final class AppViewModel: ObservableObject {
             }
             
             self.isProcessing = false
+            // If new auto-processable items arrived while finishing up, process them now
+            if self.queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) {
+                self.runQueueProcessor()
+            }
         }
     }
     
@@ -1868,6 +2061,9 @@ public final class AppViewModel: ObservableObject {
                     self.modelDownloadStatusText = ""
                     self.modelDownloadTask = nil
                     self.objectWillChange.send()
+                    if self.folderWatcher.autoTranscribe {
+                        self.startAutoProcessingWatchedItems()
+                    }
                 }
             } catch is CancellationError {
                 await MainActor.run {

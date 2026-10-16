@@ -29,7 +29,7 @@ struct MenuBarMiniWindow: View {
                     Circle()
                         .fill(viewModel.isFolderWatching ? Color.green : Color.gray.opacity(0.5))
                         .frame(width: 7, height: 7)
-                    Text(viewModel.isFolderWatching ? "İzleniyor" : "Hazır")
+                    Text(viewModel.isFolderWatching ? viewModel.t("status_watching") : viewModel.t("status_ready"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
                 }
@@ -63,7 +63,7 @@ struct MenuBarMiniWindow: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 
-                TextField("Link yapıştır...", text: $quickText)
+                TextField(viewModel.t("menu_paste_link_placeholder"), text: $quickText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 11))
                     .onSubmit {
@@ -71,7 +71,7 @@ struct MenuBarMiniWindow: View {
                     }
                 
                 if !quickText.isEmpty {
-                    Button("Ekle") {
+                    Button(viewModel.t("action_add")) {
                         submitQuickText()
                     }
                     .font(.system(size: 10, weight: .semibold))
@@ -88,7 +88,7 @@ struct MenuBarMiniWindow: View {
                 Image(systemName: isDropTargeted ? "arrow.down.circle.fill" : "arrow.down.doc")
                     .font(.system(size: 15))
                     .foregroundStyle(isDropTargeted ? Color.accentColor : Color.secondary)
-                Text(isDropTargeted ? "Dosyayı Bırakın" : "Ses / Video veya Bağlantı Sürükleyin")
+                Text(isDropTargeted ? viewModel.t("hub_drop_target") : viewModel.t("menu_drop_sub"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.secondary)
             }
@@ -114,7 +114,7 @@ struct MenuBarMiniWindow: View {
                         await viewModel.startRecording()
                     }
                 }) {
-                    Label("Ses Kaydet", systemImage: "mic.fill")
+                    Label(viewModel.t("menu_record_audio"), systemImage: "mic.fill")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.red)
                 }
@@ -122,7 +122,7 @@ struct MenuBarMiniWindow: View {
                 .controlSize(.small)
                 
                 Button(action: { viewModel.addFromClipboard() }) {
-                    Label("Panodan Al", systemImage: "doc.on.clipboard")
+                    Label(viewModel.t("menu_paste_clipboard"), systemImage: "doc.on.clipboard")
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.bordered)
@@ -130,7 +130,7 @@ struct MenuBarMiniWindow: View {
                 
                 if let lastText = viewModel.selectedItem?.transcript ?? viewModel.historyItems.first?.snippet {
                     Button(action: { viewModel.copyTranscript(text: lastText) }) {
-                        Label(viewModel.copiedToast ? "Kopyalandı!" : "Metni Al", systemImage: "doc.on.doc")
+                        Label(viewModel.copiedToast ? viewModel.t("action_copied") : viewModel.t("action_get_text"), systemImage: "doc.on.doc")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
@@ -142,7 +142,7 @@ struct MenuBarMiniWindow: View {
             
             // Bottom Controls
             HStack {
-                Button("Ana Pencereyi Aç") {
+                Button(viewModel.t("menu_open_main")) {
                     viewModel.bringMainWindowToFront()
                 }
                 .font(.system(size: 11, weight: .medium))
@@ -151,7 +151,7 @@ struct MenuBarMiniWindow: View {
                 
                 Spacer()
                 
-                Button("Ayarlar") {
+                Button(viewModel.t("section_settings")) {
                     viewModel.openSettings()
                 }
                 .font(.system(size: 11, weight: .medium))
@@ -160,7 +160,7 @@ struct MenuBarMiniWindow: View {
                 
                 Spacer()
                 
-                Button("Çıkış") {
+                Button(viewModel.t("menu_quit")) {
                     NSApp.terminate(nil)
                 }
                 .font(.system(size: 11))

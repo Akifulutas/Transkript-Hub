@@ -30,17 +30,17 @@ public struct PlaylistIngestionSheet: View {
     private var actionLabel: String {
         switch selectedScope {
         case .all:
-            return "Tüm Videoları Kuyruğa Ekle"
+            return viewModel.t("sheet_add_all_to_queue")
         case .latest5:
-            return "Son 5 Videoyu Kuyruğa Ekle"
+            return String(format: viewModel.t("sheet_add_latest_to_queue"), 5)
         case .latest10:
-            return "Son 10 Videoyu Kuyruğa Ekle"
+            return String(format: viewModel.t("sheet_add_latest_to_queue"), 10)
         case .latest20:
-            return "Son 20 Videoyu Kuyruğa Ekle"
+            return String(format: viewModel.t("sheet_add_latest_to_queue"), 20)
         case .custom:
-            return "\(customCount) Videoyu Kuyruğa Ekle"
+            return String(format: viewModel.t("sheet_add_custom_to_queue"), customCount)
         case .singleVideoOnly:
-            return "Yalnızca Bu Videoyu Ekle"
+            return viewModel.t("sheet_add_video_to_queue")
         }
     }
     
@@ -66,11 +66,11 @@ public struct PlaylistIngestionSheet: View {
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(isChannel ? "YouTube Kanalı Algılandı" : "Oynatma Listesi Algılandı")
+                        Text(isChannel ? viewModel.t("sheet_channel_detected") : viewModel.t("sheet_playlist_detected"))
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.primary)
                         
-                        Text(isChannel ? "KANAL" : "PLAYLIST")
+                        Text(isChannel ? viewModel.t("sheet_channel_tag") : viewModel.t("sheet_playlist_tag"))
                             .font(.system(size: 9, weight: .heavy))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -79,7 +79,7 @@ public struct PlaylistIngestionSheet: View {
                             .clipShape(Capsule())
                     }
                     
-                    Text("Kaç adet videonun kuyruğa eklenmesini istersiniz?")
+                    Text(viewModel.t("sheet_batch_question"))
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -95,9 +95,9 @@ public struct PlaylistIngestionSheet: View {
                 sheetOptionCard(
                     isSelected: selectedScope == .all,
                     icon: "square.stack.3d.up.fill",
-                    title: isChannel ? "Tüm Kanal Videolarını İndir" : "Tüm Videoları İndir (Tüm Liste)",
-                    description: isChannel ? "Kanalın yüklediği tüm videoları sırayla kuyruğa ekler." : "Listedeki tüm videoları sırayla kuyruğa ekler.",
-                    badge: "Önerilen",
+                    title: isChannel ? viewModel.t("sheet_channel_all_title") : viewModel.t("sheet_playlist_all_title"),
+                    description: isChannel ? viewModel.t("sheet_channel_all_desc") : viewModel.t("sheet_playlist_all_desc"),
+                    badge: viewModel.t("sheet_save_both_badge"),
                     action: { selectedScope = .all }
                 )
                 
@@ -106,8 +106,8 @@ public struct PlaylistIngestionSheet: View {
                     sheetOptionCard(
                         isSelected: selectedScope == .singleVideoOnly,
                         icon: "play.circle.fill",
-                        title: "Yalnızca Bu Tek Videoyu Ekle",
-                        description: "Listeyi yoksayar, sadece açtığınız videoyu kuyruğa alır.",
+                        title: viewModel.t("sheet_single_video_title"),
+                        description: viewModel.t("sheet_single_video_desc"),
                         action: { selectedScope = .singleVideoOnly }
                     )
                 }
@@ -132,10 +132,10 @@ public struct PlaylistIngestionSheet: View {
                             .frame(width: 18)
                         
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("En Yeni Videoları Al")
+                            Text(viewModel.t("sheet_latest_videos_title"))
                                 .font(.system(size: 13, weight: isQuickSelected ? .semibold : .medium))
                                 .foregroundColor(.primary)
-                            Text("Kanal veya listedeki en son yayınlananları seçin")
+                            Text(viewModel.t("sheet_latest_videos_desc"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
@@ -145,9 +145,9 @@ public struct PlaylistIngestionSheet: View {
                     
                     // Segmented quick choices
                     HStack(spacing: 8) {
-                        quickChoicePill(count: 5, label: "Son 5")
-                        quickChoicePill(count: 10, label: "Son 10", badge: isChannel ? "Önerilen" : nil)
-                        quickChoicePill(count: 20, label: "Son 20")
+                        quickChoicePill(count: 5, label: String(format: viewModel.t("sheet_latest_n"), 5))
+                        quickChoicePill(count: 10, label: String(format: viewModel.t("sheet_latest_n"), 10), badge: isChannel ? viewModel.t("sheet_save_both_badge") : nil)
+                        quickChoicePill(count: 20, label: String(format: viewModel.t("sheet_latest_n"), 20))
                     }
                     .padding(.leading, 30)
                 }
@@ -184,10 +184,10 @@ public struct PlaylistIngestionSheet: View {
                         .frame(width: 18)
                     
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Özel Sayı Belirle")
+                        Text(viewModel.t("sheet_custom_count_title"))
                             .font(.system(size: 13, weight: isCustomSelected ? .semibold : .medium))
                             .foregroundColor(.primary)
-                        Text("İstediğiniz sayıda videoyu en yeniden başlayarak alır")
+                        Text(viewModel.t("sheet_custom_count_desc"))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
@@ -195,7 +195,7 @@ public struct PlaylistIngestionSheet: View {
                     Spacer()
                     
                     HStack(spacing: 8) {
-                        Text("\(customCount) video")
+                        Text(String(format: viewModel.t("sheet_n_videos"), customCount))
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(isCustomSelected ? .accentColor : .primary)
                             .frame(width: 70, alignment: .trailing)
@@ -243,7 +243,7 @@ public struct PlaylistIngestionSheet: View {
                 HStack(spacing: 10) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Videolar taranıyor ve başlıklar alınıyor...")
+                    Text(viewModel.t("sheet_scanning_videos"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -257,7 +257,7 @@ public struct PlaylistIngestionSheet: View {
             
             // Footer Buttons
             HStack(spacing: 12) {
-                Button("Vazgeç") {
+                Button(viewModel.t("action_cancel")) {
                     viewModel.cancelBatchIngestion()
                 }
                 .keyboardShortcut(.cancelAction)

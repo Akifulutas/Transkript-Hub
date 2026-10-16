@@ -11,3 +11,7 @@ dist/
 *.dmg
 *.textClipping
 Tests/Fixtures/*.txt
+.agents/
+.cursor/
+.claude/
+*.log

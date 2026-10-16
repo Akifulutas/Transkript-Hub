@@ -45,7 +45,7 @@ public struct UnifiedStudioHubView: View {
                 interactiveCard(
                     icon: "cpu.fill",
                     badgeColor: .orange,
-                    caption: "YAPAY ZEKA MODELİ",
+                    caption: viewModel.t("hub_card_model"),
                     title: viewModel.selectedModelTitle,
                     showsChevron: true
                 )
@@ -62,7 +62,7 @@ public struct UnifiedStudioHubView: View {
                 interactiveCard(
                     icon: "globe",
                     badgeColor: .blue,
-                    caption: "KONUŞMA DİLİ",
+                    caption: viewModel.t("hub_card_speech_language"),
                     title: languageTitle(viewModel.selectedLanguage),
                     showsChevron: true
                 )
@@ -81,8 +81,8 @@ public struct UnifiedStudioHubView: View {
                 interactiveCard(
                     icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
                     badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
-                    caption: "PANO İZLEME",
-                    title: viewModel.isClipboardMonitoring ? "İzleniyor" : "Kapalı",
+                    caption: viewModel.t("hub_card_clipboard"),
+                    title: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
                     isPulseActive: viewModel.isClipboardMonitoring
                 )
             }
@@ -95,8 +95,8 @@ public struct UnifiedStudioHubView: View {
                 interactiveCard(
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
                     badgeColor: .red,
-                    caption: "SES KAYDI",
-                    title: viewModel.recordingSource == .microphone ? "Mikrofon" : "Sistem Sesi",
+                    caption: viewModel.t("hub_card_recording"),
+                    title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
                     showsChevron: true
                 )
             }
@@ -106,11 +106,16 @@ public struct UnifiedStudioHubView: View {
             Button(action: {
                 viewModel.isWatchedFolderPresented = true
             }) {
+                let activeCount = [
+                    viewModel.folderWatcher.watchiCloudDrive,
+                    viewModel.folderWatcher.watchVoiceMemos,
+                    viewModel.folderWatcher.watchCustomFolder
+                ].filter { $0 }.count
                 interactiveCard(
                     icon: "folder.fill.badge.gearshape",
-                    badgeColor: viewModel.isFolderWatching ? .teal : .secondary,
-                    caption: "KLASÖR İZLEME",
-                    title: viewModel.isFolderWatching ? "1 Klasör Aktif" : "Yapılandır"
+                    badgeColor: activeCount > 0 ? .teal : .secondary,
+                    caption: viewModel.t("hub_card_watched_folder"),
+                    title: activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure")
                 )
             }
             .buttonStyle(.plain)
@@ -122,8 +127,8 @@ public struct UnifiedStudioHubView: View {
                 interactiveCard(
                     icon: "clock.arrow.circlepath",
                     badgeColor: .purple,
-                    caption: "GEÇMİŞ & ARŞİV",
-                    title: "\(viewModel.historyItems.count) Dosya"
+                    caption: viewModel.t("hub_card_history"),
+                    title: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count)
                 )
             }
             .buttonStyle(.plain)
@@ -138,15 +143,11 @@ public struct UnifiedStudioHubView: View {
                     Image(systemName: "cpu.fill")
                         .font(.system(size: 13))
                         .foregroundStyle(.orange)
-                    Text("Whisper Modelleri")
+                    Text(viewModel.t("hub_model_picker_title"))
                         .font(.system(size: 13, weight: .bold))
                 }
                 
                 Spacer()
-                
-                Text("Boyuta göre sıralı")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
             }
             .padding(.bottom, 2)
             
@@ -162,7 +163,7 @@ public struct UnifiedStudioHubView: View {
             }
         }
         .padding(14)
-        .frame(width: 500)
+        .frame(width: 470)
     }
     
     private func popoverModelRow(spec: WhisperModelSpec) -> some View {
@@ -222,7 +223,7 @@ public struct UnifiedStudioHubView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 9, weight: .bold))
-                            Text("Aktif Model")
+                            Text(viewModel.t("hub_active_model"))
                                 .font(.system(size: 10, weight: .bold))
                         }
                         .foregroundStyle(.white)
@@ -231,7 +232,7 @@ public struct UnifiedStudioHubView: View {
                         .background(Capsule().fill(Color.green))
                         .fixedSize(horizontal: true, vertical: false)
                     } else {
-                        Button("Seç") {
+                        Button(viewModel.t("hub_select")) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 viewModel.selectedModel = spec.model
                                 isModelPickerPresented = false
@@ -253,8 +254,8 @@ public struct UnifiedStudioHubView: View {
                             .padding(4)
                     }
                     .buttonStyle(.plain)
-                    .help("Model dosyasını diskten sil")
-                    .accessibilityLabel("Model dosyasını diskten sil")
+                    .help(viewModel.t("hub_delete_model_help"))
+                    .accessibilityLabel(viewModel.t("hub_delete_model_help"))
                 }
             } else if viewModel.downloadingModel == spec.model {
                 HStack(spacing: 6) {
@@ -262,7 +263,7 @@ public struct UnifiedStudioHubView: View {
                         ProgressView(value: viewModel.modelDownloadFraction)
                             .progressViewStyle(.linear)
                             .frame(width: 80)
-                        Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                        Text(viewModel.modelDownloadStatusText.isEmpty ? viewModel.t("hub_processing") : viewModel.modelDownloadStatusText)
                             .font(.system(size: 9, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
@@ -275,8 +276,8 @@ public struct UnifiedStudioHubView: View {
                             .foregroundStyle(Color.secondary.opacity(0.8))
                     }
                     .buttonStyle(.plain)
-                    .help("İndirmeyi iptal et")
-                    .accessibilityLabel("İndirmeyi iptal et")
+                    .help(viewModel.t("hub_cancel_download_help"))
+                    .accessibilityLabel(viewModel.t("hub_cancel_download_help"))
                 }
                 .fixedSize(horizontal: true, vertical: false)
             } else {
@@ -286,7 +287,7 @@ public struct UnifiedStudioHubView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 10))
-                        Text("İndir")
+                        Text(viewModel.t("settings_download"))
                             .font(.system(size: 10, weight: .medium))
                     }
                     .foregroundStyle(Color.accentColor)
@@ -309,7 +310,7 @@ public struct UnifiedStudioHubView: View {
                 Image(systemName: "globe")
                     .foregroundStyle(.blue)
                     .font(.system(size: 12))
-                Text("Konuşma Dili")
+                Text(viewModel.t("hub_speech_language_title"))
                     .font(.system(size: 12, weight: .bold))
                 Spacer()
             }
@@ -318,10 +319,10 @@ public struct UnifiedStudioHubView: View {
             Divider()
             
             VStack(spacing: 4) {
-                languageOptionRow(code: "auto", flag: "🌐", name: "Otomatik Algıla", desc: "Konuşulan dili ses kaydından otomatik tespit eder")
-                languageOptionRow(code: "tr", flag: "🇹🇷", name: "Türkçe", desc: "Türkçe konuşmalar için optimize")
-                languageOptionRow(code: "en", flag: "🇬🇧", name: "İngilizce", desc: "İngilizce toplantı ve kayıtlar")
-                languageOptionRow(code: "de", flag: "🇩🇪", name: "Almanca", desc: "Almanca kayıtlar ve sesli notlar")
+                languageOptionRow(code: "auto", flag: "🌐", name: viewModel.t("hub_lang_auto"), desc: viewModel.t("hub_lang_auto_desc"))
+                languageOptionRow(code: "tr", flag: "🇹🇷", name: viewModel.t("hub_lang_tr"), desc: viewModel.t("hub_lang_tr_desc"))
+                languageOptionRow(code: "en", flag: "🇬🇧", name: viewModel.t("hub_lang_en"), desc: viewModel.t("hub_lang_en_desc"))
+                languageOptionRow(code: "de", flag: "🇩🇪", name: viewModel.t("hub_lang_de"), desc: viewModel.t("hub_lang_de_desc"))
             }
         }
         .padding(12)
@@ -449,7 +450,7 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(Color.accentColor)
                 }
                 
-                Text(isDropTargeted ? "Dosyaları Buraya Bırakın" : "Ses Dosyası veya Bağlantı Ekleyin")
+                Text(isDropTargeted ? viewModel.t("hub_drop_target") : viewModel.t("hub_drop_or_add"))
                     .font(.system(size: 15, weight: .bold))
             }
             
@@ -459,7 +460,7 @@ public struct UnifiedStudioHubView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Color.secondary)
                 
-                TextField("YouTube bağlantısı yapıştırın...", text: $quickLinkText)
+                TextField(viewModel.t("hub_paste_url_placeholder"), text: $quickLinkText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .onSubmit {
@@ -467,7 +468,7 @@ public struct UnifiedStudioHubView: View {
                     }
                 
                 if !quickLinkText.isEmpty {
-                    Button("Ekle") {
+                    Button(viewModel.t("action_add")) {
                         submitQuickLink()
                     }
                     .buttonStyle(.borderedProminent)
@@ -491,7 +492,7 @@ public struct UnifiedStudioHubView: View {
                 Button(action: { viewModel.addFromClipboard() }) {
                     HStack(spacing: 6) {
                         Image(systemName: "doc.on.clipboard")
-                        Text("Panodan Yapıştır (⌘V)")
+                        Text(viewModel.t("hub_paste_clipboard"))
                     }
                     .font(.system(size: 12, weight: .semibold))
                 }
@@ -501,7 +502,7 @@ public struct UnifiedStudioHubView: View {
                 Button(action: { selectLocalAudioFiles() }) {
                     HStack(spacing: 6) {
                         Image(systemName: "waveform")
-                        Text("Ses Dosyası Seç... (⌘O)")
+                        Text(viewModel.t("hub_choose_audio_file"))
                     }
                     .font(.system(size: 12, weight: .medium))
                 }
@@ -529,7 +530,7 @@ public struct UnifiedStudioHubView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color.accentColor)
                     
-                    Text("Kuyruktaki Öğeler")
+                    Text(viewModel.t("hub_queue_items"))
                         .font(.system(size: 14, weight: .bold))
                     
                     if !viewModel.queueItems.isEmpty {
@@ -542,7 +543,7 @@ public struct UnifiedStudioHubView: View {
                     }
                     
                     if viewModel.failedCount > 0 {
-                        Text("\(viewModel.failedCount) Hatalı")
+                        Text(String(format: viewModel.t("hub_failed_count"), viewModel.failedCount))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Color.orange)
                             .padding(.horizontal, 6)
@@ -556,7 +557,7 @@ public struct UnifiedStudioHubView: View {
                 // Secondary Actions: Retry Failed
                 if !viewModel.queueItems.isEmpty && viewModel.failedCount > 0 {
                     Button(action: { viewModel.retryFailedItems() }) {
-                        Text("Hatalıları Yeniden Dene")
+                        Text(viewModel.t("hub_retry_failed"))
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
@@ -571,12 +572,12 @@ public struct UnifiedStudioHubView: View {
                         if viewModel.isProcessing {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("İşleniyor...")
+                            Text(viewModel.t("hub_processing"))
                                 .font(.system(size: 12, weight: .bold))
                         } else {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 11, weight: .bold))
-                            Text("Transkripte Yolla")
+                            Text(viewModel.t("action_transcribe_queue"))
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
@@ -592,7 +593,7 @@ public struct UnifiedStudioHubView: View {
             if viewModel.isProcessing {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(viewModel.currentOperation.isEmpty ? "Deşifre ediliyor..." : viewModel.currentOperation)
+                        Text(viewModel.currentOperation.isEmpty ? viewModel.t("status_transcribing") : viewModel.currentOperation)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Color.primary)
                         Spacer()
@@ -613,7 +614,7 @@ public struct UnifiedStudioHubView: View {
                     Image(systemName: "tray")
                         .font(.system(size: 18))
                         .foregroundStyle(Color.secondary.opacity(0.6))
-                    Text("Kuyruk şu an boş. Yukarıdaki alana link yapıştırabilir veya ses dosyası bırakabilirsiniz.")
+                    Text(viewModel.t("hub_empty_queue"))
                         .font(.system(size: 12))
                         .foregroundStyle(Color.secondary)
                     Spacer()
@@ -641,8 +642,8 @@ public struct UnifiedStudioHubView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(viewModel.isProcessing)
-                        .help("Kuyruğu Temizle")
-                        .accessibilityLabel("Kuyruğu Temizle")
+                        .help(viewModel.t("action_clear_queue"))
+                        .accessibilityLabel(viewModel.t("action_clear_queue"))
                         Spacer()
                     }
                     .padding(.top, 2)
@@ -731,8 +732,8 @@ public struct UnifiedStudioHubView: View {
                             .foregroundStyle(Color.secondary.opacity(0.7))
                     }
                     .buttonStyle(.plain)
-                    .help("Kuyruktan kaldır")
-                    .accessibilityLabel("Kuyruktan kaldır")
+                    .help(viewModel.t("action_remove_item"))
+                    .accessibilityLabel(viewModel.t("action_remove_item"))
                 }
             }
             .padding(12)
@@ -749,13 +750,23 @@ public struct UnifiedStudioHubView: View {
             Circle()
                 .fill(badgeColor(for: state))
                 .frame(width: 6, height: 6)
-            Text(state.rawValue)
+            Text(localizedState(for: state))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(badgeColor(for: state))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
+    }
+    
+    private func localizedState(for state: QueueItemState) -> String {
+        switch state {
+        case .queued: return viewModel.t("status_queued")
+        case .fetching: return viewModel.t("status_fetching")
+        case .transcribing: return viewModel.t("status_transcribing")
+        case .completed: return viewModel.t("status_completed")
+        case .failed: return viewModel.t("status_failed")
+        }
     }
     
     private func badgeColor(for state: QueueItemState) -> Color {
@@ -825,10 +836,10 @@ public struct UnifiedStudioHubView: View {
     
     private func languageTitle(_ code: String) -> String {
         switch code {
-        case "auto": return "Otomatik"
-        case "tr": return "Türkçe"
-        case "en": return "İngilizce"
-        case "de": return "Almanca"
+        case "auto": return viewModel.t("hub_lang_auto")
+        case "tr": return viewModel.t("hub_lang_tr")
+        case "en": return viewModel.t("hub_lang_en")
+        case "de": return viewModel.t("hub_lang_de")
         default: return code.uppercased()
         }
     }

@@ -118,7 +118,7 @@ public struct KaraokeTranscriptView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.down.to.line.compact")
                                 .font(.system(size: 11, weight: .bold))
-                            Text("Oynatılan Yere Dön")
+                            Text(L10n.tr("karaoke_return_to_play"))
                                 .font(.system(size: 11, weight: .semibold))
                         }
                         .foregroundColor(.accentColor)
@@ -201,13 +201,13 @@ private struct SegmentRowView: View {
                         .overlay(Capsule().stroke(higColor.opacity(0.25), lineWidth: 0.5))
                     }
                     .buttonStyle(.plain)
-                    .help("Konuşmacı ismini değiştir")
+                    .help(L10n.tr("karaoke_change_speaker_help"))
                     .popover(isPresented: $isRenamingSpeaker) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Konuşmacıyı Yeniden Adlandır")
+                            Text(L10n.tr("karaoke_rename_speaker_title"))
                                 .font(.system(size: 11, weight: .bold))
                             
-                            TextField("Örn: Ahmet Bey, Sunucu...", text: $newSpeakerName)
+                            TextField(L10n.tr("karaoke_speaker_placeholder"), text: $newSpeakerName)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 190)
                                 .onSubmit {
@@ -215,10 +215,10 @@ private struct SegmentRowView: View {
                                 }
                             
                             HStack {
-                                Button("İptal") { isRenamingSpeaker = false }
+                                Button(L10n.tr("action_cancel")) { isRenamingSpeaker = false }
                                     .controlSize(.small)
                                 Spacer()
-                                Button("Tümünde Güncelle") {
+                                Button(L10n.tr("karaoke_update_all")) {
                                     commitSpeakerRename()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -241,7 +241,7 @@ private struct SegmentRowView: View {
                         HStack(spacing: 3) {
                             Image(systemName: "pencil.line")
                                 .font(.system(size: 9))
-                            Text("Düzenle")
+                            Text(L10n.tr("karaoke_edit_segment"))
                                 .font(.system(size: 9, weight: .medium))
                         }
                         .foregroundStyle(.secondary)
@@ -250,7 +250,7 @@ private struct SegmentRowView: View {
                         .background(Capsule().fill(Color.primary.opacity(0.05)))
                     }
                     .buttonStyle(.plain)
-                    .help("Bu segmentin metnini yerinde düzenle")
+                    .help(L10n.tr("karaoke_edit_segment_help"))
                     .transition(.opacity)
                 }
             }
@@ -258,7 +258,7 @@ private struct SegmentRowView: View {
             // Words Flow or Inline Text Editor
             if isEditingText {
                 VStack(alignment: .leading, spacing: 8) {
-                    TextField("Segment metni...", text: $editedText, axis: .vertical)
+                    TextField(L10n.tr("karaoke_segment_text_placeholder"), text: $editedText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .font(.system(size: fontSize))
                         .padding(8)
@@ -272,14 +272,14 @@ private struct SegmentRowView: View {
                         )
                     
                     HStack {
-                        Button("Vazgeç") {
+                        Button(L10n.tr("action_cancel")) {
                             isEditingText = false
                         }
                         .controlSize(.small)
                         
                         Spacer()
                         
-                        Button("Değişikliği Kaydet") {
+                        Button(L10n.tr("karaoke_save_edit")) {
                             let trimmed = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
                             if !trimmed.isEmpty {
                                 onSegmentTextEdited?(segmentIndex, trimmed)

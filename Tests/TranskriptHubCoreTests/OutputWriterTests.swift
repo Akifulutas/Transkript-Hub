@@ -45,3 +45,36 @@ import Testing
     #expect(content1 == "First file")
     #expect(content2 == "Second file")
 }
+
+@Test func testOutputWriterCustomOutputDirectoryPersistence() throws {
+    let key = OutputWriter.customOutputDirectoryDefaultsKey
+    let previous = UserDefaults.standard.string(forKey: key)
+    defer {
+        if let previous {
+            UserDefaults.standard.set(previous, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+    
+    UserDefaults.standard.removeObject(forKey: key)
+    let writer = OutputWriter()
+    #expect(!writer.isUsingCustomOutputDirectory)
+    #expect(writer.defaultOutputDirectory == OutputWriter.systemDefaultOutputDirectory)
+    
+    let customDir = FileManager.default.temporaryDirectory.appendingPathComponent("CustomTranscriptOutput_\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: customDir) }
+    
+    writer.setCustomOutputDirectory(customDir)
+    #expect(writer.isUsingCustomOutputDirectory)
+    #expect(writer.defaultOutputDirectory.path == customDir.path)
+    
+    let targetURL = writer.resolveUniqueURL(forBaseName: "AutoWatchedSample")
+    try writer.write(content: "Auto transcribed text", to: targetURL)
+    #expect(targetURL.deletingLastPathComponent().path == customDir.path)
+    #expect(FileManager.default.fileExists(atPath: targetURL.path))
+    
+    writer.setCustomOutputDirectory(nil)
+    #expect(!writer.isUsingCustomOutputDirectory)
+    #expect(writer.defaultOutputDirectory == OutputWriter.systemDefaultOutputDirectory)
+}

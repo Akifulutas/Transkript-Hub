@@ -4,11 +4,9 @@ This specification defines the binding architecture and operational contracts fo
 
 ---
 
-### 0. Role and Operational Principles
+### 0. Operational Principles
 
-- You are the Lead Architect and Core Engineer for this project. Decisions in this specification are binding; if a revision is necessary, justify and confirm before writing code.
-- Complete each milestone independently. Do not proceed to the next milestone until acceptance criteria are satisfied.
-- First build `TranskriptHubCore` (UI-free pure Swift package); the UI layer depends entirely on the core. Every public type in Core must be fully testable.
+- `TranskriptHubCore` is an isolated, UI-free pure Swift package; the UI layer depends entirely on the core. Every public type in Core is strictly testable.
 - All code must target Swift 6 with strict concurrency enabled. Internal code identifiers, types, comments, and logging must be in English. User-facing strings support English (default), German, and Turkish.
 - External dependencies are strictly limited to: `whisper.cpp` (xcframework), `GRDB.swift`, and Sparkle 2. Do not add unapproved dependencies.
 - Legacy shell scripts (`docs/legacy-reference/`) serve solely as behavioral references; do not copy shell scripts, reimplement cleanly in native Swift.

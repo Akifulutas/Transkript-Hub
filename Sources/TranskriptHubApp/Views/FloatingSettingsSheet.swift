@@ -183,29 +183,29 @@ public struct FloatingSettingsSheet: View {
             }
             
             // Clipboard Automation
-            cardSection(title: "Pano İzleme Otomasyonu", icon: "doc.on.clipboard") {
+            cardSection(title: viewModel.t("settings_clipboard_auto"), icon: "doc.on.clipboard") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Panoya kopyalanan YouTube video bağlantılarını otomatik yakala", isOn: $viewModel.isClipboardMonitoring)
+                    Toggle(viewModel.t("settings_clipboard_auto_toggle"), isOn: $viewModel.isClipboardMonitoring)
                         .toggleStyle(.switch)
                     
-                    Text("Etkinleştirildiğinde tarayıcınızda veya WhatsApp'ta kopyaladığınız YouTube linkleri sıfır tıklamayla kuyruğa eklenir.")
+                    Text(viewModel.t("settings_clipboard_auto_desc"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
             }
             
             // Spoken Audio Default Language
-            cardSection(title: "Varsayılan Konuşma Dili", icon: "waveform") {
+            cardSection(title: viewModel.t("settings_default_speech_lang"), icon: "waveform") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Videolarda konuşulan dili Whisper modeline bildirir. 'Otomatik Algıla' tüm diller için çalışır.")
+                    Text(viewModel.t("settings_default_speech_lang_desc"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Picker("Dil:", selection: $viewModel.selectedLanguage) {
-                        Text("🌐 Otomatik Algıla").tag("auto")
-                        Text("🇹🇷 Türkçe").tag("tr")
-                        Text("🇬🇧 İngilizce").tag("en")
-                        Text("🇩🇪 Almanca").tag("de")
+                    Picker(viewModel.t("hub_speech_language_title") + ":", selection: $viewModel.selectedLanguage) {
+                        Text("🌐 \(viewModel.t("hub_lang_auto"))").tag("auto")
+                        Text("🇹🇷 \(viewModel.t("hub_lang_tr"))").tag("tr")
+                        Text("🇬🇧 \(viewModel.t("hub_lang_en"))").tag("en")
+                        Text("🇩🇪 \(viewModel.t("hub_lang_de"))").tag("de")
                     }
                     .frame(maxWidth: 240)
                 }
@@ -223,7 +223,7 @@ public struct FloatingSettingsSheet: View {
                         .foregroundColor(.secondary)
                         .font(.system(size: 12))
                     
-                    TextField("Model ara (örn: turbo, large, türkçe, hızlı)...", text: $viewModel.modelSearchQuery)
+                    TextField(viewModel.t("settings_search_models_placeholder"), text: $viewModel.modelSearchQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                     
@@ -244,7 +244,7 @@ public struct FloatingSettingsSheet: View {
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            Text("Yeni Modelleri Tara")
+                            Text(viewModel.t("settings_scan_new_models"))
                         }
                         .font(.system(size: 11, weight: .medium))
                     }
@@ -311,7 +311,7 @@ public struct FloatingSettingsSheet: View {
                         }
                         
                         if isActive {
-                            Text("Aktif")
+                            Text(viewModel.t("settings_active"))
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(.green)
                                 .padding(.horizontal, 6)
@@ -332,7 +332,7 @@ public struct FloatingSettingsSheet: View {
                 if isDownloaded {
                     HStack(spacing: 8) {
                         if !isActive {
-                            Button("Seç") {
+                            Button(viewModel.t("hub_select")) {
                                 viewModel.selectedModel = spec.model
                             }
                             .font(.system(size: 11))
@@ -351,7 +351,7 @@ public struct FloatingSettingsSheet: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .help("Modeli Sil")
+                        .help(viewModel.t("hub_delete_model_help"))
                     }
                 } else if viewModel.downloadingModel == spec.model {
                     HStack(spacing: 8) {
@@ -359,7 +359,7 @@ public struct FloatingSettingsSheet: View {
                             ProgressView(value: viewModel.modelDownloadFraction)
                                 .progressViewStyle(.linear)
                                 .frame(width: 120)
-                            Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                            Text(viewModel.modelDownloadStatusText.isEmpty ? viewModel.t("hub_processing") : viewModel.modelDownloadStatusText)
                                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
@@ -372,10 +372,10 @@ public struct FloatingSettingsSheet: View {
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .help("İndirmeyi İptal Et")
+                        .help(viewModel.t("hub_cancel_download_help"))
                     }
                 } else {
-                    Button("İndir") {
+                    Button(viewModel.t("settings_download")) {
                         viewModel.downloadModelInSettings(spec.model)
                     }
                     .font(.system(size: 11, weight: .medium))
@@ -390,24 +390,54 @@ public struct FloatingSettingsSheet: View {
     // MARK: - 3. Storage Tab
     private var storageTab: some View {
         VStack(alignment: .leading, spacing: 20) {
-            cardSection(title: "Transkript Çıktı Dizini", icon: "folder") {
+            cardSection(title: viewModel.t("watched_output_title"), icon: "folder") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Üretilen transkript .txt dosyalarının kaydedildiği hedef klasör:")
+                    Text(viewModel.t("watched_output_desc"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    HStack {
-                        Text(viewModel.outputWriter.defaultOutputDirectory.path)
-                            .font(.system(size: 11, design: .monospaced))
-                            .lineLimit(1)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(viewModel.outputDirectoryURL.lastPathComponent)
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(viewModel.isCustomOutputDirectory ? .teal : .secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill((viewModel.isCustomOutputDirectory ? Color.teal : Color.secondary).opacity(0.12)))
+                            }
+                            Text(viewModel.outputDirectoryURL.path)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                         
                         Spacer()
                         
-                        Button("Finder'da Göster") {
-                            viewModel.openInFinder(path: viewModel.outputWriter.defaultOutputDirectory.path)
+                        Button(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder")) {
+                            viewModel.selectOutputDirectory()
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        
+                        if viewModel.isCustomOutputDirectory {
+                            Button(viewModel.t("watched_reset_folder")) {
+                                viewModel.resetOutputDirectory()
+                            }
+                            .font(.system(size: 10))
+                            .buttonStyle(.plain)
+                            .foregroundColor(.red.opacity(0.8))
+                        }
+                        
+                        Button(viewModel.t("action_open_finder")) {
+                            viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
                         }
                         .font(.system(size: 11))
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
                     .padding(10)
@@ -416,16 +446,16 @@ public struct FloatingSettingsSheet: View {
                 }
             }
             
-            cardSection(title: "Toplu Oturumlarda Kayıt Formatı", icon: "doc.on.doc") {
+            cardSection(title: viewModel.t("settings_batch_format_title"), icon: "doc.on.doc") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Kuyrukta birden fazla video tamamlandığında dosyalar nasıl kaydedilsin?")
+                    Text(viewModel.t("settings_save_format_question"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
                     Picker("", selection: $viewModel.sessionSaveMode) {
-                        Text("Her İkisi (Ayrı Dosyalar + Birleşik Oturum Dosyası)").tag(SessionSaveMode.both)
-                        Text("Yalnızca Ayrı Ayrı .txt Dosyaları").tag(SessionSaveMode.individual)
-                        Text("Yalnızca Tek Birleşik .txt Dosyası").tag(SessionSaveMode.combined)
+                        Text(viewModel.t("settings_save_both_opt")).tag(SessionSaveMode.both)
+                        Text(viewModel.t("settings_save_individual_opt")).tag(SessionSaveMode.individual)
+                        Text(viewModel.t("settings_save_combined_opt")).tag(SessionSaveMode.combined)
                     }
                     .pickerStyle(.radioGroup)
                 }
@@ -437,13 +467,13 @@ public struct FloatingSettingsSheet: View {
     private var automationTab: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Folder Watching Toggle & Configurable Sources
-            cardSection(title: "Klasör ve Sesli Notlar Dinleyicisi", icon: "waveform.badge.magnifyingglass") {
+            cardSection(title: viewModel.t("watched_title"), icon: "waveform.badge.magnifyingglass") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.isFolderWatching ? "Klasör İzleme Aktif (Arka Planda Dinleniyor)" : "Klasör İzleme Kapalı")
+                            Text(viewModel.isFolderWatching ? viewModel.t("watched_active") : viewModel.t("watched_inactive"))
                                 .font(.system(size: 13, weight: .semibold))
-                            Text("iCloud Drive, Apple Sesli Notlar veya özel klasörünüze yeni sesler düştüğünde sıfır temasla transkript edilir.")
+                            Text(viewModel.t("watched_subtitle"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
@@ -454,10 +484,25 @@ public struct FloatingSettingsSheet: View {
                     
                     Divider()
                     
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(viewModel.t("watched_auto_transcribe_title"))
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(viewModel.t("watched_auto_transcribe_desc"))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $viewModel.folderWatcher.autoTranscribe)
+                            .toggleStyle(.switch)
+                    }
+                    
+                    Divider()
+                    
                     // Source 1: iCloud Drive
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Label("iCloud Drive", systemImage: "icloud.fill")
+                            Label(viewModel.t("watched_icloud_title"), systemImage: "icloud.fill")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.blue)
                             Spacer()
@@ -465,7 +510,7 @@ public struct FloatingSettingsSheet: View {
                                 .toggleStyle(.switch)
                         }
                         if viewModel.folderWatcher.watchiCloudDrive {
-                            Toggle("Tüm iCloud Drive kök dizinini izle", isOn: $viewModel.folderWatcher.watchiCloudRoot)
+                            Toggle(viewModel.t("watched_icloud_root_opt"), isOn: $viewModel.folderWatcher.watchiCloudRoot)
                                 .toggleStyle(.checkbox)
                                 .font(.system(size: 11))
                         }
@@ -477,7 +522,7 @@ public struct FloatingSettingsSheet: View {
                     // Source 2: Apple Voice Memos
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Label("Apple Sesli Notlar (Apple Watch & iPhone)", systemImage: "waveform")
+                            Label(viewModel.t("watched_voicememos_title"), systemImage: "waveform")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.orange)
                             Spacer()
@@ -486,12 +531,12 @@ public struct FloatingSettingsSheet: View {
                         }
                         if viewModel.folderWatcher.watchVoiceMemos {
                             HStack {
-                                Text(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? "Erişilebilir (FDA Aktif)" : "Tam Disk Erişimi Gerekli")
+                                Text(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? viewModel.t("watched_status_accessible") : viewModel.t("watched_status_fda_needed"))
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? .green : .orange)
                                 Spacer()
                                 if !viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
-                                    Button("Ayarları Aç") {
+                                    Button(viewModel.t("watched_open_settings")) {
                                         viewModel.openFullDiskAccessSettings()
                                     }
                                     .font(.system(size: 10))
@@ -508,45 +553,43 @@ public struct FloatingSettingsSheet: View {
                     // Source 3: Custom Folder
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Label("Özel Klasör (WhatsApp, Telegram vb.)", systemImage: "folder.badge.plus")
+                            Label(viewModel.t("watched_custom_title"), systemImage: "folder.badge.plus")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.purple)
                             Spacer()
                             Toggle("", isOn: $viewModel.folderWatcher.watchCustomFolder)
                                 .toggleStyle(.switch)
                         }
-                        if viewModel.folderWatcher.watchCustomFolder {
-                            HStack {
-                                if let customURL = viewModel.folderWatcher.customFolderURL {
-                                    Text(customURL.path)
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Button("Değiştir...") {
-                                        viewModel.selectCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.mini)
-                                    
-                                    Button("Sıfırla") {
-                                        viewModel.resetCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.red.opacity(0.8))
-                                } else {
-                                    Text("Henüz bir klasör seçilmedi")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Button("Klasör Seç...") {
-                                        viewModel.selectCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.mini)
+                        HStack {
+                            if let customURL = viewModel.folderWatcher.customFolderURL {
+                                Text(customURL.path)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .lineLimit(1)
+                                Spacer()
+                                Button(viewModel.t("watched_change_folder")) {
+                                    viewModel.selectCustomWatchedFolder()
                                 }
+                                .font(.system(size: 10))
+                                .buttonStyle(.bordered)
+                                .controlSize(.mini)
+                                
+                                Button(viewModel.t("watched_reset_folder")) {
+                                    viewModel.resetCustomWatchedFolder()
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red.opacity(0.8))
+                            } else {
+                                Text(viewModel.t("watched_no_custom_selected"))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button(viewModel.t("watched_choose_folder")) {
+                                    viewModel.selectCustomWatchedFolder()
+                                }
+                                .font(.system(size: 10, weight: .semibold))
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.mini)
                             }
                         }
                     }
@@ -555,14 +598,14 @@ public struct FloatingSettingsSheet: View {
                     .cornerRadius(8)
                     
                     HStack {
-                        Button("Şimdi Tara") {
+                        Button(viewModel.t("watched_scan_now")) {
                             viewModel.triggerFolderScan()
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         
-                        Button("iCloud'u Tara") {
+                        Button(viewModel.t("watched_scan_cloud")) {
                             viewModel.triggerCloudScan()
                         }
                         .font(.system(size: 11))
@@ -575,35 +618,35 @@ public struct FloatingSettingsSheet: View {
             }
             
             // WhatsApp & Cloud Integration Guide
-            cardSection(title: "WhatsApp & Bulut Ses Kayıtları Entegrasyonu", icon: "message.fill") {
+            cardSection(title: viewModel.t("settings_whatsapp_title"), icon: "message.fill") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("WhatsApp, Telegram veya herhangi bir uygulamadan gelen sesli mesajları transkript etmek için:")
+                    Text(viewModel.t("settings_whatsapp_step_intro"))
                         .font(.system(size: 12, weight: .medium))
                     
-                    Text("1. Ses kaydını WhatsApp'ta basılı tutup **Paylaş > Dosyalara Kaydet** seçeneğine basın.")
+                    Text(viewModel.t("settings_whatsapp_step_1"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text("2. iCloud Drive altındaki **Transkript** klasörünü seçip kaydedin.")
+                    Text(viewModel.t("settings_whatsapp_step_2"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text("3. Dosya Mac'e .icloud yer tutucu olarak gelse bile, Transkript Hub bunu otomatik olarak algılar ve arka planda derhal indirmeyi başlatır.")
+                    Text(viewModel.t("settings_whatsapp_step_3"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text("4. İndirme bittiğinde ses kuyruğa alınır, Whisper AI ile yazıya dökülür ve çıktı aynı klasöre kaydedilir!")
+                    Text(viewModel.t("settings_whatsapp_step_4"))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
             }
             
             // Full Disk Access (FDA) Permission Card
-            cardSection(title: "macOS Tam Disk Erişimi (Full Disk Access)", icon: "lock.shield") {
+            cardSection(title: viewModel.t("settings_fda_title"), icon: "lock.shield") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(viewModel.fullDiskAccessStatus.isGranted ? Color.green : Color.orange)
                                 .frame(width: 8, height: 8)
-                            Text(viewModel.fullDiskAccessStatus.isGranted ? "Tam Disk Erişimi Aktif" : "İzin Bekleniyor")
+                            Text(viewModel.fullDiskAccessStatus.isGranted ? viewModel.t("settings_fda_granted") : viewModel.t("settings_fda_pending"))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(viewModel.fullDiskAccessStatus.isGranted ? .green : .orange)
                         }
@@ -614,14 +657,14 @@ public struct FloatingSettingsSheet: View {
                         
                         Spacer()
                         
-                        Button("İzni Yeniden Denetle") {
+                        Button(viewModel.t("settings_fda_recheck")) {
                             viewModel.checkFullDiskAccess()
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         
-                        Button("Sistem Ayarlarını Aç") {
+                        Button(viewModel.t("watched_open_settings")) {
                             viewModel.openFullDiskAccessSettings()
                         }
                         .font(.system(size: 11, weight: .semibold))
@@ -629,15 +672,15 @@ public struct FloatingSettingsSheet: View {
                         .controlSize(.small)
                     }
                     
-                    Text("Apple Watch veya iPhone'un yerel **Sesli Notlar** kayıtlarının Mac'e düştüğü korumalı sistem klasörünü doğrudan tarayabilmek için Transkript Hub'a Tam Disk Erişimi verilmesi gerekir.")
+                    Text(viewModel.t("settings_fda_voice_memos_desc"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
                     if !viewModel.fullDiskAccessStatus.isGranted {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Nasıl Açılır?")
+                            Text(viewModel.t("settings_fda_how_to"))
                                 .font(.system(size: 11, weight: .bold))
-                            Text("1. **Sistem Ayarlarını Aç** butonuna basın.\n2. **Gizlilik ve Güvenlik > Tam Disk Erişimi** listesinde **TranskriptHub** yanındaki anahtarı açın.\n3. Apple Watch ses kayıtlarınız sıfır temasla otomatik olarak yazıya dökülsün!")
+                            Text(viewModel.t("settings_fda_how_to_steps"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
@@ -649,20 +692,20 @@ public struct FloatingSettingsSheet: View {
             }
             
             // Apple Watch & iPhone Voice Memos Guide
-            cardSection(title: "Apple Watch & iPhone Sesli Notlar", icon: "applewatch") {
+            cardSection(title: viewModel.t("tab_automation"), icon: "applewatch") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Apple Watch veya iPhone'un yerel Sesli Notlar uygulamasıyla kayıt aldığınızda:")
+                    Text(viewModel.t("settings_voice_memos_options_title"))
                         .font(.system(size: 12, weight: .medium))
                     
-                    Text("• **Yöntem A (Tam Disk Erişimi ile Tam Otomatik):** Yukarıdaki Tam Disk Erişimi iznini verdiğinizde, Apple Watch veya iPhone'dan aldığınız tüm Sesli Notlar hiçbir şey yapmanıza gerek kalmadan Mac'inize düştüğü anda transkript edilir.")
+                    Text(viewModel.t("settings_voice_memos_method_a"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Text("• **Yöntem B (Paylaşım):** Ses kaydının yanındaki (...) menüsünden **Paylaş > Dosyalara Kaydet > iCloud Drive / Transkript** yolunu seçin.")
+                    Text(viewModel.t("settings_voice_memos_method_b"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Text("• **Yöntem C (Apple Kestirmeler):** iPhone'unuzdaki Kestirmeler uygulamasından 'Ses Kaydı Al' ve ardından 'iCloud Drive / Transkript Klasörüne Kaydet' kestirmesini kurabilirsiniz.")
+                    Text(viewModel.t("settings_voice_memos_method_c"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -673,13 +716,13 @@ public struct FloatingSettingsSheet: View {
     // MARK: - 5. Updates Tab
     private var updatesTab: some View {
         VStack(alignment: .leading, spacing: 20) {
-            cardSection(title: "Sürüm Bilgisi ve Güncellemeler", icon: "arrow.triangle.2.circlepath") {
+            cardSection(title: viewModel.t("settings_updates_title"), icon: "arrow.triangle.2.circlepath") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Transkript Hub")
                                 .font(.system(size: 15, weight: .bold))
-                            Text("Mevcut Sürüm: v\(UpdateChecker.currentVersion) (Production Build)")
+                            Text(String(format: viewModel.t("settings_current_version"), UpdateChecker.currentVersion))
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
@@ -693,7 +736,7 @@ public struct FloatingSettingsSheet: View {
                                 } else {
                                     Image(systemName: "arrow.clockwise")
                                 }
-                                Text("Güncellemeleri Şimdi Denetle")
+                                Text(viewModel.t("settings_updates_check_now"))
                             }
                             .font(.system(size: 12, weight: .semibold))
                         }
@@ -725,7 +768,7 @@ public struct FloatingSettingsSheet: View {
                             Spacer()
                             
                             if let info = viewModel.updateInfo, info.isNewerThanCurrent {
-                                Button("GitHub'da İndir") {
+                                Button(viewModel.t("settings_download_github")) {
                                     viewModel.openInBrowser(url: info.htmlURL)
                                 }
                                 .font(.system(size: 11, weight: .bold))
@@ -738,22 +781,22 @@ public struct FloatingSettingsSheet: View {
                         .cornerRadius(10)
                     }
                     
-                    Toggle("Uygulama açılışında güncellemeleri otomatik denetle", isOn: $viewModel.autoCheckUpdates)
+                    Toggle(viewModel.t("settings_auto_check_updates"), isOn: $viewModel.autoCheckUpdates)
                         .toggleStyle(.switch)
                 }
             }
             
-            cardSection(title: "Açık Kaynak ve Depo", icon: "link") {
+            cardSection(title: viewModel.t("settings_opensource_repo"), icon: "link") {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("GitHub Deposu")
+                        Text(viewModel.t("settings_github_repo"))
                             .font(.system(size: 12, weight: .semibold))
                         Text("https://github.com/Akifulutas/Transkript-Hub")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Button("Depoyu Aç") {
+                    Button(viewModel.t("settings_open_repo")) {
                         viewModel.openInBrowser(url: "https://github.com/Akifulutas/Transkript-Hub")
                     }
                     .font(.system(size: 11))
@@ -784,21 +827,21 @@ public struct FloatingSettingsSheet: View {
     
     private func tabTitle(_ tab: SettingsTab) -> String {
         switch tab {
-        case .general: return "Genel Ayarlar"
-        case .models: return "Yapay Zeka Modelleri & Model Kataloğu"
-        case .storage: return "Depolama ve Çıktı Dizini"
-        case .automation: return "Otomasyon & Sesli Notlar"
-        case .updates: return "Uygulama Güncellemeleri"
+        case .general: return viewModel.t("settings_general_title")
+        case .models: return viewModel.t("settings_models_title")
+        case .storage: return viewModel.t("settings_storage_title")
+        case .automation: return viewModel.t("settings_automation_title")
+        case .updates: return viewModel.t("settings_updates_title")
         }
     }
     
     private func tabSubtitle(_ tab: SettingsTab) -> String {
         switch tab {
-        case .general: return "Arayüz dili, pano izleme ve sistem tercihleri."
-        case .models: return "Whisper.cpp modellerini arayın, indirin ve donanım durumunu denetleyin."
-        case .storage: return "Transkript dosyalarının kaydedileceği konum ve format ayarları."
-        case .automation: return "Apple Watch, iPhone ve WhatsApp ses kayıtlarının otomatik işlenmesi."
-        case .updates: return "En son çıkan sürüm ve model yeniliklerini takip edin."
+        case .general: return viewModel.t("settings_general_subtitle")
+        case .models: return viewModel.t("settings_models_subtitle")
+        case .storage: return viewModel.t("settings_storage_subtitle")
+        case .automation: return viewModel.t("settings_automation_subtitle")
+        case .updates: return viewModel.t("settings_updates_subtitle")
         }
     }
 }

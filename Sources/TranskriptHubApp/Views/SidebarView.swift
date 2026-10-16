@@ -76,7 +76,7 @@ struct SidebarView: View {
                     .fill(viewModel.isProcessing ? Color.purple : (viewModel.isFolderWatching ? Color.green : Color.gray))
                     .frame(width: 6, height: 6)
                 
-                Text(viewModel.isProcessing ? "İşleniyor..." : (viewModel.isFolderWatching ? "Klasör Dinleniyor" : "Hazır"))
+                Text(viewModel.isProcessing ? viewModel.t("sidebar_processing") : (viewModel.isFolderWatching ? viewModel.t("sidebar_listening") : viewModel.t("status_ready")))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                 

@@ -21,17 +21,17 @@ public struct ContentView: View {
                         UnifiedStudioHubView(viewModel: viewModel)
                     case .history:
                         VStack(spacing: 0) {
-                            navigationBackBar(title: "Geçmiş & Arşiv")
+                            navigationBackBar(title: viewModel.t("hub_card_history"))
                             HistoryListView(viewModel: viewModel)
                         }
                     case .watchedFolder:
                         VStack(spacing: 0) {
-                            navigationBackBar(title: "İzlenen Klasör")
+                            navigationBackBar(title: viewModel.t("section_watched_folder"))
                             WatchedFolderView(viewModel: viewModel)
                         }
                     case .settings:
                         VStack(spacing: 0) {
-                            navigationBackBar(title: "Ayarlar")
+                            navigationBackBar(title: viewModel.t("section_settings"))
                             SettingsView(viewModel: viewModel)
                         }
                     }
@@ -69,17 +69,17 @@ public struct ContentView: View {
                 AudioRecordingSourceSheet(viewModel: viewModel)
             }
             .alert(
-                viewModel.recordingAlertPermission == nil ? "Kayıt Başlatılamadı" : "İzin Gerekli",
+                viewModel.recordingAlertPermission == nil ? viewModel.t("record_failed_title") : viewModel.t("record_permission_title"),
                 isPresented: Binding(
                     get: { viewModel.recordingAlertMessage != nil },
                     set: { if !$0 { viewModel.dismissRecordingAlert() } }
                 )
             ) {
                 if viewModel.recordingAlertPermission != nil {
-                    Button("Sistem Ayarlarını Aç") { viewModel.openRecordingPermissionSettings() }
-                    Button("Vazgeç", role: .cancel) { viewModel.dismissRecordingAlert() }
+                    Button(viewModel.t("watched_open_settings")) { viewModel.openRecordingPermissionSettings() }
+                    Button(viewModel.t("action_cancel"), role: .cancel) { viewModel.dismissRecordingAlert() }
                 } else {
-                    Button("Tamam", role: .cancel) { viewModel.dismissRecordingAlert() }
+                    Button(viewModel.t("action_ok"), role: .cancel) { viewModel.dismissRecordingAlert() }
                 }
             } message: {
                 Text(viewModel.recordingAlertMessage ?? "")
@@ -187,7 +187,7 @@ public struct ContentView: View {
                     .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
             }
             .buttonStyle(.plain)
-            .help("Ayarlar (⌘,)")
+            .help("\(viewModel.t("section_settings")) (⌘,)")
         }
     }
     
@@ -201,7 +201,7 @@ public struct ContentView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Ana Merkeze Dön")
+                    Text(viewModel.t("nav_back_to_hub"))
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .foregroundStyle(Color.accentColor)
@@ -225,11 +225,11 @@ public struct ContentView: View {
     
     private func modelDisplayName(_ model: WhisperModel) -> String {
         switch model {
-        case .tiny: return "Tiny (75 MB - Hızlı)"
-        case .base: return "Base (142 MB - Standart)"
-        case .small: return "Small (466 MB - Dengeli)"
+        case .tiny: return "Tiny (75 MB - \(viewModel.t("model_speed_fast")))"
+        case .base: return "Base (142 MB - \(viewModel.t("model_speed_standard")))"
+        case .small: return "Small (466 MB - \(viewModel.t("model_speed_balanced")))"
         case .medium: return "Medium (1.5 GB)"
-        case .largeV3Turbo: return "Large-v3-Turbo (1.6 GB - En İyi)"
+        case .largeV3Turbo: return "Large-v3-Turbo (1.6 GB - \(viewModel.t("model_speed_best")))"
         case .largeV3TurboQ5: return "Large-v3-Turbo Q5 (547 MB)"
         }
     }
@@ -246,12 +246,12 @@ public struct ContentView: View {
     
     private func languageTitle(_ code: String) -> String {
         switch code {
-        case "auto": return "Otomatik"
-        case "tr": return "Türkçe"
-        case "en": return "İngilizce"
-        case "de": return "Almanca"
-        case "fr": return "Fransızca"
-        case "es": return "İspanyolca"
+        case "auto": return viewModel.t("hub_lang_auto")
+        case "tr": return viewModel.t("hub_lang_tr")
+        case "en": return viewModel.t("hub_lang_en")
+        case "de": return viewModel.t("hub_lang_de")
+        case "fr": return viewModel.t("hub_lang_fr")
+        case "es": return viewModel.t("hub_lang_es")
         default: return code.uppercased()
         }
     }

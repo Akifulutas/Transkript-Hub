@@ -23,10 +23,10 @@ public struct AudioRecordingSourceSheet: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Ses Kaydı Başlat")
+                    Text(viewModel.t("sheet_recording_source_title"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
-                    Text("Kaydetmek istediğiniz ses kaynağını belirleyin")
+                    Text(viewModel.t("sheet_recording_source_desc"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -42,39 +42,35 @@ public struct AudioRecordingSourceSheet: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
-                .help("Kapat (Esc)")
-                .accessibilityLabel("Kapat")
+                .help("\(viewModel.t("action_cancel")) (Esc)")
+                .accessibilityLabel(viewModel.t("action_cancel"))
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
             .background(.ultraThinMaterial)
             
             Divider()
             
-            // Two Big Touchable Cards
-            HStack(spacing: 16) {
+            // Balanced Compact Source Cards
+            HStack(spacing: 14) {
                 sourceSelectionCard(
                     source: .microphone,
-                    title: "Canlı Mikrofon",
-                    badge: "🎙️ Kullanıcı / Ortam Sesi",
-                    description: "Mac mikrofonunuz veya bağlı harici mikrofondan konuşmanızı, podcast'inizi ya da sesli notlarınızı canlı kaydedin.",
+                    title: viewModel.t("record_source_mic"),
                     accentColor: .red,
                     icon: "mic.fill"
                 )
                 
                 sourceSelectionCard(
                     source: .systemAudio,
-                    title: "Bilgisayar / Zoom Sesi",
-                    badge: "🖥️ Sistem / Toplantı Sesi",
-                    description: "Zoom, Google Meet, Microsoft Teams, YouTube veya Mac'inizdeki uygulamalardan gelen sesleri doğrudan kaydedin.",
+                    title: viewModel.t("record_source_system"),
                     accentColor: .blue,
                     icon: "display"
                 )
             }
-            .padding(20)
+            .padding(16)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
         }
-        .frame(width: 540, height: 300)
+        .frame(width: 430, height: 215)
         .clipShape(.rect(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -86,8 +82,6 @@ public struct AudioRecordingSourceSheet: View {
     private func sourceSelectionCard(
         source: AudioRecordingSource,
         title: String,
-        badge: String,
-        description: String,
         accentColor: Color,
         icon: String
     ) -> some View {
@@ -96,64 +90,43 @@ public struct AudioRecordingSourceSheet: View {
         return Button(action: {
             viewModel.requestRecording(source: source)
         }) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(accentColor.opacity(isHovered ? 0.25 : 0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: icon)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(accentColor)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.primary)
-                        
-                        Text(badge)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(accentColor)
-                    }
-                    
-                    Spacer()
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(accentColor.opacity(isHovered ? 0.24 : 0.14))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(accentColor)
                 }
                 
-                Text(description)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.primary)
                 
-                Spacer()
-                
-                HStack {
-                    Spacer()
-                    HStack(spacing: 5) {
-                        Text("Kaydı Başlat")
-                            .font(.system(size: 11, weight: .semibold))
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 12))
-                    }
-                    .foregroundStyle(accentColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(accentColor.opacity(isHovered ? 0.2 : 0.1))
-                    .clipShape(Capsule())
+                HStack(spacing: 4) {
+                    Text(viewModel.t("record_action_start"))
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 11))
                 }
+                .foregroundStyle(accentColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(accentColor.opacity(isHovered ? 0.22 : 0.1))
+                .clipShape(Capsule())
             }
-            .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.85 : 0.5))
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.85 : 0.45))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(accentColor.opacity(isHovered ? 0.6 : 0.2), lineWidth: isHovered ? 1.5 : 1)
             )
-            .shadow(color: accentColor.opacity(isHovered ? 0.15 : 0.0), radius: 8, x: 0, y: 3)
+            .shadow(color: accentColor.opacity(isHovered ? 0.16 : 0.0), radius: 8, x: 0, y: 3)
             .scaleEffect(isHovered ? 1.02 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isHovered)
         }

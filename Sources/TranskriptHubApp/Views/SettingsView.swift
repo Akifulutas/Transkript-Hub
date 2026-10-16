@@ -38,13 +38,13 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                     
                     VStack(spacing: 8) {
-                        modelRow(model: .tiny, name: "Tiny", size: "75 MB", desc: "Ultra hızlı, en az bellek kullanan model")
+                        modelRow(model: .tiny, name: "Tiny", size: "75 MB", desc: viewModel.t("model_tiny_desc"))
                         Divider()
-                        modelRow(model: .base, name: "Base", size: "142 MB", desc: "Hızlı, günlük kısa kayıtlar için ideal")
+                        modelRow(model: .base, name: "Base", size: "142 MB", desc: viewModel.t("model_base_desc"))
                         Divider()
-                        modelRow(model: .small, name: "Small", size: "466 MB", desc: "Önerilen — Türkçe ve çok dilli yüksek doğruluk")
+                        modelRow(model: .small, name: "Small", size: "466 MB", desc: viewModel.t("model_small_desc"))
                         Divider()
-                        modelRow(model: .largeV3Turbo, name: "Large-v3-Turbo", size: "1.6 GB", desc: "Maksimum doğruluk, teknik ve karmaşık konuşmalar")
+                        modelRow(model: .largeV3Turbo, name: "Large-v3-Turbo", size: "1.6 GB", desc: viewModel.t("model_turbo_desc"))
                     }
                     .padding(14)
                     .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
@@ -55,20 +55,37 @@ struct SettingsView: View {
                     Text(viewModel.t("settings_output_dir"))
                         .font(.system(size: 14, weight: .bold))
                     
-                    HStack {
+                    HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Transkript Metin Dosyaları:")
+                            Text(viewModel.t("settings_txt_save_path"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
-                            Text(viewModel.outputWriter.defaultOutputDirectory.path)
+                            Text(viewModel.outputDirectoryURL.path)
                                 .font(.system(size: 11, design: .monospaced))
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                         }
                         
                         Spacer()
                         
+                        Button(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder")) {
+                            viewModel.selectOutputDirectory()
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        
+                        if viewModel.isCustomOutputDirectory {
+                            Button(viewModel.t("watched_reset_folder")) {
+                                viewModel.resetOutputDirectory()
+                            }
+                            .font(.system(size: 10))
+                            .buttonStyle(.plain)
+                            .foregroundColor(.red.opacity(0.8))
+                        }
+                        
                         Button(viewModel.t("settings_open_folder")) {
-                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: viewModel.outputWriter.defaultOutputDirectory.path)
+                            viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.bordered)
@@ -80,16 +97,16 @@ struct SettingsView: View {
                     // Session Media Cache Card
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Oynatma & Kayıt Medya Önbelleği:")
+                            Text(viewModel.t("hub_media_cache"))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
-                            Text("Kullanılan Alan: \(viewModel.sessionMediaCacheSizeString)")
+                            Text(String(format: viewModel.t("hub_media_cache_size"), viewModel.sessionMediaCacheSizeString))
                                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         }
                         
                         Spacer()
                         
-                        Button("Önbelleği Temizle") {
+                        Button(viewModel.t("hub_clear_cache")) {
                             viewModel.evictSessionMediaCache()
                         }
                         .font(.system(size: 11))
@@ -158,7 +175,7 @@ struct SettingsView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    .help("Modeli Silerek Disk Alanı Aç")
+                    .help(viewModel.t("hub_delete_model_help"))
                 }
             } else if viewModel.downloadingModel == model {
                 HStack(spacing: 8) {
@@ -167,7 +184,7 @@ struct SettingsView: View {
                             .progressViewStyle(.linear)
                             .frame(width: 130)
                         
-                        Text(viewModel.modelDownloadStatusText.isEmpty ? "İndiriliyor..." : viewModel.modelDownloadStatusText)
+                        Text(viewModel.modelDownloadStatusText.isEmpty ? viewModel.t("hub_processing") : viewModel.modelDownloadStatusText)
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
@@ -180,7 +197,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("İndirmeyi İptal Et")
+                    .help(viewModel.t("hub_cancel_download_help"))
                 }
             } else {
                 Button(viewModel.t("settings_download")) {

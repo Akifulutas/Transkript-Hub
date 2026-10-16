@@ -132,7 +132,7 @@ public struct TranscriptDetailView: View {
         VStack(spacing: 0) {
             inspectorHeader(
                 title: history.title,
-                subtitle: "Arşiv Transkripti • \(history.outputPath)",
+                subtitle: String(format: viewModel.t("detail_archive_subtitle"), history.outputPath),
                 duration: nil,
                 transcript: content.isEmpty ? nil : content,
                 outputURL: fileExists ? url : nil,
@@ -189,10 +189,10 @@ public struct TranscriptDetailView: View {
             }
             
             VStack(spacing: 6) {
-                Text("Arşiv Dosyası Bulunamadı")
+                Text(viewModel.t("detail_archive_missing_title"))
                     .font(.system(size: 16, weight: .bold))
                 
-                Text("Bu kayıt veritabanında mevcut ancak dosya taşınmış veya silinmiş olabilir:\n\(history.outputPath)")
+                Text(String(format: viewModel.t("detail_archive_missing_desc"), history.outputPath))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -201,7 +201,7 @@ public struct TranscriptDetailView: View {
             
             if !history.snippet.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Kayıtlı Özet Parça:")
+                    Text(viewModel.t("detail_saved_snippet"))
                         .font(.system(size: 11, weight: .semibold))
                     Text(history.snippet)
                         .font(.system(size: 12))
@@ -239,7 +239,7 @@ public struct TranscriptDetailView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 10, weight: .bold))
-                        Text("Ana Sayfa")
+                        Text(viewModel.t("nav_back_to_hub"))
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(Color.accentColor)
@@ -249,7 +249,7 @@ public struct TranscriptDetailView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("Ana Merkeze Dön")
+                .help(viewModel.t("nav_back_to_hub"))
                 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
@@ -273,7 +273,7 @@ public struct TranscriptDetailView: View {
                         }
                     }) {
                         Label(
-                            viewModel.isKaraokeMode ? "Karaoke" : "Düz Metin",
+                            viewModel.isKaraokeMode ? viewModel.t("detail_karaoke") : viewModel.t("detail_plain_text"),
                             systemImage: viewModel.isKaraokeMode ? "sparkles" : "doc.plaintext"
                         )
                         .font(.system(size: 11, weight: .semibold))
@@ -281,7 +281,7 @@ public struct TranscriptDetailView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .foregroundColor(viewModel.isKaraokeMode ? .accentColor : .secondary)
-                    .help("Karaoke Senkronizasyonu ve Kelime Tıklama Modu")
+                    .help(viewModel.t("detail_karaoke_help"))
                     
                     // Session Combined View Toggle
                     if viewModel.completedCount > 1 {
@@ -516,10 +516,10 @@ public struct TranscriptDetailView: View {
             }
             
             VStack(spacing: 6) {
-                Text(state == .fetching ? "Video Sesi Çözümleniyor..." : "Yapay Zeka Metne Çeviriyor...")
+                Text(state == .fetching ? viewModel.t("detail_analyzing_audio") : viewModel.t("detail_ai_transcribing"))
                     .font(.system(size: 16, weight: .bold))
                 
-                Text(viewModel.currentOperation.isEmpty ? "Yapay zeka metne dönüştürüyor..." : viewModel.currentOperation)
+                Text(viewModel.currentOperation.isEmpty ? viewModel.t("detail_ai_converting") : viewModel.currentOperation)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -593,7 +593,7 @@ public struct TranscriptDetailView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.orange)
                 
-                Text(item.errorMessage ?? "Video veya ses kaynağına erişilemedi.")
+                Text(item.errorMessage ?? viewModel.t("detail_default_error"))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -601,10 +601,10 @@ public struct TranscriptDetailView: View {
             }
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("Önerilen Çözüm:")
+                Text(viewModel.t("detail_suggested_solution"))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.primary)
-                Text("• Bağlantının gizli veya üyelere özel olmadığını doğrulayın.\n• Bağlantıyı tarayıcıda açarak videonun erişilebilir olduğunu kontrol edin.\n• Aşağıdaki butona tıklayarak işlemi tek adımda yeniden deneyin.")
+                Text(viewModel.t("detail_suggested_solution_body"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .lineSpacing(3)
@@ -634,15 +634,15 @@ public struct TranscriptDetailView: View {
                     kpiMetricCard(
                         icon: "doc.text.badge.checkmark",
                         badgeColor: .blue,
-                        caption: "DEŞİFRE EDİLENLER",
+                        caption: viewModel.t("detail_kpi_transcribed"),
                         value: "\(viewModel.totalTranscribedCount)",
-                        unit: "Dosya"
+                        unit: viewModel.t("detail_kpi_files")
                     )
                     
                     kpiMetricCard(
                         icon: "waveform",
                         badgeColor: .purple,
-                        caption: "TOPLAM SES SÜRESİ",
+                        caption: viewModel.t("detail_kpi_audio_duration"),
                         value: viewModel.totalAudioHoursString,
                         unit: ""
                     )
@@ -650,15 +650,15 @@ public struct TranscriptDetailView: View {
                     kpiMetricCard(
                         icon: "folder.fill.badge.gearshape",
                         badgeColor: .green,
-                        caption: "İZLENEN KLASÖR",
-                        value: viewModel.isFolderWatching ? "1 Aktif" : "Kapalı",
+                        caption: viewModel.t("detail_kpi_watched_folder"),
+                        value: viewModel.isFolderWatching ? viewModel.t("detail_kpi_active_1") : viewModel.t("status_disabled"),
                         unit: ""
                     )
                     
                     kpiMetricCard(
                         icon: "cpu.fill",
                         badgeColor: .orange,
-                        caption: "MODEL & DOĞRULUK",
+                        caption: viewModel.t("detail_kpi_model_accuracy"),
                         value: viewModel.selectedModel.displayName,
                         unit: "99.4%"
                     )
@@ -685,10 +685,10 @@ public struct TranscriptDetailView: View {
                             .font(.system(size: 26))
                             .foregroundColor(.accentColor.opacity(0.8))
                         
-                        Text("YouTube Bağlantısı Yapıştırın veya Ses Dosyası Bırakın")
+                        Text(viewModel.t("hub_drop_or_add"))
                             .font(.system(size: 14, weight: .semibold))
                         
-                        Text("Panodaki bir linki almak için doğrudan ⌘V tuşlayabilir veya dosyaları buraya sürükleyebilirsiniz.")
+                        Text(viewModel.t("hub_drop_target"))
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -701,7 +701,7 @@ public struct TranscriptDetailView: View {
                         formatChip("M4A")
                         formatChip("MP3")
                         formatChip("WAV")
-                        formatChip("Sesli Notlar")
+                        formatChip(viewModel.t("detail_voice_memos"))
                         formatChip("iCloud")
                     }
                     
@@ -710,7 +710,7 @@ public struct TranscriptDetailView: View {
                         Button(action: { viewModel.addFromClipboard() }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "doc.on.clipboard")
-                                Text("Panodan Yapıştır (⌘V)")
+                                Text(viewModel.t("hub_paste_clipboard_action"))
                             }
                             .font(.system(size: 12, weight: .semibold))
                         }
@@ -720,7 +720,7 @@ public struct TranscriptDetailView: View {
                         Button(action: { selectLocalAudioFiles() }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "waveform")
-                                Text("Ses Dosyası Seç...")
+                                Text(viewModel.t("hub_choose_audio_file"))
                             }
                             .font(.system(size: 12, weight: .medium))
                         }
@@ -788,7 +788,7 @@ public struct TranscriptDetailView: View {
     private var sourceBreakdownCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("KAYNAK DAĞILIMI")
+                Text(viewModel.t("detail_source_distribution"))
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
                     .tracking(0.5)
@@ -833,7 +833,7 @@ public struct TranscriptDetailView: View {
                     VStack(spacing: 0) {
                         Text("\(yt + local + voice)")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
-                        Text("kayıt")
+                        Text(viewModel.t("detail_records"))
                             .font(.system(size: 8))
                             .foregroundColor(.secondary)
                     }
@@ -842,8 +842,8 @@ public struct TranscriptDetailView: View {
                 // Legend
                 VStack(alignment: .leading, spacing: 6) {
                     legendRow(color: .red, label: "YouTube", count: yt)
-                    legendRow(color: .blue, label: "Yerel Ses", count: local)
-                    legendRow(color: .green, label: "Sesli Notlar", count: voice)
+                    legendRow(color: .blue, label: viewModel.t("detail_local_audio"), count: local)
+                    legendRow(color: .green, label: viewModel.t("detail_voice_memos"), count: voice)
                 }
             }
         }
@@ -869,14 +869,14 @@ public struct TranscriptDetailView: View {
     private var recentActivityCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("SON İŞLEMLER VE ARŞİV")
+                Text(viewModel.t("detail_recent_activity"))
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
                     .tracking(0.5)
                 
                 Spacer()
                 
-                Text("\(viewModel.completedItems.count + viewModel.historyItems.count) Toplam")
+                Text("\(viewModel.completedItems.count + viewModel.historyItems.count) \(viewModel.t("detail_total"))")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
             }
@@ -888,7 +888,7 @@ public struct TranscriptDetailView: View {
                     Image(systemName: "tray")
                         .foregroundColor(.secondary.opacity(0.5))
                         .font(.system(size: 22))
-                    Text("Henüz tamamlanmış transkript kaydı yok.")
+                    Text(viewModel.t("detail_no_completed"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     Spacer()

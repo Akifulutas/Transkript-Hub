@@ -30,7 +30,7 @@ struct WatchedFolderView: View {
                 }
                 .padding(.bottom, 4)
                 
-                // Master Status Card (Liquid Glass)
+                // Master Status & Auto-Transcription Mode Card (Liquid Glass)
                 VStack(spacing: 14) {
                     HStack {
                         HStack(spacing: 8) {
@@ -52,6 +52,33 @@ struct WatchedFolderView: View {
                         Spacer()
                         
                         Toggle("", isOn: $viewModel.isFolderWatching)
+                            .toggleStyle(.switch)
+                    }
+                    
+                    Divider()
+                    
+                    // Auto-Transcribe Without Confirmation Toggle
+                    HStack(alignment: .top, spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(viewModel.folderWatcher.autoTranscribe ? Color.teal.opacity(0.14) : Color.secondary.opacity(0.1))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: viewModel.folderWatcher.autoTranscribe ? "bolt.fill" : "hand.tap.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(viewModel.folderWatcher.autoTranscribe ? .teal : .secondary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(viewModel.t("watched_auto_transcribe_title"))
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(viewModel.t("watched_auto_transcribe_desc"))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $viewModel.folderWatcher.autoTranscribe)
                             .toggleStyle(.switch)
                     }
                     
@@ -96,23 +123,6 @@ struct WatchedFolderView: View {
                         .help("Force scan and download any pending .icloud files in watched directory")
                     }
                     
-                    // Automatic iCloud Download Status
-                    HStack(spacing: 8) {
-                        Image(systemName: "icloud.and.arrow.down")
-                            .foregroundColor(.accentColor)
-                            .font(.system(size: 13))
-                        
-                        Text(viewModel.t("watched_cloud_status"))
-                            .font(.system(size: 12, weight: .medium))
-                        
-                        Text(viewModel.t("watched_cloud_active"))
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 4)
-                    
                     if viewModel.isCloudDownloading {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(viewModel.t("watched_cloud_downloading"))
@@ -141,7 +151,7 @@ struct WatchedFolderView: View {
                 .padding(16)
                 .liquidGlass(cornerRadius: 14, glowColor: viewModel.isFolderWatching ? .green.opacity(0.6) : .white, material: .ultraThinMaterial)
                 
-                // Section: Monitored Sources & Folders
+                // Section 1: Monitored Audio Sources (Input)
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(viewModel.t("watched_sources_title"))
@@ -168,7 +178,7 @@ struct WatchedFolderView: View {
                                     Text(viewModel.t("watched_icloud_title"))
                                         .font(.system(size: 13, weight: .semibold))
                                     if viewModel.folderWatcher.watchiCloudDrive {
-                                        Text("iCloud")
+                                        Text(viewModel.t("settings_active"))
                                             .font(.system(size: 9, weight: .bold))
                                             .foregroundColor(.blue)
                                             .padding(.horizontal, 6)
@@ -190,7 +200,7 @@ struct WatchedFolderView: View {
                         if viewModel.folderWatcher.watchiCloudDrive {
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 8) {
+                            HStack {
                                 Toggle(isOn: $viewModel.folderWatcher.watchiCloudRoot) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(viewModel.t("watched_icloud_root_opt"))
@@ -203,23 +213,14 @@ struct WatchedFolderView: View {
                                 }
                                 .toggleStyle(.checkbox)
                                 
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Transkript Klasörü:")
-                                            .font(.system(size: 11, weight: .medium))
-                                        Text(FolderWatcher.iCloudTranskriptDirectory.path)
-                                            .font(.system(size: 10, design: .monospaced))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer()
-                                    Button(viewModel.t("action_open_finder")) {
-                                        viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                Spacer()
+                                
+                                Button(viewModel.t("action_open_finder")) {
+                                    viewModel.openInFinder(path: FolderWatcher.iCloudRootDirectory.path)
                                 }
+                                .font(.system(size: 10))
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                             .padding(10)
                             .background(Color.primary.opacity(0.03))
@@ -309,7 +310,7 @@ struct WatchedFolderView: View {
                     .padding(14)
                     .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchVoiceMemos ? .orange.opacity(0.5) : .white, material: .ultraThinMaterial)
                     
-                    // Source 3: Custom Local Folder
+                    // Source 3: Custom Watched Folder (İzlenecek Klasör)
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .top) {
                             ZStack {
@@ -326,7 +327,7 @@ struct WatchedFolderView: View {
                                     Text(viewModel.t("watched_custom_title"))
                                         .font(.system(size: 13, weight: .semibold))
                                     if viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil {
-                                        Text("Özel")
+                                        Text(viewModel.t("settings_active"))
                                             .font(.system(size: 9, weight: .bold))
                                             .foregroundColor(.purple)
                                             .padding(.horizontal, 6)
@@ -345,65 +346,138 @@ struct WatchedFolderView: View {
                                 .toggleStyle(.switch)
                         }
                         
-                        if viewModel.folderWatcher.watchCustomFolder {
-                            Divider()
-                            
-                            if let customURL = viewModel.folderWatcher.customFolderURL {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(customURL.lastPathComponent)
-                                            .font(.system(size: 11, weight: .semibold))
-                                        Text(customURL.path)
-                                            .font(.system(size: 10, design: .monospaced))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer()
-                                    Button(viewModel.t("watched_change_folder")) {
-                                        viewModel.selectCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                    
-                                    Button(viewModel.t("watched_reset_folder")) {
-                                        viewModel.resetCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.red.opacity(0.8))
-                                    
-                                    Button(viewModel.t("action_open_finder")) {
-                                        viewModel.openInFinder(path: customURL.path)
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                }
-                                .padding(10)
-                                .background(Color.primary.opacity(0.03))
-                                .cornerRadius(8)
-                            } else {
-                                HStack {
-                                    Text(viewModel.t("watched_no_custom_selected"))
-                                        .font(.system(size: 11))
+                        Divider()
+                        
+                        if let customURL = viewModel.folderWatcher.customFolderURL {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(customURL.lastPathComponent)
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text(customURL.path)
+                                        .font(.system(size: 10, design: .monospaced))
                                         .foregroundColor(.secondary)
-                                    Spacer()
-                                    Button(viewModel.t("watched_choose_folder")) {
-                                        viewModel.selectCustomWatchedFolder()
-                                    }
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.small)
+                                        .lineLimit(1)
                                 }
-                                .padding(10)
-                                .background(Color.primary.opacity(0.03))
-                                .cornerRadius(8)
+                                Spacer()
+                                Button(viewModel.t("watched_change_folder")) {
+                                    viewModel.selectCustomWatchedFolder()
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                
+                                Button(viewModel.t("watched_reset_folder")) {
+                                    viewModel.resetCustomWatchedFolder()
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red.opacity(0.8))
+                                
+                                Button(viewModel.t("action_open_finder")) {
+                                    viewModel.openInFinder(path: customURL.path)
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
+                            .padding(10)
+                            .background(Color.primary.opacity(0.03))
+                            .cornerRadius(8)
+                        } else {
+                            HStack {
+                                Text(viewModel.t("watched_no_custom_selected"))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button(viewModel.t("watched_choose_folder")) {
+                                    viewModel.selectCustomWatchedFolder()
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                            .padding(10)
+                            .background(Color.primary.opacity(0.03))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(14)
                     .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchCustomFolder ? .purple.opacity(0.5) : .white, material: .ultraThinMaterial)
+                }
+                
+                // Section 2: Transcript Output Directory (.txt Save Location)
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.t("watched_output_title"))
+                            .font(.system(size: 14, weight: .bold))
+                        Text(viewModel.t("watched_output_desc"))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .center, spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color.teal.opacity(0.14))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: "doc.text.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.teal)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(viewModel.outputDirectoryURL.lastPathComponent)
+                                        .font(.system(size: 13, weight: .semibold))
+                                    
+                                    Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(viewModel.isCustomOutputDirectory ? .teal : .secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            Capsule().fill(
+                                                (viewModel.isCustomOutputDirectory ? Color.teal : Color.secondary).opacity(0.12)
+                                            )
+                                        )
+                                }
+                                
+                                Text(viewModel.outputDirectoryURL.path)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder")) {
+                                viewModel.selectOutputDirectory()
+                            }
+                            .font(.system(size: 11, weight: .semibold))
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            
+                            if viewModel.isCustomOutputDirectory {
+                                Button(viewModel.t("watched_reset_folder")) {
+                                    viewModel.resetOutputDirectory()
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red.opacity(0.8))
+                            }
+                            
+                            Button(viewModel.t("action_open_finder")) {
+                                viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
+                            }
+                            .font(.system(size: 10))
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(14)
+                    .liquidGlass(cornerRadius: 12, glowColor: .teal.opacity(0.45), material: .ultraThinMaterial)
                 }
                 
                 // Full Disk Access Banner for Voice Memos
@@ -452,26 +526,6 @@ struct WatchedFolderView: View {
                     )
                 }
                 
-                // Tips / Guide Card (Liquid Glass)
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Ses Kayıtları ve Bulut Entegrasyonu Rehberi", systemImage: "iphone")
-                        .font(.system(size: 13, weight: .semibold))
-                    
-                    Text("1. **iCloud Drive Kök & Transkript:** iPhone veya Mac'ten iCloud Drive'a aktardığınız sesler anında algılanır. .icloud uzantılı inmemiş dosyalar derhal arka planda indirilir ve transkript edilir.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    
-                    Text("2. **Apple Watch & Sesli Notlar:** Apple Watch'tan aldığınız ses kayıtları macOS Tam Disk Erişimi izni aktif olduğunda otomatik olarak Mac'inize düştüğü an yazıya dökülür.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    
-                    Text("3. **Özel Klasör:** WhatsApp, Telegram veya üçüncü parti kayıt cihazlarının sesleri kaydettiği bir klasörü seçerek sıfır tıklamayla metne dönüştürebilirsiniz.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                .padding(16)
-                .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.5), material: .ultraThinMaterial)
-                
                 Spacer()
             }
             .padding(20)
@@ -506,9 +560,9 @@ public struct WatchedFolderSheet: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("İzlenen Klasörler & Otomasyon")
+                    Text(viewModel.t("watched_title"))
                         .font(.system(size: 14, weight: .bold))
-                    Text("Otomatik Ses ve iCloud İçe Aktarımı")
+                    Text(viewModel.t("watched_subtitle"))
                         .font(.system(size: 11))
                         .foregroundStyle(Color.secondary)
                 }
@@ -518,7 +572,7 @@ public struct WatchedFolderSheet: View {
                 Button(action: {
                     dismiss()
                 }) {
-                    Text("Bitti")
+                    Text(viewModel.t("action_done"))
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -535,7 +589,7 @@ public struct WatchedFolderSheet: View {
             
             WatchedFolderView(viewModel: viewModel)
         }
-        .frame(width: 680, height: 520)
+        .frame(width: 680, height: 560)
         .background(.ultraThinMaterial)
     }
 }

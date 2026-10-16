@@ -97,7 +97,7 @@ struct QueueListView: View {
                                     viewModel.selectAllQueueItems()
                                 }
                             }) {
-                                Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? viewModel.t("action_deselect") : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) Seçili" : "\(viewModel.t("action_select_all")) (⌘A)"))
+                                Text(viewModel.selectedItemIDs.count == viewModel.queueItems.count ? viewModel.t("action_deselect") : (viewModel.selectedItemIDs.count > 1 ? "\(viewModel.selectedItemIDs.count) \(viewModel.t("hub_selected"))" : "\(viewModel.t("action_select_all")) (⌘A)"))
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(.secondary)
                             }
@@ -375,7 +375,7 @@ struct StandardQueueRow: View {
                         .background(Circle().fill(Color.secondary.opacity(0.18)))
                 }
                 .buttonStyle(.plain)
-                .help("Kuyruktan Çıkar")
+                .help(L10n.tr("action_remove_item"))
                 .transition(.opacity)
             }
             

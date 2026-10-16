@@ -85,7 +85,7 @@ TranskriptHub
 git clone https://github.com/Akifulutas/Transkript-Hub.git
 cd Transkript-Hub
 
-# Run the test suite (36 unit tests)
+# Run the test suite (138 unit & integration tests)
 swift test
 
 # Build release binaries and bundle DMG

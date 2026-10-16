@@ -21,10 +21,10 @@ struct HistoryListView: View {
                     Image(systemName: "clock.badge.questionmark")
                         .font(.system(size: 40))
                         .foregroundColor(.secondary.opacity(0.6))
-                    Text("Henüz Geçmiş Transkript Yok")
+                    Text(viewModel.t("history_empty_title"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.secondary)
-                    Text("Tamamlanan tüm transkriptleriniz yerel SQLite veritabanında saklanır ve burada arşivlenir.")
+                    Text(viewModel.t("history_empty_desc"))
                         .font(.system(size: 12))
                         .foregroundColor(.secondary.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -34,7 +34,7 @@ struct HistoryListView: View {
                 .padding(20)
             } else {
                 HStack(alignment: .center) {
-                    Text("\(viewModel.historyItems.count) Kayıt")
+                    Text(String(format: viewModel.t("hub_records_count"), viewModel.historyItems.count))
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .foregroundColor(.secondary)
                     
@@ -46,7 +46,7 @@ struct HistoryListView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "trash")
                                 .font(.system(size: 11))
-                            Text("Geçmişi Temizle")
+                            Text(viewModel.t("history_clear_btn"))
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .foregroundColor(.red.opacity(0.85))
@@ -56,7 +56,7 @@ struct HistoryListView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
-                    .help("Tüm geçmiş kayıtları veritabanından kalıcı olarak sil")
+                    .help(viewModel.t("history_clear_btn"))
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -87,7 +87,7 @@ struct HistoryListView: View {
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
-                                    .help("Bu kaydı geçmişten sil")
+                                    .help(viewModel.t("history_delete_from_history"))
                                 }
                             }
                             
@@ -101,10 +101,10 @@ struct HistoryListView: View {
                         .padding(.vertical, 4)
                         .tag(item.id)
                         .contextMenu {
-                            Button("Finder'da Göster") {
+                            Button(viewModel.t("action_open_finder")) {
                                 viewModel.openInFinder(path: item.outputPath)
                             }
-                            Button("Metni Oku") {
+                            Button(viewModel.t("history_read_text")) {
                                 if let content = try? String(contentsOfFile: item.outputPath, encoding: .utf8) {
                                     viewModel.copyTranscript(text: content)
                                 }
@@ -113,7 +113,7 @@ struct HistoryListView: View {
                             Button(role: .destructive) {
                                 viewModel.deleteHistoryItem(id: item.id)
                             } label: {
-                                Label("Geçmişten Sil", systemImage: "trash")
+                                Label(viewModel.t("history_delete_from_history"), systemImage: "trash")
                             }
                         }
                     }
@@ -121,7 +121,7 @@ struct HistoryListView: View {
                 .listStyle(.inset)
             }
         }
-        .navigationTitle("Geçmiş")
+        .navigationTitle(viewModel.t("section_history"))
     }
     
     private func formattedDate(_ date: Date) -> String {

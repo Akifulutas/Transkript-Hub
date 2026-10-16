@@ -1,11 +1,11 @@
-# Transkript Hub — Design System & Architecture Standards (design.md)
-*Version: 2026.1 • Standard: Apple HIG & Liquid Glass • Principle: Anti-AI Slop & Action-Oriented Desktop Architecture*
+# Transkript Hub — Design System & Architecture Standards
+*Version: 2026.1 • Standard: Apple HIG & Liquid Glass • Principle: Action-Oriented Desktop Architecture*
 
 ---
 
-## 1. Core Philosophy: Anti-AI Slop & Human-Centric Desktop Ergonomics
+## 1. Core Philosophy: Human-Centric Desktop Ergonomics
 
-Default AI design reflexes (treating every item equally, enclosing everything inside nested boxes, center-aligning all elements, and presenting passive statistics) are strictly forbidden in this system.
+Transkript Hub adheres strictly to Apple's Human Interface Guidelines, prioritizing purposeful typographic hierarchy, intentional negative space, and desktop efficiency:
 
 1. **Action-Oriented Information Architecture (Not Passive Feature Lists):**
    - Instead of passive database counters like *"Total 31 Videos"*, the UI presents actionable insight within the first two seconds:

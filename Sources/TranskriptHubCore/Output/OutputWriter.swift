@@ -18,26 +18,57 @@ public enum OutputWriterError: Error, LocalizedError {
 }
 
 public final class OutputWriter: Sendable {
-    public let defaultOutputDirectory: URL
+    public static let customOutputDirectoryDefaultsKey = "OutputWriter.customOutputDirectoryPath"
+    private let fixedOutputDirectory: URL?
+    
+    public static var systemDefaultOutputDirectory: URL {
+        let fileManager = FileManager.default
+        let home = fileManager.homeDirectoryForCurrentUser
+        let iCloudTranskript = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Transkript", isDirectory: true)
+        
+        // If iCloud Drive Transkript exists or can be created, use it; otherwise fallback to ~/Documents/Transkript
+        let fallbackDocuments = home.appendingPathComponent("Documents/Transkript", isDirectory: true)
+        if fileManager.fileExists(atPath: iCloudTranskript.path) {
+            return iCloudTranskript
+        } else if fileManager.fileExists(atPath: home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs").path) {
+            // iCloud Drive is available, we can create Transkript inside
+            return iCloudTranskript
+        } else {
+            return fallbackDocuments
+        }
+    }
+    
+    public var defaultOutputDirectory: URL {
+        if let fixed = fixedOutputDirectory {
+            return fixed
+        }
+        if let customPath = UserDefaults.standard.string(forKey: Self.customOutputDirectoryDefaultsKey),
+           !customPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: customPath, isDirectory: true)
+        }
+        return Self.systemDefaultOutputDirectory
+    }
+    
+    public var isUsingCustomOutputDirectory: Bool {
+        if fixedOutputDirectory != nil {
+            return true
+        }
+        if let customPath = UserDefaults.standard.string(forKey: Self.customOutputDirectoryDefaultsKey),
+           !customPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return false
+    }
     
     public init(customOutputDirectory: URL? = nil) {
-        if let dir = customOutputDirectory {
-            self.defaultOutputDirectory = dir
+        self.fixedOutputDirectory = customOutputDirectory
+    }
+    
+    public func setCustomOutputDirectory(_ url: URL?) {
+        if let url = url {
+            UserDefaults.standard.set(url.path, forKey: Self.customOutputDirectoryDefaultsKey)
         } else {
-            let fileManager = FileManager.default
-            let home = fileManager.homeDirectoryForCurrentUser
-            let iCloudTranskript = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Transkript", isDirectory: true)
-            
-            // If iCloud Drive Transkript exists or can be created, use it; otherwise fallback to ~/Documents/Transkript
-            let fallbackDocuments = home.appendingPathComponent("Documents/Transkript", isDirectory: true)
-            if fileManager.fileExists(atPath: iCloudTranskript.path) {
-                self.defaultOutputDirectory = iCloudTranskript
-            } else if fileManager.fileExists(atPath: home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs").path) {
-                // iCloud Drive is available, we can create Transkript inside
-                self.defaultOutputDirectory = iCloudTranskript
-            } else {
-                self.defaultOutputDirectory = fallbackDocuments
-            }
+            UserDefaults.standard.removeObject(forKey: Self.customOutputDirectoryDefaultsKey)
         }
     }
     
@@ -86,13 +117,14 @@ public final class OutputWriter: Sendable {
     /// Resolves file collision: if 'Name.txt' exists, checks if content is identical, otherwise returns 'Name (2).txt'.
     public func resolveUniqueURL(
         forBaseName baseName: String,
-        in directory: URL,
+        in directory: URL? = nil,
         allowOverwrite: Bool = false,
         matchingContent: String? = nil
     ) -> URL {
+        let targetDir = directory ?? defaultOutputDirectory
         let sanitized = Self.sanitizeFilename(baseName)
         let fm = FileManager.default
-        let candidate = directory.appendingPathComponent("\(sanitized).txt")
+        let candidate = targetDir.appendingPathComponent("\(sanitized).txt")
         
         if !fm.fileExists(atPath: candidate.path) || allowOverwrite {
             return candidate
@@ -107,7 +139,7 @@ public final class OutputWriter: Sendable {
         
         var counter = 2
         while true {
-            let nextCandidate = directory.appendingPathComponent("\(sanitized) (\(counter)).txt")
+            let nextCandidate = targetDir.appendingPathComponent("\(sanitized) (\(counter)).txt")
             if !fm.fileExists(atPath: nextCandidate.path) {
                 return nextCandidate
             }
