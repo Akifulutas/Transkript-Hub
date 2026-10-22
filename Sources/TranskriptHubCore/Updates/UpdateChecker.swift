@@ -38,6 +38,14 @@ public actor UpdateChecker {
     public init() {}
     
     public func checkForUpdates() async throws -> AppUpdateInfo {
+        do {
+            return try await checkViaGitHubAPI()
+        } catch {
+            return try await checkViaRedirectFallback()
+        }
+    }
+    
+    private func checkViaGitHubAPI() async throws -> AppUpdateInfo {
         let endpoint = URL(string: "https://api.github.com/repos/Akifulutas/Transkript-Hub/releases/latest")!
         var request = URLRequest(url: endpoint)
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
@@ -108,6 +116,48 @@ public actor UpdateChecker {
             releaseNotes: body,
             htmlURL: htmlUrl,
             downloadURL: downloadUrl,
+            publishedAt: Date(),
+            isNewerThanCurrent: isNewer
+        )
+    }
+    
+    private func checkViaRedirectFallback() async throws -> AppUpdateInfo {
+        let endpoint = URL(string: "https://github.com/Akifulutas/Transkript-Hub/releases/latest")!
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "HEAD"
+        request.setValue("TranskriptHub-App/\(Self.currentVersion)", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 8.0
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              let finalURL = httpResponse.url else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let tagString = finalURL.lastPathComponent
+        let cleanTag = tagString.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+        
+        if cleanTag.isEmpty || cleanTag == "latest" {
+            return AppUpdateInfo(
+                latestVersion: Self.currentVersion,
+                releaseNotes: "Şu anda en güncel sürümü (v\(Self.currentVersion)) kullanıyorsunuz.",
+                htmlURL: "https://github.com/Akifulutas/Transkript-Hub",
+                downloadURL: Self.defaultDMGDownloadURL,
+                publishedAt: Date(),
+                isNewerThanCurrent: false
+            )
+        }
+        
+        let isNewer = isVersion(cleanTag, newerThan: Self.currentVersion)
+        let notes = isNewer
+            ? "Yeni Transkript Hub v\(cleanTag) sürümü yayınlandı. İndirmek için Güncelle'ye tıklayın."
+            : "Şu anda en güncel sürümü (v\(Self.currentVersion)) kullanıyorsunuz."
+        
+        return AppUpdateInfo(
+            latestVersion: cleanTag,
+            releaseNotes: notes,
+            htmlURL: finalURL.absoluteString,
+            downloadURL: Self.defaultDMGDownloadURL,
             publishedAt: Date(),
             isNewerThanCurrent: isNewer
         )
