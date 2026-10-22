@@ -77,8 +77,8 @@ public struct WhisperModelCatalog {
         WhisperModelSpec(
             model: .largeV3TurboQ5,
             displayName: "Large-v3-Turbo (Q5_0)",
-            sizeDescription: "1.1 GB",
-            sizeBytes: 1_100_000_000,
+            sizeDescription: "547 MB",
+            sizeBytes: 574_041_195,
             badge: "⚡️ Optimize",
             speedRating: 5,
             accuracyRating: 5,

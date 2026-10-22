@@ -216,7 +216,11 @@ public final class AppViewModel: ObservableObject {
     @Published public var isDropTargetActive: Bool = false
     
     // Model & Language Selection
-    @Published public var selectedModel: WhisperModel = .largeV3Turbo
+    @Published public var selectedModel: WhisperModel = .largeV3Turbo {
+        didSet {
+            UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedWhisperModel")
+        }
+    }
     @Published public var selectedLanguage: String = "auto"
     
     public var downloadedModels: [WhisperModel] {
@@ -227,7 +231,7 @@ public final class AppViewModel: ObservableObject {
         if downloadedModels.isEmpty {
             return "Model Yok"
         }
-        return selectedModel.rawValue.capitalized
+        return selectedModel.displayName
     }
     
     // Model Download & Deletion Tracking
@@ -258,6 +262,23 @@ public final class AppViewModel: ObservableObject {
     @Published public var isRecordingModalPresented: Bool = false
     @Published public var isRecordingSourceSheetPresented: Bool = false
     @Published public var recordingSource: AudioRecordingSource = .microphone
+    
+    // Voice Memos Initial Import Prompt & Queue Sorting
+    @Published public var isVoiceMemosPromptPresented: Bool = false
+    @Published public var pendingVoiceMemosCount: Int = 0
+    
+    // Welcome & Feature Tour Onboarding
+    @Published public var isOnboardingPresented: Bool = false
+    public var isVoiceMemosEnabled: Bool {
+        get { folderWatcher.watchVoiceMemos }
+        set {
+            if newValue {
+                handleEnableVoiceMemos()
+            } else {
+                folderWatcher.watchVoiceMemos = false
+            }
+        }
+    }
     /// Source chosen in the picker sheet; recording starts once that sheet has finished
     /// dismissing (SwiftUI drops a sheet presented while another is still closing).
     public var pendingRecordingSource: AudioRecordingSource?
@@ -898,7 +919,15 @@ public final class AppViewModel: ObservableObject {
         self.statusMessage = L10n.tr("status_ready", lang: initialLang)
         self.outputDirectoryURL = self.outputWriter.defaultOutputDirectory
         
-        if let bestDownloaded = self.modelManager.downloadedModels().first {
+        if let savedModelRaw = UserDefaults.standard.string(forKey: "selectedWhisperModel"),
+           let savedModel = WhisperModel(rawValue: savedModelRaw),
+           self.modelManager.isModelDownloaded(savedModel) {
+            self.selectedModel = savedModel
+        } else if self.modelManager.isModelDownloaded(.largeV3Turbo) {
+            self.selectedModel = .largeV3Turbo
+        } else if self.modelManager.isModelDownloaded(.largeV3TurboQ5) {
+            self.selectedModel = .largeV3TurboQ5
+        } else if let bestDownloaded = self.modelManager.downloadedModels().first {
             self.selectedModel = bestDownloaded
         }
         
@@ -949,6 +978,12 @@ public final class AppViewModel: ObservableObject {
             self.clipboardMonitor.startMonitoring()
         }
         
+        // Present Feature Tour Onboarding if user has not completed it yet
+        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedAppOnboarding")
+        if !hasCompletedOnboarding {
+            self.isOnboardingPresented = true
+        }
+        
         let token = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
@@ -992,6 +1027,7 @@ public final class AppViewModel: ObservableObject {
         
         let title = url.deletingPathExtension().lastPathComponent
         let duration = try? AudioValidator.validate(fileURL: url)
+        let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
         
         // 1. Check if previously transcribed by duration + name
         if let cached = await transcriptCacheManager?.findCached(
@@ -1022,14 +1058,15 @@ public final class AppViewModel: ObservableObject {
                 subtitle: "\(sourceLabel(for: url)) • Önbellekten Yüklendi",
                 state: .completed,
                 transcript: cached.transcriptText,
+                outputURL: resolvedOutURL,
                 isNewlyDiscovered: true,
                 autoProcess: false,
                 isWatchedFolderItem: true,
+                fileModificationDate: modDate,
                 audioURL: url
             )
             item.progress = 1.0
             item.durationSec = duration
-            item.outputURL = resolvedOutURL
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
             }
@@ -1046,6 +1083,7 @@ public final class AppViewModel: ObservableObject {
             isNewlyDiscovered: true,
             autoProcess: shouldAutoStart,
             isWatchedFolderItem: true,
+            fileModificationDate: modDate,
             audioURL: url
         )
         item.durationSec = duration
@@ -1147,6 +1185,7 @@ public final class AppViewModel: ObservableObject {
             
             let title = url.deletingPathExtension().lastPathComponent
             let duration = try? AudioValidator.validate(fileURL: url)
+            let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
             
             var item = QueueItem(
                 id: url.path,
@@ -1156,6 +1195,7 @@ public final class AppViewModel: ObservableObject {
                 state: .queued,
                 autoProcess: autoProcess,
                 isWatchedFolderItem: false,
+                fileModificationDate: modDate,
                 audioURL: url
             )
             item.durationSec = duration
@@ -1427,7 +1467,12 @@ public final class AppViewModel: ObservableObject {
     }
     
     // MARK: - Unified Processing Loop
+    public var canStartQueue: Bool {
+        !isProcessing && queueItems.contains(where: { $0.state == .queued || $0.state == .failed })
+    }
+    
     public func requestStartQueue() {
+        guard canStartQueue else { return }
         let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
         let pendingYouTube = pending.filter { $0.isYouTube }
         // Save mode prompt (combined vs individual) is strictly for multi-video YouTube batches.
@@ -1983,6 +2028,112 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public func openTranscriptFolderInFinder() {
+        openInFinder(path: outputDirectoryURL.path)
+    }
+    
+    public func openItemOutputInFinder(_ item: QueueItem) {
+        if let outURL = item.outputURL, FileManager.default.fileExists(atPath: outURL.path) {
+            openInFinder(path: outURL.path)
+            return
+        }
+        let candidate = outputDirectoryURL.appendingPathComponent("\(item.title).txt")
+        if FileManager.default.fileExists(atPath: candidate.path) {
+            openInFinder(path: candidate.path)
+            return
+        }
+        openInFinder(path: outputDirectoryURL.path)
+    }
+    
+    // MARK: - iCloud Transkript Setup & Output Binding
+    public func setupICloudTranskriptFolderAndSetOutput() {
+        do {
+            let url = try folderWatcher.setupICloudTranskriptFolder()
+            self.outputDirectoryURL = url
+            self.folderWatcher.watchiCloudDrive = true
+            openInFinder(path: url.path)
+            statusMessage = t("watched_icloud_setup_success")
+        } catch {
+            errorMessage = "iCloud Transkript klasörü oluşturulamadı: \(error.localizedDescription)"
+        }
+    }
+    
+    // MARK: - Voice Memos Initial Import Flow
+    public func handleEnableVoiceMemos() {
+        let hasConfigured = UserDefaults.standard.bool(forKey: "VoiceMemos.hasConfiguredInitialImport")
+        if !hasConfigured && folderWatcher.isVoiceMemosDirectlyAccessible {
+            let files = folderWatcher.existingVoiceMemosFiles()
+            if !files.isEmpty {
+                pendingVoiceMemosCount = files.count
+                isVoiceMemosPromptPresented = true
+                return
+            }
+        }
+        UserDefaults.standard.set(true, forKey: "VoiceMemos.hasConfiguredInitialImport")
+        folderWatcher.watchVoiceMemos = true
+    }
+    
+    public func confirmVoiceMemosImport(importAll: Bool) {
+        UserDefaults.standard.set(true, forKey: "VoiceMemos.hasConfiguredInitialImport")
+        isVoiceMemosPromptPresented = false
+        
+        let files = folderWatcher.existingVoiceMemosFiles()
+        if importAll {
+            folderWatcher.watchVoiceMemos = true
+            addAudioFiles(files, autoProcess: folderWatcher.autoTranscribe)
+            sortQueue(by: .newestFirst)
+        } else {
+            folderWatcher.markPathsAsProcessed(files.map(\.path))
+            folderWatcher.watchVoiceMemos = true
+            statusMessage = t("voice_memos_watch_new_only")
+        }
+    }
+    
+    public func cancelVoiceMemosImport() {
+        isVoiceMemosPromptPresented = false
+        folderWatcher.watchVoiceMemos = false
+    }
+    
+    // MARK: - Welcome & Feature Tour Onboarding
+    public func completeOnboarding() {
+        UserDefaults.standard.set(true, forKey: "hasCompletedAppOnboarding")
+        isOnboardingPresented = false
+    }
+    
+    public func openOnboardingTour() {
+        isOnboardingPresented = true
+    }
+    
+    // MARK: - Queue Sorting
+    public enum QueueSortOrder: String, CaseIterable, Identifiable, Sendable {
+        case newestFirst
+        case oldestFirst
+        case title
+        
+        public var id: String { rawValue }
+    }
+    
+    public func sortQueue(by order: QueueSortOrder = .newestFirst) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            switch order {
+            case .newestFirst:
+                queueItems.sort { (item1, item2) -> Bool in
+                    let d1 = item1.fileModificationDate ?? item1.addedAt
+                    let d2 = item2.fileModificationDate ?? item2.addedAt
+                    return d1 > d2
+                }
+            case .oldestFirst:
+                queueItems.sort { (item1, item2) -> Bool in
+                    let d1 = item1.fileModificationDate ?? item1.addedAt
+                    let d2 = item2.fileModificationDate ?? item2.addedAt
+                    return d1 < d2
+                }
+            case .title:
+                queueItems.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            }
+        }
+    }
+    
     public func openInBrowser(url: String) {
         if let target = URL(string: url) {
             NSWorkspace.shared.open(target)
@@ -2003,6 +2154,9 @@ public final class AppViewModel: ObservableObject {
                 self.isCheckingUpdates = false
                 if info.isNewerThanCurrent {
                     self.updateCheckStatusText = "Yeni sürüm mevcut: v\(info.latestVersion)"
+                } else if let msg = info.latestCommitMessage {
+                    let firstLine = msg.components(separatedBy: "\n").first ?? msg
+                    self.updateCheckStatusText = "En son sürümü kullanıyorsunuz (v\(UpdateChecker.currentVersion)). Son Commit: \(firstLine)"
                 } else {
                     self.updateCheckStatusText = "En son sürümü kullanıyorsunuz (v\(UpdateChecker.currentVersion))."
                 }
@@ -2010,6 +2164,13 @@ public final class AppViewModel: ObservableObject {
                 self.isCheckingUpdates = false
                 self.updateCheckStatusText = "Güncelleme denetlenemedi: \(error.localizedDescription)"
             }
+        }
+    }
+    
+    public func downloadLatestUpdate() {
+        let urlString = updateInfo?.downloadURL ?? UpdateChecker.defaultDMGDownloadURL
+        if let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
         }
     }
     

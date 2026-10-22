@@ -16,10 +16,17 @@ struct TranskriptHubApp: App {
             CommandGroup(replacing: .newItem) {}
             
             CommandGroup(replacing: .appSettings) {
-                Button("Ayarlar...") {
+                Button(viewModel.t("section_settings") + "...") {
                     viewModel.openSettings()
                 }
                 .keyboardShortcut(",", modifiers: .command)
+                
+                Button(viewModel.t("menu_check_for_updates")) {
+                    viewModel.selectedSettingsTab = .updates
+                    viewModel.openSettings()
+                    viewModel.checkForUpdates()
+                    viewModel.bringMainWindowToFront()
+                }
             }
             
             CommandMenu("Bölümler") {
@@ -47,7 +54,7 @@ struct TranskriptHubApp: App {
                     viewModel.requestStartQueue()
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(viewModel.queueItems.isEmpty || viewModel.isProcessing)
+                .disabled(!viewModel.canStartQueue)
                 
                 Button(viewModel.isClipboardMonitoring ? "Pano İzlemeyi Durdur" : "Pano İzlemeyi Başlat") {
                     viewModel.isClipboardMonitoring.toggle()
@@ -74,6 +81,13 @@ struct TranskriptHubApp: App {
                 
                 Divider()
                 
+                Button(viewModel.t("action_open_transcript_folder")) {
+                    viewModel.openTranscriptFolderInFinder()
+                }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+                
+                Divider()
+                
                 Button("Kuyruğu Temizle") {
                     viewModel.clearQueueWithUndo()
                 }
@@ -83,6 +97,22 @@ struct TranskriptHubApp: App {
                     viewModel.selectAllQueueItems()
                 }
                 .keyboardShortcut("a", modifiers: .command)
+            }
+            
+            CommandGroup(replacing: .help) {
+                Button(viewModel.t("menu_onboarding_tour")) {
+                    viewModel.openOnboardingTour()
+                    viewModel.bringMainWindowToFront()
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+                
+                Divider()
+                
+                Button(viewModel.t("settings_github_repo")) {
+                    if let url = URL(string: "https://github.com/akifulutas/Transkript-Hub") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
             }
         }
         

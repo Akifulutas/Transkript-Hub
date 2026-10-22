@@ -56,6 +56,7 @@ public struct AudioRecordingSourceSheet: View {
                 sourceSelectionCard(
                     source: .microphone,
                     title: viewModel.t("record_source_mic"),
+                    description: viewModel.t("record_source_mic_desc"),
                     accentColor: .red,
                     icon: "mic.fill"
                 )
@@ -63,14 +64,31 @@ public struct AudioRecordingSourceSheet: View {
                 sourceSelectionCard(
                     source: .systemAudio,
                     title: viewModel.t("record_source_system"),
+                    description: viewModel.t("record_source_system_desc"),
                     accentColor: .blue,
                     icon: "display"
                 )
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
+            .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
+            
+            // Helpful Explanation Footer
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                Text(viewModel.t("sheet_recording_footer_info"))
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
         }
-        .frame(width: 430, height: 215)
+        .frame(width: 450, height: 265)
         .clipShape(.rect(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -82,6 +100,7 @@ public struct AudioRecordingSourceSheet: View {
     private func sourceSelectionCard(
         source: AudioRecordingSource,
         title: String,
+        description: String,
         accentColor: Color,
         icon: String
     ) -> some View {
@@ -90,19 +109,27 @@ public struct AudioRecordingSourceSheet: View {
         return Button(action: {
             viewModel.requestRecording(source: source)
         }) {
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 ZStack {
                     Circle()
                         .fill(accentColor.opacity(isHovered ? 0.24 : 0.14))
-                        .frame(width: 48, height: 48)
+                        .frame(width: 44, height: 44)
                     Image(systemName: icon)
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(accentColor)
                 }
                 
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 13.5, weight: .bold))
                     .foregroundStyle(.primary)
+                
+                Text(description)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
                 
                 HStack(spacing: 4) {
                     Text(viewModel.t("record_action_start"))
@@ -117,7 +144,7 @@ public struct AudioRecordingSourceSheet: View {
                 .clipShape(Capsule())
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.85 : 0.45))

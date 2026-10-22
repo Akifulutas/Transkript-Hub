@@ -87,6 +87,25 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isWatchedFolderPresented) {
                 WatchedFolderSheet(viewModel: viewModel)
             }
+            .sheet(isPresented: $viewModel.isOnboardingPresented) {
+                AppOnboardingView(viewModel: viewModel)
+            }
+            .alert(
+                viewModel.t("voice_memos_import_title"),
+                isPresented: $viewModel.isVoiceMemosPromptPresented
+            ) {
+                Button(viewModel.t("voice_memos_import_all")) {
+                    viewModel.confirmVoiceMemosImport(importAll: true)
+                }
+                Button(viewModel.t("voice_memos_watch_new_only")) {
+                    viewModel.confirmVoiceMemosImport(importAll: false)
+                }
+                Button(viewModel.t("action_cancel"), role: .cancel) {
+                    viewModel.cancelVoiceMemosImport()
+                }
+            } message: {
+                Text(String(format: viewModel.t("voice_memos_import_message"), viewModel.pendingVoiceMemosCount))
+            }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
             if viewModel.showUndoToast {

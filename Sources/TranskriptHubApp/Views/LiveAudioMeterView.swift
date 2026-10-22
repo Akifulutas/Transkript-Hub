@@ -117,6 +117,18 @@ public struct LiveAudioMeterView: View {
                     .frame(height: 5)
                 }
                 
+                // Live Recording Info Text
+                HStack(spacing: 5) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text(viewModel.recordingSource == .microphone ? viewModel.t("live_recording_mic_info") : viewModel.t("live_recording_system_info"))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.vertical, 2)
+                
                 // Transport & Action Controls (Rock Solid, Zero Layout Shift)
                 HStack(spacing: 12) {
                     // Cancel Button

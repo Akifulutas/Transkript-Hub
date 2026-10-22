@@ -4,29 +4,36 @@ public struct AppUpdateInfo: Sendable {
     public let latestVersion: String
     public let releaseNotes: String
     public let htmlURL: String
+    public let downloadURL: String
     public let publishedAt: Date?
     public let isNewerThanCurrent: Bool
     public let checkedAt: Date
+    public let latestCommitMessage: String?
     
     public init(
         latestVersion: String,
         releaseNotes: String,
         htmlURL: String,
+        downloadURL: String = "https://github.com/Akifulutas/Transkript-Hub/releases/latest/download/TranskriptHub.dmg",
         publishedAt: Date?,
         isNewerThanCurrent: Bool,
-        checkedAt: Date = Date()
+        checkedAt: Date = Date(),
+        latestCommitMessage: String? = nil
     ) {
         self.latestVersion = latestVersion
         self.releaseNotes = releaseNotes
         self.htmlURL = htmlURL
+        self.downloadURL = downloadURL
         self.publishedAt = publishedAt
         self.isNewerThanCurrent = isNewerThanCurrent
         self.checkedAt = checkedAt
+        self.latestCommitMessage = latestCommitMessage
     }
 }
 
 public actor UpdateChecker {
-    public static let currentVersion = "1.1.0"
+    public static let currentVersion = "1.2.0"
+    public static let defaultDMGDownloadURL = "https://github.com/Akifulutas/Transkript-Hub/releases/latest/download/TranskriptHub.dmg"
     
     public init() {}
     
@@ -43,13 +50,34 @@ public actor UpdateChecker {
         }
         
         if httpResponse.statusCode == 404 {
-            // No releases published yet on repository
+            // Check latest commit if no published releases yet
+            let commitEndpoint = URL(string: "https://api.github.com/repos/Akifulutas/Transkript-Hub/commits?per_page=1")!
+            var commitReq = URLRequest(url: commitEndpoint)
+            commitReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            commitReq.setValue("TranskriptHub-App/\(Self.currentVersion)", forHTTPHeaderField: "User-Agent")
+            commitReq.timeoutInterval = 5.0
+            
+            var commitNote = "Şu anda en güncel sürümü (v\(Self.currentVersion)) kullanıyorsunuz."
+            var commitMsg: String? = nil
+            if let (cData, cResp) = try? await URLSession.shared.data(for: commitReq),
+               let cHttp = cResp as? HTTPURLResponse, (200...299).contains(cHttp.statusCode),
+               let commitArr = (try? JSONSerialization.jsonObject(with: cData)) as? [[String: Any]],
+               let firstCommit = commitArr.first,
+               let commitObj = firstCommit["commit"] as? [String: Any],
+               let msg = commitObj["message"] as? String {
+                let firstLine = msg.components(separatedBy: "\n").first ?? msg
+                commitNote = "Son GitHub Güncellemesi: \(firstLine)"
+                commitMsg = msg
+            }
+            
             return AppUpdateInfo(
                 latestVersion: Self.currentVersion,
-                releaseNotes: "Şu anda en güncel sürümü (v\(Self.currentVersion)) kullanıyorsunuz.",
+                releaseNotes: commitNote,
                 htmlURL: "https://github.com/Akifulutas/Transkript-Hub",
+                downloadURL: Self.defaultDMGDownloadURL,
                 publishedAt: Date(),
-                isNewerThanCurrent: false
+                isNewerThanCurrent: false,
+                latestCommitMessage: commitMsg
             )
         }
         
@@ -66,12 +94,20 @@ public actor UpdateChecker {
         let body = (json["body"] as? String) ?? "Hata düzeltmeleri ve kararlılık geliştirmeleri."
         let htmlUrl = (json["html_url"] as? String) ?? "https://github.com/Akifulutas/Transkript-Hub/releases"
         
+        var downloadUrl = Self.defaultDMGDownloadURL
+        if let assets = json["assets"] as? [[String: Any]],
+           let dmgAsset = assets.first(where: { ($0["name"] as? String)?.hasSuffix(".dmg") == true }),
+           let browserUrl = dmgAsset["browser_download_url"] as? String {
+            downloadUrl = browserUrl
+        }
+        
         let isNewer = isVersion(cleanTag, newerThan: Self.currentVersion)
         
         return AppUpdateInfo(
             latestVersion: cleanTag,
             releaseNotes: body,
             htmlURL: htmlUrl,
+            downloadURL: downloadUrl,
             publishedAt: Date(),
             isNewerThanCurrent: isNewer
         )

@@ -59,6 +59,19 @@ public struct KaraokeTranscriptView: View {
                                         }
                                     }
                                 },
+                                onSegmentClicked: { seg in
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        isAutoScrollPaused = false
+                                    }
+                                    player.seek(to: seg.start)
+                                    if !player.isPlaying {
+                                        player.play()
+                                    }
+                                    lastScrolledSegmentId = seg.id
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        proxy.scrollTo(seg.id, anchor: .center)
+                                    }
+                                },
                                 onSpeakerRenamed: onSpeakerRenamed,
                                 onSegmentTextEdited: onSegmentTextEdited
                             )
@@ -144,6 +157,7 @@ private struct SegmentRowView: View {
     let isActiveSegment: Bool
     let fontSize: CGFloat
     let onWordClicked: (Word) -> Void
+    var onSegmentClicked: ((Segment) -> Void)? = nil
     var onSpeakerRenamed: ((String, String) -> Void)? = nil
     var onSegmentTextEdited: ((Int, String) -> Void)? = nil
     
@@ -173,10 +187,27 @@ private struct SegmentRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Segment Metadata Header (Timestamp, Speaker Badge & Edit Action)
             HStack(spacing: 8) {
-                // Time Range
-                Text("\(AudioPlayerController.formatTime(segment.start)) – \(AudioPlayerController.formatTime(segment.end))")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                // Time Range Button (Click to jump to segment start)
+                Button(action: {
+                    onSegmentClicked?(segment)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isActiveSegment ? "speaker.wave.2.fill" : "play.circle.fill")
+                            .font(.system(size: 9))
+                            .opacity(isHovered || isActiveSegment ? 1.0 : 0.6)
+                        Text("\(AudioPlayerController.formatTime(segment.start)) – \(AudioPlayerController.formatTime(segment.end))")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    }
                     .foregroundStyle(isActiveSegment ? Color.accentColor : Color.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2.5)
+                    .background(
+                        Capsule()
+                            .fill(isActiveSegment ? Color.accentColor.opacity(0.12) : (isHovered ? Color.primary.opacity(0.06) : Color.clear))
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(L10n.tr("karaoke_play_from_segment_help"))
                 
                 // Interactive Speaker Badge
                 if let speaker = segment.speaker, !speaker.isEmpty {
@@ -310,15 +341,20 @@ private struct SegmentRowView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isActiveSegment ? Color.accentColor.opacity(0.06) : Color.clear)
+                .fill(isActiveSegment ? Color.accentColor.opacity(0.06) : (isHovered ? Color.primary.opacity(0.02) : Color.clear))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(
-                    isActiveSegment ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.04),
+                    isActiveSegment ? Color.accentColor.opacity(0.25) : (isHovered ? Color.primary.opacity(0.1) : Color.primary.opacity(0.04)),
                     lineWidth: 1
                 )
         )
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture {
+            guard !isEditingText && !isRenamingSpeaker else { return }
+            onSegmentClicked?(segment)
+        }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering

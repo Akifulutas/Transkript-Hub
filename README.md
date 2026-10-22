@@ -1,5 +1,13 @@
 # Transkript Hub 🎙️⚡
 
+<p align="center">
+  <a href="https://github.com/Akifulutas/Transkript-Hub/releases/latest/download/TranskriptHub.dmg">
+    <img src="https://img.shields.io/badge/📥_Download_Transkript_Hub-macOS_(Apple_Silicon)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Transkript Hub for macOS">
+  </a>
+  <br>
+  <sub>⚡ Tek tıkla indirin • Apple Silicon (M1/M2/M3/M4) • Sıfır Terminal • %100 Çevrimdışı</sub>
+</p>
+
 **Fully Local, Offline, Zero-Dependency Audio & Video Transcription Studio for Apple Silicon Macs.**
 
 Transkript Hub transcribes YouTube videos (individual links, playlists, channels) and local audio files (Voice Memos, M4A, MP3, WAV, AAC, etc.) by leveraging your Mac's Apple Silicon GPU (Metal) directly. It sends **no audio to external servers** and requires **zero external installations** — no Buzz, Python, FFmpeg, Homebrew, or Terminal setup.
@@ -23,14 +31,20 @@ Transkript Hub transcribes YouTube videos (individual links, playlists, channels
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started / Başlangıç
 
-### Installation
+### 🇹🇷 Tek Tıkla Kolay Kurulum
+1. Yukarıdaki mavi **Download Transkript Hub** butonuna tıklayarak (veya [GitHub Releases](../../releases) sayfasından) en güncel **`TranskriptHub.dmg`** dosyasını indirin.
+2. İndirilen DMG dosyasını açın ve **Transkript Hub** uygulamasını **Applications (Uygulamalar)** klasörünüze sürükleyin.
+3. Uygulamayı çalıştırın.
+   - *Not:* macOS ilk açılışta güvenlik uyarısı verirse, uygulamaya sağ tıklayıp **Aç (Open)** deyin veya *Sistem Ayarları > Gizlilik ve Güvenlik* altından izin verin.
+4. Hepsi bu kadar! Ses dosyalarınızı sürükleyip bırakabilir veya YouTube bağlantılarınızı ekleyebilirsiniz.
 
-1. Download the latest **`TranskriptHub.dmg`** from the [GitHub Releases](../../releases) page.
+### 🇬🇧 1-Click Installation
+1. Click the blue **Download Transkript Hub** button above (or download from [GitHub Releases](../../releases)) to get **`TranskriptHub.dmg`**.
 2. Open the DMG and drag **Transkript Hub** into your **Applications** folder.
 3. Launch **Transkript Hub**.
-   - If macOS Gatekeeper displays a prompt: Right-click the app and choose **Open**, or allow it under *System Settings > Privacy & Security*.
+   - *Note:* If macOS Gatekeeper displays a prompt on first launch: Right-click the app and choose **Open**, or allow it under *System Settings > Privacy & Security*.
 4. You are ready to transcribe!
 
 ---
@@ -42,6 +56,7 @@ Transkript Hub transcribes YouTube videos (individual links, playlists, channels
 | <kbd>⌘</kbd> + <kbd>Return</kbd> | Start Queue Transcription |
 | <kbd>⌘</kbd> + <kbd>V</kbd> | Paste Link from Clipboard |
 | <kbd>⌘</kbd> + <kbd>O</kbd> | Open Audio / Video File Picker |
+| <kbd>⇧</kbd> + <kbd>⌘</kbd> + <kbd>T</kbd> | Open Transcript Folder in Finder |
 | <kbd>⌘</kbd> + <kbd>K</kbd> | Open Command Palette |
 | <kbd>⌘</kbd> + <kbd>,</kbd> | Open Settings |
 | <kbd>⌘</kbd> + <kbd>1</kbd> | Switch to Queue View |

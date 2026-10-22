@@ -93,6 +93,54 @@ public final class FolderWatcher: ObservableObject {
             .appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings", isDirectory: true)
     }
     
+    public var isICloudDriveAvailable: Bool {
+        let path = Self.iCloudRootDirectory.path
+        guard FileManager.default.fileExists(atPath: path) else { return false }
+        if let dir = opendir(path) {
+            closedir(dir)
+            return true
+        }
+        return false
+    }
+    
+    public var isICloudTranskriptFolderReady: Bool {
+        let path = Self.iCloudTranskriptDirectory.path
+        return FileManager.default.fileExists(atPath: path)
+    }
+    
+    @discardableResult
+    public func setupICloudTranskriptFolder() throws -> URL {
+        let dir = Self.iCloudTranskriptDirectory
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        return dir
+    }
+    
+    public func existingVoiceMemosFiles() -> [URL] {
+        guard isVoiceMemosDirectlyAccessible else { return [] }
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(
+            at: Self.voiceMemosDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+        return items.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
+            .sorted { (u1, u2) -> Bool in
+                let d1 = (try? u1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                let d2 = (try? u2.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                return d1 > d2
+            }
+    }
+    
+    public func markPathsAsProcessed(_ paths: [String]) {
+        for path in paths {
+            processedPaths.insert(path)
+        }
+    }
+
     public var isVoiceMemosDirectlyAccessible: Bool {
         let path = Self.voiceMemosDirectory.path
         guard FileManager.default.fileExists(atPath: path) else { return false }
@@ -239,7 +287,13 @@ public final class FolderWatcher: ObservableObject {
             options: []
         ) else { return }
         
-        for fileURL in items {
+        let sortedItems = items.sorted { (u1, u2) -> Bool in
+            let d1 = (try? u1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+            let d2 = (try? u2.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+            return d1 > d2
+        }
+        
+        for fileURL in sortedItems {
             let filename = fileURL.lastPathComponent
             
             // Exclude system meta files

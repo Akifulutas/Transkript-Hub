@@ -198,6 +198,7 @@ struct QueueListView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
+                .help(viewModel.t("hub_paste_clipboard_help"))
                 
                 Button(action: { selectLocalAudioFiles() }) {
                     Label(viewModel.t("action_audio_file"), systemImage: "waveform")
@@ -219,7 +220,8 @@ struct QueueListView: View {
             item: item,
             isSelected: viewModel.selectedItemID == item.id,
             statusTitle: viewModel.localizedState(item.state),
-            onRemove: { viewModel.removeItem(id: item.id) }
+            onRemove: { viewModel.removeItem(id: item.id) },
+            onOpenFinder: { viewModel.openItemOutputInFinder(item) }
         )
         .contextMenu { rowContextMenu(item: item) }
     }
@@ -328,6 +330,7 @@ struct StandardQueueRow: View {
     let isSelected: Bool
     var statusTitle: String? = nil
     var onRemove: (() -> Void)? = nil
+    var onOpenFinder: (() -> Void)? = nil
     @State private var isHovered: Bool = false
     
     var body: some View {
@@ -377,6 +380,19 @@ struct StandardQueueRow: View {
                 .buttonStyle(.plain)
                 .help(L10n.tr("action_remove_item"))
                 .transition(.opacity)
+            }
+            
+            // Quick Open in Finder for completed items
+            if item.state == .completed {
+                Button(action: { onOpenFinder?() }) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                        .padding(5)
+                        .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                .help(L10n.tr("action_open_finder"))
             }
             
             // Liquid Glass Status Pill

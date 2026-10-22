@@ -173,12 +173,29 @@ struct WatchedFolderView: View {
                                     .foregroundColor(.blue)
                             }
                             
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 3) {
                                 HStack(spacing: 6) {
                                     Text(viewModel.t("watched_icloud_title"))
                                         .font(.system(size: 13, weight: .semibold))
-                                    if viewModel.folderWatcher.watchiCloudDrive {
-                                        Text(viewModel.t("settings_active"))
+                                    
+                                    if viewModel.folderWatcher.isICloudDriveAvailable {
+                                        Text(viewModel.t("watched_icloud_status_ready"))
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.green)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.green.opacity(0.12)))
+                                    } else {
+                                        Text(viewModel.t("watched_icloud_status_missing"))
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.orange)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.orange.opacity(0.12)))
+                                    }
+                                    
+                                    if viewModel.folderWatcher.isICloudTranskriptFolderReady {
+                                        Text(viewModel.t("watched_icloud_folder_ready"))
                                             .font(.system(size: 9, weight: .bold))
                                             .foregroundColor(.blue)
                                             .padding(.horizontal, 6)
@@ -196,6 +213,31 @@ struct WatchedFolderView: View {
                             Toggle("", isOn: $viewModel.folderWatcher.watchiCloudDrive)
                                 .toggleStyle(.switch)
                         }
+                        
+                        // iCloud Setup & Finder Buttons
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                viewModel.setupICloudTranskriptFolderAndSetOutput()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "folder.badge.plus")
+                                    Text(viewModel.t("watched_icloud_folder_setup_btn"))
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            
+                            Button(viewModel.t("action_open_finder")) {
+                                viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
+                            }
+                            .font(.system(size: 11))
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            
+                            Spacer()
+                        }
+                        .padding(.top, 2)
                         
                         if viewModel.folderWatcher.watchiCloudDrive {
                             Divider()
@@ -270,7 +312,7 @@ struct WatchedFolderView: View {
                             
                             Spacer()
                             
-                            Toggle("", isOn: $viewModel.folderWatcher.watchVoiceMemos)
+                            Toggle("", isOn: $viewModel.isVoiceMemosEnabled)
                                 .toggleStyle(.switch)
                         }
                         

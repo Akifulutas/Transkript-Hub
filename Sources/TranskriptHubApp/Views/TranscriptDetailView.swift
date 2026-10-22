@@ -272,15 +272,29 @@ public struct TranscriptDetailView: View {
                             viewModel.isKaraokeMode.toggle()
                         }
                     }) {
-                        Label(
-                            viewModel.isKaraokeMode ? viewModel.t("detail_karaoke") : viewModel.t("detail_plain_text"),
-                            systemImage: viewModel.isKaraokeMode ? "sparkles" : "doc.plaintext"
+                        HStack(spacing: 5) {
+                            Image(systemName: viewModel.isKaraokeMode ? "sparkles" : "doc.plaintext")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(viewModel.isKaraokeMode ? viewModel.t("detail_karaoke") : viewModel.t("detail_plain_text"))
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(
+                            viewModel.isKaraokeMode
+                                ? AnyView(
+                                    Capsule()
+                                        .fill(LinearGradient(colors: [Color.purple, Color.blue], startPoint: .leading, endPoint: .trailing))
+                                        .shadow(color: Color.purple.opacity(0.4), radius: 5, x: 0, y: 1)
+                                  )
+                                : AnyView(
+                                    Capsule()
+                                        .fill(Color.primary.opacity(0.06))
+                                  )
                         )
-                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(viewModel.isKaraokeMode ? .white : .primary)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .foregroundColor(viewModel.isKaraokeMode ? .accentColor : .secondary)
+                    .buttonStyle(.plain)
                     .help(viewModel.t("detail_karaoke_help"))
                     
                     // Session Combined View Toggle
@@ -566,6 +580,7 @@ public struct TranscriptDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .disabled(!viewModel.canStartQueue)
             .padding(.top, 4)
             
             Spacer()

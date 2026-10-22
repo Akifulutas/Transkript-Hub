@@ -87,6 +87,7 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
+            .help(viewModel.t("hub_card_clipboard_help"))
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
             Button(action: {
@@ -101,6 +102,7 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
+            .help(viewModel.t("hub_card_recording_help"))
             
             // Card 5: Watched Folder (Opens Native Sheet)
             Button(action: {
@@ -498,6 +500,7 @@ public struct UnifiedStudioHubView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .help(viewModel.t("hub_paste_clipboard_help"))
                 
                 Button(action: { selectLocalAudioFiles() }) {
                     HStack(spacing: 6) {
@@ -509,6 +512,40 @@ public struct UnifiedStudioHubView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
             }
+            
+            // Small Info Row (Explaining Clipboard Monitoring & Audio Recording)
+            HStack(spacing: 12) {
+                // Clipboard status info
+                HStack(spacing: 5) {
+                    Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(viewModel.isClipboardMonitoring ? Color.green : Color.secondary)
+                    Text(viewModel.isClipboardMonitoring ? viewModel.t("hub_clipboard_info_active") : viewModel.t("hub_clipboard_info_inactive"))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                
+                Text("•")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary.opacity(0.35))
+                
+                // Audio recording action info
+                Button(action: {
+                    viewModel.isRecordingSourceSheetPresented = true
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(Color.red)
+                        Text(viewModel.t("hub_recording_info"))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.t("hub_card_recording_help"))
+            }
+            .padding(.top, 4)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 22)
@@ -564,6 +601,37 @@ public struct UnifiedStudioHubView: View {
                     .controlSize(.small)
                 }
                 
+                // Sort Menu Button (En Yeniden En Eskiye)
+                if !viewModel.queueItems.isEmpty {
+                    Menu {
+                        Button(action: {
+                            viewModel.sortQueue(by: .newestFirst)
+                        }) {
+                            Label(viewModel.t("queue_sort_newest_first"), systemImage: "arrow.down")
+                        }
+                        Button(action: {
+                            viewModel.sortQueue(by: .oldestFirst)
+                        }) {
+                            Label(viewModel.t("queue_sort_oldest_first"), systemImage: "arrow.up")
+                        }
+                        Button(action: {
+                            viewModel.sortQueue(by: .title)
+                        }) {
+                            Label(viewModel.t("queue_sort_alphabetical"), systemImage: "textformat")
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(viewModel.t("queue_sort_title"))
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                    .help(viewModel.t("queue_sort_newest_first"))
+                }
+                
                 // Primary Action Button: "Transkripte Yolla"
                 Button(action: {
                     viewModel.requestStartQueue()
@@ -581,11 +649,22 @@ public struct UnifiedStudioHubView: View {
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
-                    .padding(.horizontal, 6)
+                    .foregroundColor(viewModel.canStartQueue ? .white : Color.secondary.opacity(0.45))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(
+                        viewModel.canStartQueue
+                            ? AnyShapeStyle(LinearGradient(colors: [Color.accentColor, Color.purple], startPoint: .leading, endPoint: .trailing))
+                            : AnyShapeStyle(Color.primary.opacity(0.04))
+                    )
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: 1)
+                    )
+                    .shadow(color: viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .disabled(viewModel.queueItems.isEmpty || viewModel.isProcessing)
+                .buttonStyle(.plain)
+                .disabled(!viewModel.canStartQueue)
             }
             .padding(.horizontal, 4)
             
@@ -720,9 +799,24 @@ public struct UnifiedStudioHubView: View {
                 
                 Spacer()
                 
-                // Status Badge
+                // Status Badge & Inline Actions
                 HStack(spacing: 6) {
                     stateBadge(for: item.state)
+                    
+                    if item.state == .completed {
+                        Button(action: {
+                            viewModel.openItemOutputInFinder(item)
+                        }) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                        .help(viewModel.t("action_open_finder"))
+                        .accessibilityLabel(viewModel.t("action_open_finder"))
+                    }
                     
                     Button(action: {
                         viewModel.removeItem(id: item.id)
@@ -730,6 +824,7 @@ public struct UnifiedStudioHubView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 11))
                             .foregroundStyle(Color.secondary.opacity(0.7))
+                            .padding(4)
                     }
                     .buttonStyle(.plain)
                     .help(viewModel.t("action_remove_item"))

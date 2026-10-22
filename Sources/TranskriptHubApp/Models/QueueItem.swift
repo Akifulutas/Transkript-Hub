@@ -29,6 +29,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var autoProcess: Bool
     public var isWatchedFolderItem: Bool
     public let addedAt: Date
+    public var fileModificationDate: Date?
     public var thumbnailURL: URL?
     public var channelTitle: String?
     
@@ -53,6 +54,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         autoProcess: Bool = false,
         isWatchedFolderItem: Bool = false,
         addedAt: Date = Date(),
+        fileModificationDate: Date? = nil,
         thumbnailURL: URL? = nil,
         channelTitle: String? = nil,
         audioURL: URL? = nil,
@@ -74,6 +76,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.autoProcess = autoProcess
         self.isWatchedFolderItem = isWatchedFolderItem
         self.addedAt = addedAt
+        self.fileModificationDate = fileModificationDate
         self.thumbnailURL = thumbnailURL
         self.channelTitle = channelTitle
         self.audioURL = audioURL

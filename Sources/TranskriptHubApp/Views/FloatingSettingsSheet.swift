@@ -191,6 +191,48 @@ public struct FloatingSettingsSheet: View {
                     Text(viewModel.t("settings_clipboard_auto_desc"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                    
+                    Text(viewModel.t("settings_clipboard_auto_tip"))
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary.opacity(0.85))
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.primary.opacity(0.03))
+                        )
+                }
+            }
+            
+            // Live Audio & System Recording
+            cardSection(title: viewModel.t("settings_recording_section_title"), icon: "waveform.badge.plus") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(viewModel.t("settings_recording_section_desc"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 12) {
+                        Label(viewModel.t("record_source_mic"), systemImage: "mic.fill")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.red)
+                        Text("•")
+                            .foregroundColor(.secondary.opacity(0.5))
+                        Label(viewModel.t("record_source_system"), systemImage: "display")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Button(action: {
+                            viewModel.isRecordingSourceSheetPresented = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "record.circle")
+                                Text(viewModel.t("sheet_recording_source_title"))
+                            }
+                            .font(.system(size: 11, weight: .semibold))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(.top, 2)
                 }
             }
             
@@ -208,6 +250,30 @@ public struct FloatingSettingsSheet: View {
                         Text("🇩🇪 \(viewModel.t("hub_lang_de"))").tag("de")
                     }
                     .frame(maxWidth: 240)
+                }
+            }
+            
+            // Feature Tour Walkthrough
+            cardSection(title: viewModel.t("menu_onboarding_tour"), icon: "sparkles") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(viewModel.t("settings_restart_onboarding_desc"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        viewModel.isSettingsPresented = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            viewModel.openOnboardingTour()
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "play.circle.fill")
+                            Text(viewModel.t("settings_restart_onboarding"))
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 }
             }
         }
@@ -505,10 +571,41 @@ public struct FloatingSettingsSheet: View {
                             Label(viewModel.t("watched_icloud_title"), systemImage: "icloud.fill")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.blue)
+                            
+                            if viewModel.folderWatcher.isICloudDriveAvailable {
+                                Text(viewModel.t("watched_icloud_status_ready"))
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.green)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(Capsule().fill(Color.green.opacity(0.12)))
+                            }
+                            
                             Spacer()
                             Toggle("", isOn: $viewModel.folderWatcher.watchiCloudDrive)
                                 .toggleStyle(.switch)
                         }
+                        
+                        HStack(spacing: 6) {
+                            Button(action: { viewModel.setupICloudTranskriptFolderAndSetOutput() }) {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "folder.badge.plus")
+                                    Text(viewModel.t("watched_icloud_folder_setup_btn"))
+                                }
+                                .font(.system(size: 10, weight: .semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.mini)
+                            
+                            Button(viewModel.t("action_open_finder")) {
+                                viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
+                            }
+                            .font(.system(size: 10))
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                        }
+                        .padding(.top, 2)
+                        
                         if viewModel.folderWatcher.watchiCloudDrive {
                             Toggle(viewModel.t("watched_icloud_root_opt"), isOn: $viewModel.folderWatcher.watchiCloudRoot)
                                 .toggleStyle(.checkbox)
@@ -526,7 +623,7 @@ public struct FloatingSettingsSheet: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.orange)
                             Spacer()
-                            Toggle("", isOn: $viewModel.folderWatcher.watchVoiceMemos)
+                            Toggle("", isOn: $viewModel.isVoiceMemosEnabled)
                                 .toggleStyle(.switch)
                         }
                         if viewModel.folderWatcher.watchVoiceMemos {
@@ -767,13 +864,32 @@ public struct FloatingSettingsSheet: View {
                             
                             Spacer()
                             
-                            if let info = viewModel.updateInfo, info.isNewerThanCurrent {
-                                Button(viewModel.t("settings_download_github")) {
-                                    viewModel.openInBrowser(url: info.htmlURL)
+                            HStack(spacing: 8) {
+                                if let info = viewModel.updateInfo, info.isNewerThanCurrent {
+                                    Button(action: {
+                                        viewModel.downloadLatestUpdate()
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.down.circle.fill")
+                                            Text(viewModel.t("settings_download_latest_dmg"))
+                                        }
+                                        .font(.system(size: 11, weight: .bold))
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                } else {
+                                    Button(action: {
+                                        viewModel.downloadLatestUpdate()
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.down.circle")
+                                            Text(viewModel.t("settings_download_current_dmg"))
+                                        }
+                                        .font(.system(size: 11, weight: .medium))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
                                 }
-                                .font(.system(size: 11, weight: .bold))
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
                             }
                         }
                         .padding(12)
