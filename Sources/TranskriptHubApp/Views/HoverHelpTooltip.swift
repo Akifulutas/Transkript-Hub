@@ -20,6 +20,15 @@ public enum TooltipPlacement: Sendable {
         }
     }
     
+    var verticalAlignmentGuide: VerticalAlignment {
+        switch self {
+        case .bottom, .bottomLeading, .bottomTrailing:
+            return .bottom
+        case .top, .topLeading, .topTrailing:
+            return .top
+        }
+    }
+    
     var scaleAnchor: UnitPoint {
         switch self {
         case .bottom: return .top
@@ -54,7 +63,7 @@ public struct HoverHelpTooltipModifier: ViewModifier {
         statusColor: Color = .accentColor,
         hint: String? = nil,
         placement: TooltipPlacement = .bottom,
-        width: CGFloat = 260
+        width: CGFloat = 220
     ) {
         self.title = title
         self.description = description
@@ -75,16 +84,14 @@ public struct HoverHelpTooltipModifier: ViewModifier {
             .overlay(alignment: activePlacement.overlayAlignment) {
                 if showTooltip {
                     tooltipBubble
-                        .alignmentGuide(activePlacement.overlayAlignment.vertical) { d in
+                        .alignmentGuide(activePlacement.verticalAlignmentGuide) { d in
                             switch activePlacement {
                             case .bottom, .bottomLeading, .bottomTrailing:
-                                return d[.top]
+                                return -8 // Exactly 8px BELOW the parent view, extending downwards
                             case .top, .topLeading, .topTrailing:
-                                return d[.bottom]
+                                return d.height + 8 // Exactly 8px ABOVE the parent view, extending upwards
                             }
                         }
-                        .padding(.top, (activePlacement == .bottom || activePlacement == .bottomLeading || activePlacement == .bottomTrailing) ? 9 : 0)
-                        .padding(.bottom, (activePlacement == .top || activePlacement == .topLeading || activePlacement == .topTrailing) ? 9 : 0)
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.94, anchor: activePlacement.scaleAnchor)),
                             removal: .opacity
@@ -92,7 +99,6 @@ public struct HoverHelpTooltipModifier: ViewModifier {
                         .zIndex(99999)
                 }
             }
-            .help("\(title): \(description)")
             .onDisappear {
                 hoverTask?.cancel()
                 hoverTask = nil
@@ -124,31 +130,31 @@ public struct HoverHelpTooltipModifier: ViewModifier {
     }
     
     private var tooltipBubble: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             // Header Row: Icon + Title + Status Badge
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 if let icon = icon {
                     ZStack {
                         Circle()
                             .fill(statusColor.opacity(0.18))
-                            .frame(width: 18, height: 18)
+                            .frame(width: 15, height: 15)
                         Image(systemName: icon)
-                            .font(.system(size: 9.5, weight: .bold))
+                            .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(statusColor)
                     }
                 }
                 
                 Text(title)
-                    .font(.system(size: 11.5, weight: .bold))
+                    .font(.system(size: 10.5, weight: .bold))
                     .foregroundStyle(.primary)
                 
                 Spacer(minLength: 4)
                 
                 if let status = status {
                     Text(status)
-                        .font(.system(size: 8.5, weight: .bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .font(.system(size: 8, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
                         .background(
                             Capsule()
                                 .fill(statusColor.opacity(0.16))
@@ -159,36 +165,36 @@ public struct HoverHelpTooltipModifier: ViewModifier {
             
             // Description Text
             Text(description)
-                .font(.system(size: 10.5))
-                .lineSpacing(2)
-                .foregroundStyle(Color.primary.opacity(0.88))
+                .font(.system(size: 9.5))
+                .lineSpacing(1.5)
+                .foregroundStyle(Color.primary.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)
             
             // Optional Action Hint
             if let hint = hint {
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: "hand.tap.fill")
-                        .font(.system(size: 8))
+                        .font(.system(size: 7.5))
                         .foregroundStyle(Color.secondary.opacity(0.7))
                     Text(hint)
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 8.5, weight: .medium))
                         .foregroundStyle(Color.secondary)
                 }
-                .padding(.top, 2)
+                .padding(.top, 1)
             }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
         .frame(width: width)
         .background(
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Color(NSColor.windowBackgroundColor).opacity(0.97))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .stroke(statusColor.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(statusColor.opacity(0.32), lineWidth: 0.8)
         )
-        .shadow(color: Color.black.opacity(0.28), radius: 10, x: 0, y: 5)
+        .shadow(color: Color.black.opacity(0.24), radius: 8, x: 0, y: 4)
         .allowsHitTesting(false)
     }
 }
@@ -202,7 +208,7 @@ extension View {
         statusColor: Color = .accentColor,
         hint: String? = nil,
         placement: TooltipPlacement = .bottom,
-        width: CGFloat = 260
+        width: CGFloat = 220
     ) -> some View {
         self.modifier(
             HoverHelpTooltipModifier(

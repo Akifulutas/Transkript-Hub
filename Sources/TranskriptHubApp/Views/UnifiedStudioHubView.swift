@@ -702,10 +702,12 @@ public struct UnifiedStudioHubView: View {
                         .fill(Color.green)
                         .frame(width: 6, height: 6)
                         .shadow(color: Color.green.opacity(0.8), radius: 3)
+                        .padding(.trailing, 16)
                 } else if showsChevron {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8.5, weight: .semibold))
                         .foregroundStyle(Color.secondary.opacity(0.7))
+                        .padding(.trailing, 18)
                 }
             }
             .padding(.horizontal, 10)
