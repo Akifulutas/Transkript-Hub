@@ -108,9 +108,10 @@ public struct UnifiedStudioHubView: View {
                     isModelInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isModelInfoPresented ? Color.orange : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -159,9 +160,10 @@ public struct UnifiedStudioHubView: View {
                     isLanguageInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isLanguageInfoPresented ? Color.blue : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -209,9 +211,10 @@ public struct UnifiedStudioHubView: View {
                     isClipboardInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isClipboardInfoPresented ? Color.green : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -257,9 +260,10 @@ public struct UnifiedStudioHubView: View {
                     isRecordingInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isRecordingInfoPresented ? Color.red : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -308,9 +312,10 @@ public struct UnifiedStudioHubView: View {
                     isFolderInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isFolderInfoPresented ? Color.teal : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -348,7 +353,8 @@ public struct UnifiedStudioHubView: View {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(isHistoryInfoPresented ? Color.purple : Color.secondary.opacity(0.45))
-                        .padding(5)
+                        .padding(.trailing, 8)
+                        .padding(.top, 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -710,24 +716,27 @@ public struct UnifiedStudioHubView: View {
                         .lineLimit(1)
                 }
                 
-                Spacer(minLength: 2)
-                
+                Spacer(minLength: 16)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .overlay(alignment: .bottomTrailing) {
                 if isPulseActive {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 6, height: 6)
                         .shadow(color: Color.green.opacity(0.8), radius: 3)
-                        .padding(.trailing, 16)
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 7)
                 } else if showsChevron {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8.5, weight: .semibold))
-                        .foregroundStyle(Color.secondary.opacity(0.7))
-                        .padding(.trailing, 18)
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Color.secondary.opacity(0.65))
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 6)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
             .liquidGlass(cornerRadius: 12, glowColor: badgeColor.opacity(isHovered ? 0.6 : 0.35), material: .ultraThinMaterial)
             .scaleEffect(isHovered ? 1.018 : 1.0)
             .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isHovered)
