@@ -250,6 +250,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var errorMessage: String? = nil
     @Published public var copiedToast: Bool = false
     @Published public var isPullRefreshing: Bool = false
+    @Published public var currentSortOrder: QueueSortOrder = .newestFirst
     
     // Audio Playback & Interactive Waveform Scrubbing
     public let audioPlayer = AudioPlayerController()
@@ -553,12 +554,12 @@ public final class AppViewModel: ObservableObject {
         // Scan watched directories (iCloud Drive, Voice Memos, custom folders)
         if !folderWatcher.isWatching {
             folderWatcher.startWatching()
-        } else {
-            await folderWatcher.scanDirectory()
         }
+        folderWatcher.triggerImmediateScan()
+        await folderWatcher.scanDirectory()
         
-        // Check for any newly added Voice Memos if accessible
-        if folderWatcher.watchVoiceMemos && folderWatcher.isVoiceMemosDirectlyAccessible {
+        // Check for any newly added Voice Memos if directly accessible
+        if folderWatcher.isVoiceMemosDirectlyAccessible {
             let files = folderWatcher.existingVoiceMemosFiles()
             let unprocessed = files.filter { !folderWatcher.isPathProcessed($0.path) }
             if !unprocessed.isEmpty {
@@ -2195,6 +2196,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func sortQueue(by order: QueueSortOrder = .newestFirst) {
+        self.currentSortOrder = order
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             switch order {
             case .newestFirst:

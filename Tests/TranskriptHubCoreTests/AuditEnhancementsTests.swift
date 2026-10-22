@@ -143,4 +143,42 @@ struct AuditEnhancementsTests {
         let url = URL(string: urlString)
         #expect(url != nil)
     }
+    
+    // MARK: - 4. FolderWatcher & Scan Trigger Tests
+    @Test("FolderWatcher triggerImmediateScan executes and tracks processed paths correctly")
+    @MainActor
+    func testFolderWatcherScanAndProcessedPaths() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        watcher.watchCustomFolder = true
+        watcher.customFolderURL = tempDir
+        
+        let dummyPath = tempDir.appendingPathComponent("test_recording.m4a").path
+        #expect(!watcher.isPathProcessed(dummyPath))
+        
+        watcher.markPathsAsProcessed([dummyPath])
+        #expect(watcher.isPathProcessed(dummyPath))
+        
+        // Immediate scan invocation should be safe and idempotent
+        watcher.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(watcher.isPathProcessed(dummyPath))
+    }
+    
+    // MARK: - 5. BatchAssembler Empty Batch Test
+    @Test("BatchAssembler returns empty result for non-existent batch")
+    func testBatchAssemblerNonExistentBatch() async throws {
+        let appDb = try AppDatabase.makeInMemory()
+        let assembler = BatchAssembler(database: appDb)
+        let result = try assembler.assembleBatch(batchID: "NON-EXISTENT-BATCH")
+        switch result {
+        case .empty:
+            break
+        default:
+            Issue.record("Expected .empty result for non-existent batch")
+        }
+    }
 }

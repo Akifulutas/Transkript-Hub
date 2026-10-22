@@ -58,7 +58,11 @@ public final class AudioDecoder: Sendable {
         
         // Output frame estimation for 16kHz
         let ratio = Self.targetSampleRate / sourceFormat.sampleRate
-        let estimatedTargetFrames = AVAudioFrameCount(Double(frameCount) * ratio) + 1024
+        let estimatedFramesDouble = Double(frameCount) * ratio + 1024.0
+        guard estimatedFramesDouble > 0 && estimatedFramesDouble <= Double(UInt32.max) else {
+            throw AudioDecoderError.unsupportedMedia("Ses dosyası çok büyük (tahmini kare sayısı UInt32 sınırını aşıyor).")
+        }
+        let estimatedTargetFrames = AVAudioFrameCount(estimatedFramesDouble)
         
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: estimatedTargetFrames) else {
             throw AudioDecoderError.conversionFailed("Çıktı ses tamponu (PCMBuffer) tahsis edilemedi.")

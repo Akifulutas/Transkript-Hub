@@ -21,8 +21,9 @@ public struct UnifiedStudioHubView: View {
     // Interactive Pull-to-Refresh State
     @State private var pullOffset: CGFloat = 0
     @State private var dragOffset: CGFloat = 0
+    @State private var currentScrollY: CGFloat = 0
     @State private var isRefreshing: Bool = false
-    @State private var spinAngle: Double = 0
+    @State private var hasTriggeredInCurrentPull: Bool = false
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -42,14 +43,18 @@ public struct UnifiedStudioHubView: View {
                         }
                         .frame(height: 0)
                         
-                        // Interactive Pull-To-Refresh Rotating Indicator
-                        pullToRefreshIndicator
+                        // Interactive Pull-To-Refresh Rotating Indicator (GitHub-style)
+                        PullRefreshIndicatorView(
+                            effectiveOffset: max(0, max(pullOffset, dragOffset)),
+                            isRefreshing: isRefreshing || viewModel.isPullRefreshing,
+                            onTap: { executeRefresh() }
+                        )
                         
                         VStack(spacing: 20) {
                             // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
                             topActionCardsRow
                                 .padding(.horizontal, 24)
-                                .padding(.top, (isRefreshing || pullOffset > 0 || dragOffset > 0) ? 6 : 16)
+                                .padding(.top, 14)
                             
                             // 2. Central Queue Section (Directly under the action cards)
                             centralQueueSection
@@ -62,16 +67,23 @@ public struct UnifiedStudioHubView: View {
                 }
                 .coordinateSpace(name: "HubScrollViewCoordinateSpace")
                 .simultaneousGesture(
-                    DragGesture(minimumDistance: 5)
+                    DragGesture(minimumDistance: 10)
                         .onChanged { gesture in
                             guard !isRefreshing else { return }
+                            // Only track downward drag if the scroll view is at the top (not scrolled down into list)
+                            guard currentScrollY >= -5 else { return }
                             if gesture.translation.height > 0 {
                                 dragOffset = gesture.translation.height
                             }
                         }
                         .onEnded { gesture in
                             guard !isRefreshing else { return }
-                            if dragOffset >= 48 {
+                            guard currentScrollY >= -5 else {
+                                dragOffset = 0
+                                return
+                            }
+                            if dragOffset >= 48 && !hasTriggeredInCurrentPull {
+                                hasTriggeredInCurrentPull = true
                                 executeRefresh()
                             } else {
                                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
@@ -81,11 +93,33 @@ public struct UnifiedStudioHubView: View {
                         }
                 )
                 .onPreferenceChange(HubScrollOffsetPreferenceKey.self) { value in
+                    currentScrollY = value
                     guard !isRefreshing else { return }
                     let positive = max(0, value)
                     pullOffset = positive
-                    if positive >= 50 && !isRefreshing {
+                    
+                    // Reset latch when scroll returns near resting position
+                    if positive < 10 {
+                        hasTriggeredInCurrentPull = false
+                    }
+                    
+                    // Trigger refresh when pulled beyond threshold (~50px)
+                    if positive >= 48 && !hasTriggeredInCurrentPull {
+                        hasTriggeredInCurrentPull = true
                         executeRefresh()
+                    }
+                }
+                .onChange(of: viewModel.isPullRefreshing) { _, newValue in
+                    if newValue && !isRefreshing {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isRefreshing = true
+                        }
+                    } else if !newValue && isRefreshing {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isRefreshing = false
+                            dragOffset = 0
+                            pullOffset = 0
+                        }
                     }
                 }
                 .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
@@ -119,57 +153,13 @@ public struct UnifiedStudioHubView: View {
         .background(Color.clear)
     }
     
-    // MARK: - Pull-to-Refresh Indicator & Action
-    private var pullToRefreshIndicator: some View {
-        let effectiveOffset = max(0, max(pullOffset, dragOffset))
-        let isVisible = isRefreshing || effectiveOffset > 5
-        let currentHeight: CGFloat = isRefreshing ? 38 : min(46, effectiveOffset)
-        let rotationDegrees: Double = isRefreshing ? spinAngle : Double(effectiveOffset) * 3.6
-        let progress = min(1.0, max(0.0, effectiveOffset / 50.0))
-        
-        return VStack(spacing: 0) {
-            if isVisible {
-                ZStack {
-                    Circle()
-                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
-                        .frame(width: 30, height: 30)
-                        .overlay(
-                            Circle()
-                                .stroke(isRefreshing || progress >= 1.0 ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.12), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isRefreshing || progress >= 1.0 ? Color.accentColor : Color.secondary)
-                        .rotationEffect(.degrees(rotationDegrees))
-                }
-                .scaleEffect(isRefreshing ? 1.0 : min(1.0, max(0.4, progress)))
-                .opacity(isRefreshing ? 1.0 : min(1.0, Double(effectiveOffset) / 25.0))
-                .padding(.top, isRefreshing ? 8 : 4)
-                .padding(.bottom, 4)
-                .frame(height: currentHeight)
-                .transition(.opacity.combined(with: .scale))
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: isVisible ? currentHeight : 0)
-        .clipped()
-    }
-    
     private func executeRefresh() {
         guard !isRefreshing else { return }
-        isRefreshing = true
-        withAnimation(.linear(duration: 0.75).repeatForever(autoreverses: false)) {
-            spinAngle += 360
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            isRefreshing = true
         }
         Task {
             await viewModel.triggerManualRefresh()
-            var transaction = Transaction()
-            transaction.animation = nil
-            withTransaction(transaction) {
-                spinAngle = 0
-            }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 isRefreshing = false
                 dragOffset = 0
@@ -919,17 +909,29 @@ public struct UnifiedStudioHubView: View {
                         Button(action: {
                             viewModel.sortQueue(by: .newestFirst)
                         }) {
-                            Label(viewModel.t("queue_sort_newest_first"), systemImage: "arrow.down")
+                            if viewModel.currentSortOrder == .newestFirst {
+                                Label(viewModel.t("queue_sort_newest_first"), systemImage: "checkmark")
+                            } else {
+                                Label(viewModel.t("queue_sort_newest_first"), systemImage: "arrow.down")
+                            }
                         }
                         Button(action: {
                             viewModel.sortQueue(by: .oldestFirst)
                         }) {
-                            Label(viewModel.t("queue_sort_oldest_first"), systemImage: "arrow.up")
+                            if viewModel.currentSortOrder == .oldestFirst {
+                                Label(viewModel.t("queue_sort_oldest_first"), systemImage: "checkmark")
+                            } else {
+                                Label(viewModel.t("queue_sort_oldest_first"), systemImage: "arrow.up")
+                            }
                         }
                         Button(action: {
                             viewModel.sortQueue(by: .title)
                         }) {
-                            Label(viewModel.t("queue_sort_alphabetical"), systemImage: "textformat")
+                            if viewModel.currentSortOrder == .title {
+                                Label(viewModel.t("queue_sort_alphabetical"), systemImage: "checkmark")
+                            } else {
+                                Label(viewModel.t("queue_sort_alphabetical"), systemImage: "textformat")
+                            }
                         }
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
@@ -1281,5 +1283,67 @@ private struct HubScrollOffsetPreferenceKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+private struct PullRefreshIndicatorView: View {
+    let effectiveOffset: CGFloat
+    let isRefreshing: Bool
+    let onTap: () -> Void
+    
+    @State private var isSpinning: Bool = false
+    
+    var body: some View {
+        let isVisible = isRefreshing || effectiveOffset > 5
+        let currentHeight: CGFloat = isRefreshing ? 38 : min(46, effectiveOffset)
+        let progress = min(1.0, max(0.0, effectiveOffset / 48.0))
+        let pullRotation = Double(effectiveOffset) * 3.6
+        
+        VStack(spacing: 0) {
+            if isVisible {
+                Button(action: onTap) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.94))
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        isRefreshing || progress >= 1.0
+                                            ? Color.accentColor.opacity(0.5)
+                                            : Color.primary.opacity(0.12),
+                                        lineWidth: 1
+                                    )
+                            )
+                            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+                        
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(isRefreshing || progress >= 1.0 ? Color.accentColor : Color.secondary)
+                            .rotationEffect(.degrees(isRefreshing ? (isSpinning ? 360 : 0) : pullRotation))
+                            .animation(
+                                isRefreshing ? .linear(duration: 0.75).repeatForever(autoreverses: false) : .default,
+                                value: isSpinning
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .scaleEffect(isRefreshing ? 1.0 : min(1.0, max(0.4, progress)))
+                .opacity(isRefreshing ? 1.0 : min(1.0, Double(effectiveOffset) / 20.0))
+                .padding(.top, isRefreshing ? 8 : 4)
+                .padding(.bottom, 4)
+                .frame(height: currentHeight)
+                .transition(.opacity.combined(with: .scale))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: isVisible ? currentHeight : 0)
+        .clipped()
+        .onAppear {
+            if isRefreshing { isSpinning = true }
+        }
+        .onChange(of: isRefreshing) { _, newValue in
+            isSpinning = newValue
+        }
     }
 }
