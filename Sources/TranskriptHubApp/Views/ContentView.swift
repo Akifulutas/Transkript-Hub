@@ -5,6 +5,7 @@ import TranskriptHubCore
 public struct ContentView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @State private var isAddMediaPresented: Bool = false
     
     public init(viewModel: AppViewModel = AppViewModel()) {
         self.viewModel = viewModel
@@ -153,6 +154,9 @@ public struct ContentView: View {
                 onCommandV: {
                     viewModel.addFromClipboard()
                 },
+                onCommandO: {
+                    viewModel.promptForLocalAudioFiles()
+                },
                 onCommandShiftC: {
                     viewModel.copySelectedTranscript()
                 },
@@ -193,7 +197,31 @@ public struct ContentView: View {
             }
         }
         
-        ToolbarItem(placement: .automatic) {
+        ToolbarItemGroup(placement: .automatic) {
+            // Add Media Button (YouTube link, Paste Clipboard, Choose Audio File)
+            Button(action: {
+                isAddMediaPresented.toggle()
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Text(viewModel.t("toolbar_add_media"))
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .liquidGlassCapsule(glowColor: Color.accentColor.opacity(0.35), material: .ultraThinMaterial)
+            }
+            .buttonStyle(.plain)
+            .help(viewModel.t("toolbar_add_media_help"))
+            .popover(isPresented: $isAddMediaPresented, arrowEdge: .bottom) {
+                AddMediaPopoverView(
+                    viewModel: viewModel,
+                    isPresented: $isAddMediaPresented
+                )
+            }
+            
             // Settings Floating Modal Button
             Button(action: {
                 viewModel.openSettings()
@@ -292,6 +320,7 @@ public struct ContentView: View {
 // MARK: - Global Invisible Keyboard Event Listener
 private struct KeyboardShortcutsView: NSViewRepresentable {
     let onCommandV: () -> Void
+    let onCommandO: () -> Void
     let onCommandShiftC: () -> Void
     let onCommandA: () -> Void
     let onSpace: () -> Void
@@ -301,6 +330,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     
     init(
         onCommandV: @escaping () -> Void,
+        onCommandO: @escaping () -> Void = {},
         onCommandShiftC: @escaping () -> Void,
         onCommandA: @escaping () -> Void,
         onSpace: @escaping () -> Void = {},
@@ -309,6 +339,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
         onCommandR: @escaping () -> Void = {}
     ) {
         self.onCommandV = onCommandV
+        self.onCommandO = onCommandO
         self.onCommandShiftC = onCommandShiftC
         self.onCommandA = onCommandA
         self.onSpace = onSpace
@@ -320,6 +351,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = KeyInterceptingView()
         view.onCommandV = onCommandV
+        view.onCommandO = onCommandO
         view.onCommandShiftC = onCommandShiftC
         view.onCommandA = onCommandA
         view.onSpace = onSpace
@@ -334,6 +366,7 @@ private struct KeyboardShortcutsView: NSViewRepresentable {
 
 private final class KeyInterceptingView: NSView {
     var onCommandV: (() -> Void)?
+    var onCommandO: (() -> Void)?
     var onCommandShiftC: (() -> Void)?
     var onCommandA: (() -> Void)?
     var onSpace: (() -> Void)?
@@ -346,6 +379,11 @@ private final class KeyInterceptingView: NSView {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        
+        if flags == .command && chars == "o" {
+            onCommandO?()
+            return true
+        }
         
         if flags == .command && chars == "r" {
             onCommandR?()

@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import TranskriptHubCore
 import GRDB
 
@@ -1231,6 +1232,16 @@ public final class AppViewModel: ObservableObject {
         }
         if anyAddedForAuto {
             startAutoProcessingWatchedItems()
+        }
+    }
+    
+    public func promptForLocalAudioFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.audio, .movie]
+        if panel.runModal() == .OK {
+            addAudioFiles(panel.urls)
         }
     }
     

@@ -4,7 +4,6 @@ import TranskriptHubCore
 
 public struct UnifiedStudioHubView: View {
     @ObservedObject var viewModel: AppViewModel
-    @State private var quickLinkText: String = ""
     @State private var isDropTargeted: Bool = false
     @State private var isModelPickerPresented: Bool = false
     @State private var isLanguagePickerPresented: Bool = false
@@ -17,7 +16,6 @@ public struct UnifiedStudioHubView: View {
     @State private var isRecordingInfoPresented: Bool = false
     @State private var isFolderInfoPresented: Bool = false
     @State private var isHistoryInfoPresented: Bool = false
-    @State private var isHeroInfoPresented: Bool = false
     @State private var isQueueInfoPresented: Bool = false
     
     public init(viewModel: AppViewModel) {
@@ -34,17 +32,17 @@ public struct UnifiedStudioHubView: View {
                             .padding(.horizontal, 24)
                             .padding(.top, 16)
                         
-                        // 2. Central Floating Hero Card: Drop & Paste Zone
-                        centralHeroCard
+                        // 2. Central Queue Section (Directly under the action cards)
+                        centralQueueSection
                             .id(StudioTourStep.heroDropAndPaste.id)
                             .studioTourTarget(.heroDropAndPaste)
                             .padding(.horizontal, 24)
-                        
-                        // 3. Central Queue Section (Kuyruk & "Transkripte Yolla" Action)
-                        centralQueueSection
-                            .padding(.horizontal, 24)
                             .padding(.bottom, 28)
                     }
+                }
+                .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
+                    handleDrop(providers: providers)
+                    return true
                 }
                 .onChange(of: viewModel.spotlightTourCurrentStep) { _, newStep in
                     if viewModel.isSpotlightTourActive {
@@ -746,195 +744,7 @@ public struct UnifiedStudioHubView: View {
         }
     }
     
-    // MARK: - 2. Central Floating Hero Card: Drop & Paste Zone
-    private var centralHeroCard: some View {
-        VStack(spacing: 16) {
-            // Icon & Explanatory Text
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.12))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: isDropTargeted ? "arrow.down.circle.fill" : "arrow.down.doc")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
-                }
-                
-                HStack(spacing: 6) {
-                    Text(isDropTargeted ? viewModel.t("hub_drop_target") : viewModel.t("hub_drop_or_add"))
-                        .font(.system(size: 15, weight: .bold))
-                    
-                    Button(action: {
-                        isHeroInfoPresented.toggle()
-                    }) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(isHeroInfoPresented ? Color.accentColor : Color.secondary.opacity(0.6))
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $isHeroInfoPresented, arrowEdge: .bottom) {
-                        StudioCompactInfoPopover(
-                            title: viewModel.t("hub_tooltip_drop_zone_title"),
-                            description: viewModel.t("hub_tooltip_drop_zone_desc"),
-                            icon: "arrow.down.doc.fill",
-                            tintColor: .accentColor,
-                            onDismiss: { isHeroInfoPresented = false }
-                        )
-                    }
-                }
-            }
-            
-            // Integrated URL Input Field
-            HStack(spacing: 8) {
-                Image(systemName: "link")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.secondary)
-                
-                TextField(viewModel.t("hub_paste_url_placeholder"), text: $quickLinkText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .onSubmit {
-                        submitQuickLink()
-                    }
-                
-                if !quickLinkText.isEmpty {
-                    Button(viewModel.t("action_add")) {
-                        submitQuickLink()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-            .frame(maxWidth: 500)
-            
-            // Quick Action Buttons
-            HStack(spacing: 12) {
-                Button(action: { viewModel.addFromClipboard() }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "doc.on.clipboard")
-                        Text(viewModel.t("hub_paste_clipboard"))
-                    }
-                    .font(.system(size: 12, weight: .semibold))
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .hoverHelpTooltip(
-                    title: viewModel.t("hub_tooltip_paste_btn_title"),
-                    description: viewModel.t("hub_tooltip_paste_btn_desc"),
-                    icon: "doc.on.clipboard",
-                    statusColor: .accentColor,
-                    placement: .top
-                )
-                
-                Button(action: { selectLocalAudioFiles() }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "waveform")
-                        Text(viewModel.t("hub_choose_audio_file"))
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .hoverHelpTooltip(
-                    title: viewModel.t("hub_tooltip_choose_file_title"),
-                    description: viewModel.t("hub_tooltip_choose_file_desc"),
-                    icon: "waveform",
-                    statusColor: .secondary,
-                    placement: .top
-                )
-            }
-            
-            // Small Info Row (Explaining Clipboard Monitoring & Audio Recording on Hover)
-            HStack(spacing: 12) {
-                // Clipboard status info button with interactive hover
-                Button(action: {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        viewModel.isClipboardMonitoring.toggle()
-                    }
-                }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
-                            .font(.system(size: 9.5))
-                            .foregroundStyle(viewModel.isClipboardMonitoring ? Color.green : Color.secondary)
-                        Text(viewModel.isClipboardMonitoring ? viewModel.t("hub_clipboard_info_active") : viewModel.t("hub_clipboard_info_inactive"))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule()
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                }
-                .buttonStyle(.plain)
-                .hoverHelpTooltip(
-                    title: viewModel.t("hub_tooltip_clipboard_title"),
-                    description: viewModel.t("hub_tooltip_clipboard_desc"),
-                    icon: "doc.on.clipboard.fill",
-                    status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
-                    statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
-                    hint: viewModel.t("hub_tooltip_clipboard_hint"),
-                    placement: .top
-                )
-                
-                Text("•")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary.opacity(0.35))
-                
-                // Audio recording action info button with interactive hover
-                Button(action: {
-                    viewModel.isRecordingSourceSheetPresented = true
-                }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 9.5))
-                            .foregroundStyle(Color.red)
-                        Text(viewModel.t("hub_recording_info"))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule()
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                }
-                .buttonStyle(.plain)
-                .hoverHelpTooltip(
-                    title: viewModel.t("hub_tooltip_recording_title"),
-                    description: viewModel.t("hub_tooltip_recording_desc"),
-                    icon: "mic.fill",
-                    status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                    statusColor: .red,
-                    hint: viewModel.t("hub_tooltip_recording_hint"),
-                    placement: .top
-                )
-            }
-            .padding(.top, 4)
-        }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 22)
-        .frame(maxWidth: .infinity)
-        .liquidGlass(cornerRadius: 18, glowColor: isDropTargeted ? Color.accentColor : Color.white.opacity(0.5), material: .ultraThinMaterial)
-        .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers: providers)
-            return true
-        }
-    }
-    
-    // MARK: - 3. Central Queue Section (Kuyruk & "Transkripte Yolla" Action)
+    // MARK: - 2. Central Queue Section (Kuyruk & "Transkripte Yolla" Action)
     private var centralQueueSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Queue Header & Actions
@@ -1103,10 +913,23 @@ public struct UnifiedStudioHubView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color.secondary)
                     Spacer()
+                    
+                    Button(action: {
+                        viewModel.promptForLocalAudioFiles()
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 11))
+                            Text(viewModel.t("hub_choose_audio_file"))
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
-                .liquidGlass(cornerRadius: 12, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+                .liquidGlass(cornerRadius: 12, glowColor: isDropTargeted ? Color.accentColor : .white.opacity(0.3), material: .ultraThinMaterial)
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.queueItems) { item in
@@ -1287,22 +1110,8 @@ public struct UnifiedStudioHubView: View {
         }
     }
     
-    private func submitQuickLink() {
-        let trimmed = quickLinkText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        viewModel.quickInputText = trimmed
-        viewModel.addFromQuickInput()
-        quickLinkText = ""
-    }
-    
     private func selectLocalAudioFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.audio, .movie]
-        if panel.runModal() == .OK {
-            viewModel.addAudioFiles(panel.urls)
-        }
+        viewModel.promptForLocalAudioFiles()
     }
     
     private func handleDrop(providers: [NSItemProvider]) {

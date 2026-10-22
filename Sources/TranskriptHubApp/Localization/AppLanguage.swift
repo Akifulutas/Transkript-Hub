@@ -260,10 +260,16 @@ public struct L10n {
             "tour_step4_desc": "Click here to record crystal-clear live audio from your microphone or directly capture system audio (Zoom, Teams, podcasts, videos) playing inside your Mac. When stopped, it transcribes immediately.",
             "tour_step5_title": "5. Watched Folders (iCloud & Voice Memos)",
             "tour_step5_desc": "Connect Apple Voice Memos or an iCloud Drive folder. Whenever a new voice note is recorded on your iPhone or a file drops into the folder, Transkript Hub transcribes it automatically!",
-            "tour_step6_title": "6. Drag & Drop Files or Paste",
-            "tour_step6_desc": "Drag and drop any MP3, M4A, WAV, or MP4 files directly into this wide central drop zone, or click 'Paste from Clipboard' (⌘V) to add media.",
+            "tour_step6_title": "6. Add Media & Drag-and-Drop",
+            "tour_step6_desc": "Drag and drop any audio or video files directly into this queue workspace, or use the top-right 'Add Media' button and ⌘V / ⌘O shortcuts.",
             "tour_step7_title": "7. Start Transcription & Explore",
             "tour_step7_desc": "Hit 'Send to Transcribe' to transcribe all queued files sequentially. When finished, reveal the .txt file in Finder, jump to any audio segment by clicking, or follow along with real-time Karaoke!",
+            
+            // Toolbar & Media Popover
+            "toolbar_add_media": "Add Media",
+            "toolbar_add_media_help": "Paste YouTube link or choose audio files (⌘O / ⌘V)",
+            "add_media_popover_title": "Add Link or Audio File",
+            "add_media_url_label": "YouTube or Media Link",
             
             // Sidebar & Navigation
             "sidebar_processing": "Processing...",
@@ -754,10 +760,16 @@ public struct L10n {
             "tour_step4_desc": "Mikrofonundan kendi sesini ya da Mac'inde çalan Zoom, Teams, ders veya video seslerini yüksek kalitede anında kaydedip, bittiğinde doğrudan metne dönüştürebilirsin.",
             "tour_step5_title": "5. İzlenen Klasörler (iCloud & Sesli Notlar)",
             "tour_step5_desc": "iPhone'undan Sesli Notlar (Voice Memos) aldığında veya iCloud Drive klasörüne yeni bir ses dosyası düştüğünde, hiçbir tuşa basmana gerek kalmadan Transkript Hub onu anında metne çevirir.",
-            "tour_step6_title": "6. Dosya Sürükle-Bırak & Yapıştırma",
-            "tour_step6_desc": "Mac'indeki MP3, M4A, WAV veya MP4 dosyalarını doğrudan bu geniş alana sürükleyip bırakabilirsin. Ya da 'Panodan Yapıştır' butonuna veya klavyeden ⌘V tuşuna basarak anında ekleyebilirsin.",
+            "tour_step6_title": "6. Medya Ekleme & Sürükle-Bırak",
+            "tour_step6_desc": "Ses veya video dosyalarını doğrudan bu kuyruk alanına sürükleyip bırakabilir, sağ üstteki 'Medya Ekle' tuşunu veya ⌘V / ⌘O kısayollarını kullanabilirsin.",
             "tour_step7_title": "7. Kuyruk & Transkripti Başlatma",
             "tour_step7_desc": "Kuyruktaki tüm ses dosyalarını 'Transkripte Yolla' butonuyla sırayla metne dönüştürürsün. İşlem bittiğinde Finder ikonuyla metin dosyasını bulabilir, tıklayarak o saniyeye zıplayabilir ve karaoke eşliğinde dinleyebilirsin!",
+            
+            // Toolbar & Media Popover
+            "toolbar_add_media": "Medya Ekle",
+            "toolbar_add_media_help": "YouTube linki yapıştır veya ses dosyası seç (⌘O / ⌘V)",
+            "add_media_popover_title": "Link veya Ses Dosyası Ekle",
+            "add_media_url_label": "YouTube veya Medya Linki",
             
             // Sidebar & Navigation
             "sidebar_processing": "İşleniyor...",
@@ -1248,10 +1260,16 @@ public struct L10n {
             "tour_step4_desc": "Nehmen Sie kristallklares Audio vom Mikrofon oder Mac-Systemaudio (Zoom, Teams, Videos) auf. Nach dem Stoppen wird es sofort automatisch transkribiert.",
             "tour_step5_title": "5. Überwachte Ordner (iCloud & Sprachmemos)",
             "tour_step5_desc": "Verbinden Sie Sprachmemos oder iCloud Drive. Sobald ein neues Sprachmemo auf Ihrem iPhone aufgenommen wird, transkribiert Transkript Hub es vollautomatisch!",
-            "tour_step6_title": "6. Dateien ablegen & einfügen",
-            "tour_step6_desc": "Ziehen Sie MP3-, M4A-, WAV- oder MP4-Dateien direkt in diesen Bereich oder klicken Sie auf 'Einfügen' (⌘V).",
+            "tour_step6_title": "6. Medien hinzufügen & Ablegen",
+            "tour_step6_desc": "Ziehen Sie Audio- oder Videodateien direkt in diesen Bereich oder nutzen Sie die Schaltfläche oben rechts und die Tastenkürzel ⌘V / ⌘O.",
             "tour_step7_title": "7. Warteschlange & Start",
             "tour_step7_desc": "Klicken Sie auf 'Transkription starten', um alle Dateien nacheinander zu verarbeiten. Nach Abschluss können Sie die Datei im Finder öffnen, Segmente anklicken oder dem Karaoke folgen!",
+            
+            // Toolbar & Media Popover
+            "toolbar_add_media": "Medien hinzufügen",
+            "toolbar_add_media_help": "YouTube-Link einfügen oder Audiodatei auswählen (⌘O / ⌘V)",
+            "add_media_popover_title": "Link oder Audiodatei hinzufügen",
+            "add_media_url_label": "YouTube- oder Medien-Link",
             
             // Sidebar & Navigation
             "sidebar_processing": "Wird verarbeitet...",
