@@ -104,11 +104,38 @@ public struct SpotlightCutoutShape: Shape {
     }
 }
 
+public struct SpotlightBorderShape: Shape {
+    public var rect: CGRect
+    public var cornerRadius: CGFloat
+    public var expansion: CGFloat
+    
+    public var animatableData: CGFloat {
+        get { expansion }
+        set { expansion = newValue }
+    }
+    
+    public init(rect: CGRect, cornerRadius: CGFloat, expansion: CGFloat = 0) {
+        self.rect = rect
+        self.cornerRadius = cornerRadius
+        self.expansion = expansion
+    }
+    
+    public func path(in containerRect: CGRect) -> Path {
+        var path = Path()
+        let expanded = rect.insetBy(dx: -expansion, dy: -expansion)
+        path.addRoundedRect(
+            in: expanded,
+            cornerSize: CGSize(width: max(0, cornerRadius + expansion), height: max(0, cornerRadius + expansion))
+        )
+        return path
+    }
+}
+
 public struct InteractiveSpotlightTourView: View {
     @ObservedObject var viewModel: AppViewModel
     let targetFrames: [StudioTourStep: CGRect]
     
-    @State private var pulseScale: CGFloat = 1.0
+    @State private var isPulsing: Bool = false
     
     public init(viewModel: AppViewModel, targetFrames: [StudioTourStep: CGRect]) {
         self.viewModel = viewModel
@@ -136,21 +163,18 @@ public struct InteractiveSpotlightTourView: View {
                         advanceStep()
                     }
                 
-                // 2. Animated Glowing Spotlight Border around target cutout
-                RoundedRectangle(cornerRadius: 14)
+                // 2. Animated Glowing Spotlight Border: Locked directly onto cutout coordinates, gently pulses in place!
+                SpotlightBorderShape(rect: paddedCutout, cornerRadius: 14, expansion: isPulsing ? 3.0 : 0.5)
                     .stroke(
                         LinearGradient(
                             colors: [currentStep.tintColor, Color.accentColor, Color.purple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2.4
+                        lineWidth: 2.2
                     )
-                    .frame(width: paddedCutout.width, height: paddedCutout.height)
-                    .position(x: paddedCutout.midX, y: paddedCutout.midY)
-                    .shadow(color: currentStep.tintColor.opacity(0.8), radius: 8)
-                    .scaleEffect(pulseScale)
-                    .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseScale)
+                    .shadow(color: currentStep.tintColor.opacity(isPulsing ? 0.85 : 0.45), radius: isPulsing ? 9 : 4)
+                    .animation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true), value: isPulsing)
                     .allowsHitTesting(false)
                 
                 // 3. Compact Anchored Mission / Tutorial Card
@@ -158,7 +182,7 @@ public struct InteractiveSpotlightTourView: View {
             }
             .frame(width: containerSize.width, height: containerSize.height)
             .onAppear {
-                pulseScale = 1.02
+                isPulsing = true
             }
         }
     }
