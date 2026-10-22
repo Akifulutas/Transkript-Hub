@@ -16,6 +16,7 @@ public struct UnifiedStudioHubView: View {
     @State private var isClipboardInfoPresented: Bool = false
     @State private var isRecordingInfoPresented: Bool = false
     @State private var isFolderInfoPresented: Bool = false
+    @State private var isHistoryInfoPresented: Bool = false
     @State private var isHeroInfoPresented: Bool = false
     @State private var isQueueInfoPresented: Bool = false
     
@@ -327,26 +328,40 @@ public struct UnifiedStudioHubView: View {
             .id(StudioTourStep.watchedFolders.id)
             
             // Card 6: History & Archive (Navigates to History Section)
-            Button(action: {
-                viewModel.selectedSection = .history
-            }) {
-                StudioInteractiveCardView(
-                    icon: "clock.arrow.circlepath",
-                    badgeColor: .purple,
-                    caption: viewModel.t("hub_card_history"),
-                    title: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count)
-                )
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    viewModel.selectedSection = .history
+                }) {
+                    StudioInteractiveCardView(
+                        icon: "clock.arrow.circlepath",
+                        badgeColor: .purple,
+                        caption: viewModel.t("hub_card_history"),
+                        title: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count)
+                    )
+                }
+                .buttonStyle(.plain)
+                
+                // Card 6 'i' Info Button
+                Button(action: {
+                    isHistoryInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(isHistoryInfoPresented ? Color.purple : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isHistoryInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_history_title"),
+                        description: viewModel.t("hub_tooltip_history_desc"),
+                        icon: "clock.arrow.circlepath",
+                        tintColor: .purple,
+                        onDismiss: { isHistoryInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_history_title"),
-                description: viewModel.t("hub_tooltip_history_desc"),
-                icon: "clock.arrow.circlepath",
-                status: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count),
-                statusColor: .purple,
-                hint: viewModel.t("hub_tooltip_history_hint"),
-                placement: .bottomTrailing
-            )
         }
     }
     

@@ -76,35 +76,8 @@ public struct HoverHelpTooltipModifier: ViewModifier {
     }
     
     public func body(content: Content) -> some View {
-        let activePlacement = placement
+        // Hover popover cancelled per user request; info is triggered strictly by clicking the dedicated (i) button
         content
-            .onHover { hovering in
-                handleHover(hovering)
-            }
-            .overlay(alignment: activePlacement.overlayAlignment) {
-                if showTooltip {
-                    tooltipBubble
-                        .alignmentGuide(activePlacement.verticalAlignmentGuide) { d in
-                            switch activePlacement {
-                            case .bottom, .bottomLeading, .bottomTrailing:
-                                return -8 // Exactly 8px BELOW the parent view, extending downwards
-                            case .top, .topLeading, .topTrailing:
-                                return d.height + 8 // Exactly 8px ABOVE the parent view, extending upwards
-                            }
-                        }
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.94, anchor: activePlacement.scaleAnchor)),
-                            removal: .opacity
-                        ))
-                        .zIndex(99999)
-                }
-            }
-            .onDisappear {
-                hoverTask?.cancel()
-                hoverTask = nil
-                showTooltip = false
-                isHovered = false
-            }
     }
     
     private func handleHover(_ hovering: Bool) {
