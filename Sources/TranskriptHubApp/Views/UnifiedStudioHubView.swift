@@ -1030,19 +1030,6 @@ public struct UnifiedStudioHubView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color.secondary)
                     Spacer()
-                    
-                    Button(action: {
-                        viewModel.promptForLocalAudioFiles()
-                    }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 11))
-                            Text(viewModel.t("hub_choose_audio_file"))
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
