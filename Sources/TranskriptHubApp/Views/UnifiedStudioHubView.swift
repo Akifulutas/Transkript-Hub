@@ -10,6 +10,15 @@ public struct UnifiedStudioHubView: View {
     @State private var isLanguagePickerPresented: Bool = false
     @State private var studioTourTargets: [StudioTourStep: CGRect] = [:]
     
+    // Dedicated 'i' Info Popover States
+    @State private var isModelInfoPresented: Bool = false
+    @State private var isLanguageInfoPresented: Bool = false
+    @State private var isClipboardInfoPresented: Bool = false
+    @State private var isRecordingInfoPresented: Bool = false
+    @State private var isFolderInfoPresented: Bool = false
+    @State private var isHeroInfoPresented: Bool = false
+    @State private var isQueueInfoPresented: Bool = false
+    
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
     }
@@ -67,140 +76,255 @@ public struct UnifiedStudioHubView: View {
     private var topActionCardsRow: some View {
         HStack(spacing: 10) {
             // Card 1: Model Selection (Floating Popover anchored under Card 1)
-            Button(action: {
-                isModelPickerPresented.toggle()
-            }) {
-                StudioInteractiveCardView(
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    isModelPickerPresented.toggle()
+                }) {
+                    StudioInteractiveCardView(
+                        icon: "cpu.fill",
+                        badgeColor: .orange,
+                        caption: viewModel.t("hub_card_model"),
+                        title: viewModel.selectedModelTitle,
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
+                    modelPickerPopover
+                }
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_model_title"),
+                    description: viewModel.t("hub_tooltip_model_desc"),
                     icon: "cpu.fill",
-                    badgeColor: .orange,
-                    caption: viewModel.t("hub_card_model"),
-                    title: viewModel.selectedModelTitle,
-                    showsChevron: true
+                    status: viewModel.selectedModelTitle,
+                    statusColor: .orange,
+                    hint: viewModel.t("hub_tooltip_model_hint"),
+                    placement: .bottomLeading
                 )
+                .studioTourTarget(.modelSelection)
+                .id(StudioTourStep.modelSelection.id)
+                
+                // Card 1 'i' Info Button
+                Button(action: {
+                    isModelInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isModelInfoPresented ? Color.orange : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isModelInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_model_title"),
+                        description: viewModel.t("hub_tooltip_model_desc"),
+                        icon: "cpu.fill",
+                        tintColor: .orange,
+                        onDismiss: { isModelInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
-                modelPickerPopover
-            }
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_model_title"),
-                description: viewModel.t("hub_tooltip_model_desc"),
-                icon: "cpu.fill",
-                status: viewModel.selectedModelTitle,
-                statusColor: .orange,
-                hint: viewModel.t("hub_tooltip_model_hint"),
-                placement: .bottomLeading
-            )
-            .studioTourTarget(.modelSelection)
-            .id(StudioTourStep.modelSelection.id)
             
             // Card 2: Language Selection (Floating Popover anchored under Card 2)
-            Button(action: {
-                isLanguagePickerPresented.toggle()
-            }) {
-                StudioInteractiveCardView(
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    isLanguagePickerPresented.toggle()
+                }) {
+                    StudioInteractiveCardView(
+                        icon: "globe",
+                        badgeColor: .blue,
+                        caption: viewModel.t("hub_card_speech_language"),
+                        title: languageTitle(viewModel.selectedLanguage),
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isLanguagePickerPresented, arrowEdge: .bottom) {
+                    languagePickerPopover
+                }
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_language_title"),
+                    description: viewModel.t("hub_tooltip_language_desc"),
                     icon: "globe",
-                    badgeColor: .blue,
-                    caption: viewModel.t("hub_card_speech_language"),
-                    title: languageTitle(viewModel.selectedLanguage),
-                    showsChevron: true
+                    status: languageTitle(viewModel.selectedLanguage),
+                    statusColor: .blue,
+                    hint: viewModel.t("hub_tooltip_language_hint"),
+                    placement: .bottomLeading
                 )
+                .studioTourTarget(.languageSelection)
+                .id(StudioTourStep.languageSelection.id)
+                
+                // Card 2 'i' Info Button
+                Button(action: {
+                    isLanguageInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isLanguageInfoPresented ? Color.blue : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isLanguageInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_language_title"),
+                        description: viewModel.t("hub_tooltip_language_desc"),
+                        icon: "globe",
+                        tintColor: .blue,
+                        onDismiss: { isLanguageInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $isLanguagePickerPresented, arrowEdge: .bottom) {
-                languagePickerPopover
-            }
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_language_title"),
-                description: viewModel.t("hub_tooltip_language_desc"),
-                icon: "globe",
-                status: languageTitle(viewModel.selectedLanguage),
-                statusColor: .blue,
-                hint: viewModel.t("hub_tooltip_language_hint"),
-                placement: .bottomLeading
-            )
-            .studioTourTarget(.languageSelection)
-            .id(StudioTourStep.languageSelection.id)
             
             // Card 3: Clipboard Monitoring (Toggle Button)
-            Button(action: {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                    viewModel.isClipboardMonitoring.toggle()
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        viewModel.isClipboardMonitoring.toggle()
+                    }
+                }) {
+                    StudioInteractiveCardView(
+                        icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
+                        badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                        caption: viewModel.t("hub_card_clipboard"),
+                        title: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
+                        isPulseActive: viewModel.isClipboardMonitoring
+                    )
                 }
-            }) {
-                StudioInteractiveCardView(
+                .buttonStyle(.plain)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_clipboard_title"),
+                    description: viewModel.t("hub_tooltip_clipboard_desc"),
                     icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
-                    badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
-                    caption: viewModel.t("hub_card_clipboard"),
-                    title: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
-                    isPulseActive: viewModel.isClipboardMonitoring
+                    status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
+                    statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                    hint: viewModel.t("hub_tooltip_clipboard_hint"),
+                    placement: .bottom
                 )
+                .studioTourTarget(.clipboardMonitoring)
+                .id(StudioTourStep.clipboardMonitoring.id)
+                
+                // Card 3 'i' Info Button
+                Button(action: {
+                    isClipboardInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isClipboardInfoPresented ? Color.green : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isClipboardInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_clipboard_title"),
+                        description: viewModel.t("hub_tooltip_clipboard_desc"),
+                        icon: "doc.on.clipboard.fill",
+                        tintColor: .green,
+                        onDismiss: { isClipboardInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_clipboard_title"),
-                description: viewModel.t("hub_tooltip_clipboard_desc"),
-                icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
-                status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
-                statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
-                hint: viewModel.t("hub_tooltip_clipboard_hint"),
-                placement: .bottom
-            )
-            .studioTourTarget(.clipboardMonitoring)
-            .id(StudioTourStep.clipboardMonitoring.id)
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
-            Button(action: {
-                viewModel.isRecordingSourceSheetPresented = true
-            }) {
-                StudioInteractiveCardView(
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    viewModel.isRecordingSourceSheetPresented = true
+                }) {
+                    StudioInteractiveCardView(
+                        icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
+                        badgeColor: .red,
+                        caption: viewModel.t("hub_card_recording"),
+                        title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_recording_title"),
+                    description: viewModel.t("hub_tooltip_recording_desc"),
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                    badgeColor: .red,
-                    caption: viewModel.t("hub_card_recording"),
-                    title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                    showsChevron: true
+                    status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                    statusColor: .red,
+                    hint: viewModel.t("hub_tooltip_recording_hint"),
+                    placement: .bottom
                 )
+                .studioTourTarget(.audioRecording)
+                .id(StudioTourStep.audioRecording.id)
+                
+                // Card 4 'i' Info Button
+                Button(action: {
+                    isRecordingInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isRecordingInfoPresented ? Color.red : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isRecordingInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_recording_title"),
+                        description: viewModel.t("hub_tooltip_recording_desc"),
+                        icon: "mic.fill",
+                        tintColor: .red,
+                        onDismiss: { isRecordingInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_recording_title"),
-                description: viewModel.t("hub_tooltip_recording_desc"),
-                icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                statusColor: .red,
-                hint: viewModel.t("hub_tooltip_recording_hint"),
-                placement: .bottom
-            )
-            .studioTourTarget(.audioRecording)
-            .id(StudioTourStep.audioRecording.id)
             
             // Card 5: Watched Folder (Opens Native Sheet)
-            Button(action: {
-                viewModel.isWatchedFolderPresented = true
-            }) {
-                let activeCount = [
-                    viewModel.folderWatcher.watchiCloudDrive,
-                    viewModel.folderWatcher.watchVoiceMemos,
-                    viewModel.folderWatcher.watchCustomFolder
-                ].filter { $0 }.count
-                StudioInteractiveCardView(
+            ZStack(alignment: .topTrailing) {
+                Button(action: {
+                    viewModel.isWatchedFolderPresented = true
+                }) {
+                    let activeCount = [
+                        viewModel.folderWatcher.watchiCloudDrive,
+                        viewModel.folderWatcher.watchVoiceMemos,
+                        viewModel.folderWatcher.watchCustomFolder
+                    ].filter { $0 }.count
+                    StudioInteractiveCardView(
+                        icon: "folder.fill.badge.gearshape",
+                        badgeColor: activeCount > 0 ? .teal : .secondary,
+                        caption: viewModel.t("hub_card_watched_folder"),
+                        title: activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure")
+                    )
+                }
+                .buttonStyle(.plain)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_folder_title"),
+                    description: viewModel.t("hub_tooltip_folder_desc"),
                     icon: "folder.fill.badge.gearshape",
-                    badgeColor: activeCount > 0 ? .teal : .secondary,
-                    caption: viewModel.t("hub_card_watched_folder"),
-                    title: activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure")
+                    statusColor: .teal,
+                    hint: viewModel.t("hub_tooltip_folder_hint"),
+                    placement: .bottomTrailing
                 )
+                .studioTourTarget(.watchedFolders)
+                .id(StudioTourStep.watchedFolders.id)
+                
+                // Card 5 'i' Info Button
+                Button(action: {
+                    isFolderInfoPresented.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isFolderInfoPresented ? Color.teal : Color.secondary.opacity(0.45))
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isFolderInfoPresented, arrowEdge: .bottom) {
+                    StudioCompactInfoPopover(
+                        title: viewModel.t("hub_tooltip_folder_title"),
+                        description: viewModel.t("hub_tooltip_folder_desc"),
+                        icon: "folder.fill.badge.gearshape",
+                        tintColor: .teal,
+                        onDismiss: { isFolderInfoPresented = false }
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .hoverHelpTooltip(
-                title: viewModel.t("hub_tooltip_folder_title"),
-                description: viewModel.t("hub_tooltip_folder_desc"),
-                icon: "folder.fill.badge.gearshape",
-                statusColor: .teal,
-                hint: viewModel.t("hub_tooltip_folder_hint"),
-                placement: .bottomTrailing
-            )
-            .studioTourTarget(.watchedFolders)
-            .id(StudioTourStep.watchedFolders.id)
             
             // Card 6: History & Archive (Navigates to History Section)
             Button(action: {
@@ -477,6 +601,67 @@ public struct UnifiedStudioHubView: View {
         }
     }
     
+    // MARK: - Compact Feature Info Popover
+    public struct StudioCompactInfoPopover: View {
+        let title: String
+        let description: String
+        let icon: String
+        let tintColor: Color
+        var onDismiss: (() -> Void)? = nil
+        
+        public init(
+            title: String,
+            description: String,
+            icon: String,
+            tintColor: Color = .accentColor,
+            onDismiss: (() -> Void)? = nil
+        ) {
+            self.title = title
+            self.description = description
+            self.icon = icon
+            self.tintColor = tintColor
+            self.onDismiss = onDismiss
+        }
+        
+        public var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .fill(tintColor.opacity(0.18))
+                            .frame(width: 20, height: 20)
+                        Image(systemName: icon)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(tintColor)
+                    }
+                    
+                    Text(title)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.primary)
+                    
+                    Spacer(minLength: 4)
+                    
+                    if let onDismiss = onDismiss {
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Color.secondary.opacity(0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
+                Text(description)
+                    .font(.system(size: 11))
+                    .lineSpacing(2)
+                    .foregroundStyle(Color.primary.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(width: 270)
+        }
+    }
+    
     // MARK: - Interactive Card View Builder
     private struct StudioInteractiveCardView: View {
         let icon: String
@@ -549,8 +734,28 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(Color.accentColor)
                 }
                 
-                Text(isDropTargeted ? viewModel.t("hub_drop_target") : viewModel.t("hub_drop_or_add"))
-                    .font(.system(size: 15, weight: .bold))
+                HStack(spacing: 6) {
+                    Text(isDropTargeted ? viewModel.t("hub_drop_target") : viewModel.t("hub_drop_or_add"))
+                        .font(.system(size: 15, weight: .bold))
+                    
+                    Button(action: {
+                        isHeroInfoPresented.toggle()
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(isHeroInfoPresented ? Color.accentColor : Color.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $isHeroInfoPresented, arrowEdge: .bottom) {
+                        StudioCompactInfoPopover(
+                            title: viewModel.t("hub_tooltip_drop_zone_title"),
+                            description: viewModel.t("hub_tooltip_drop_zone_desc"),
+                            icon: "arrow.down.doc.fill",
+                            tintColor: .accentColor,
+                            onDismiss: { isHeroInfoPresented = false }
+                        )
+                    }
+                }
             }
             
             // Integrated URL Input Field
@@ -715,6 +920,24 @@ public struct UnifiedStudioHubView: View {
                     
                     Text(viewModel.t("hub_queue_items"))
                         .font(.system(size: 14, weight: .bold))
+                    
+                    Button(action: {
+                        isQueueInfoPresented.toggle()
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(isQueueInfoPresented ? Color.accentColor : Color.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $isQueueInfoPresented, arrowEdge: .bottom) {
+                        StudioCompactInfoPopover(
+                            title: viewModel.t("action_transcribe_queue"),
+                            description: viewModel.t("hub_tooltip_queue_btn_ready"),
+                            icon: "sparkles",
+                            tintColor: .accentColor,
+                            onDismiss: { isQueueInfoPresented = false }
+                        )
+                    }
                     
                     if !viewModel.queueItems.isEmpty {
                         Text("\(viewModel.queueItems.count)")

@@ -980,13 +980,9 @@ public final class AppViewModel: ObservableObject {
             self.clipboardMonitor.startMonitoring()
         }
         
-        // Present Interactive In-App Spotlight Tour if user has not completed it yet
-        let hasCompletedTour = UserDefaults.standard.bool(forKey: "hasCompletedSpotlightTour")
-        if !hasCompletedTour {
-            self.isSpotlightTourActive = true
-            self.spotlightTourCurrentStep = 0
-            self.isOnboardingPresented = false
-        }
+        // Keep spotlight tour inactive by default on launch so the user is never blocked
+        self.isSpotlightTourActive = false
+        self.isOnboardingPresented = false
         
         let token = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,

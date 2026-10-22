@@ -108,7 +108,7 @@ public struct HoverHelpTooltipModifier: ViewModifier {
         if hovering {
             isHovered = true
             hoverTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 180_000_000) // 180ms debounce
+                try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5s deliberate pause delay (not immediate on brush)
                 if !Task.isCancelled && isHovered {
                     withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
                         showTooltip = true
