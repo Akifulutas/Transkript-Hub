@@ -101,7 +101,7 @@ public actor JobManager {
         }
         
         for job in jobs {
-            guard !JobState(rawValue: job.state)!.isTerminal else { continue }
+            guard let state = JobState(rawValue: job.state), !state.isTerminal else { continue }
             
             var currentJob = job
             let workspaceURL = URL(fileURLWithPath: job.workspacePath ?? "/tmp/\(job.id)")
@@ -178,7 +178,7 @@ public actor JobManager {
                     let now = ISO8601DateFormatter().string(from: Date())
                     
                     let segmentsData = try? JSONEncoder().encode(result.segments)
-                    let segmentsJson = segmentsData != nil ? String(data: segmentsData!, encoding: .utf8) : nil
+                    let segmentsJson = segmentsData.flatMap { String(data: $0, encoding: .utf8) }
                     
                     try await database.dbQueue.write { db in
                         let section = TranscriptSectionRecord(jobID: jobID, text: formatted, segments: segmentsJson)

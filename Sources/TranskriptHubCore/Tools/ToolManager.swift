@@ -112,7 +112,13 @@ public final class ToolManager: Sendable {
         try FileManager.default.createDirectory(at: currentDir, withIntermediateDirectories: true)
         
         let destination = currentDir.appendingPathComponent("deno")
-        let downloadURL = URL(string: "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-apple-darwin.zip")!
+        let archString: String
+        #if arch(arm64)
+        archString = "aarch64"
+        #else
+        archString = "x86_64"
+        #endif
+        let downloadURL = URL(string: "https://github.com/denoland/deno/releases/latest/download/deno-\(archString)-apple-darwin.zip")!
         
         let (tempZipURL, response) = try await URLSession.shared.download(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {

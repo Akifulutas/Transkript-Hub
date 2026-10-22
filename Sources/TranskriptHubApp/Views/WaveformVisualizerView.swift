@@ -255,16 +255,17 @@ public struct WaveformVisualizerView: View {
         }
     }
     
+    private static let defaultPoints: [WaveformPoint] = (0..<100).map { i in
+        let factor = sin(Double(i) * 0.1) * cos(Double(i) * 0.05)
+        let amp = Float(abs(factor) * 0.35 + 0.1)
+        return WaveformPoint(min: 0.0, max: min(1.0, amp))
+    }
+    
     /// Fallback points if none provided, generating a clean ambient wave pattern
     private var effectivePoints: [WaveformPoint] {
         if !waveformPoints.isEmpty {
             return waveformPoints
         }
-        // Synthetic resting ambient bars (100 bars)
-        return (0..<100).map { i in
-            let factor = sin(Double(i) * 0.1) * cos(Double(i) * 0.05)
-            let amp = Float(abs(factor) * 0.35 + 0.1)
-            return WaveformPoint(min: 0.0, max: min(1.0, amp))
-        }
+        return Self.defaultPoints
     }
 }

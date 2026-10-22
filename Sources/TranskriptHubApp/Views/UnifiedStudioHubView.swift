@@ -18,6 +18,12 @@ public struct UnifiedStudioHubView: View {
     @State private var isHistoryInfoPresented: Bool = false
     @State private var isQueueInfoPresented: Bool = false
     
+    // Interactive Pull-to-Refresh State
+    @State private var pullOffset: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
+    @State private var isRefreshing: Bool = false
+    @State private var spinAngle: Double = 0
+    
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
     }
@@ -26,18 +32,60 @@ public struct UnifiedStudioHubView: View {
         ZStack {
             ScrollViewReader { scrollProxy in
                 ScrollView {
-                    VStack(spacing: 20) {
-                        // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
-                        topActionCardsRow
-                            .padding(.horizontal, 24)
-                            .padding(.top, 16)
+                    VStack(spacing: 0) {
+                        // Offset tracking anchor
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: HubScrollOffsetPreferenceKey.self,
+                                value: proxy.frame(in: .named("HubScrollViewCoordinateSpace")).minY
+                            )
+                        }
+                        .frame(height: 0)
                         
-                        // 2. Central Queue Section (Directly under the action cards)
-                        centralQueueSection
-                            .id(StudioTourStep.heroDropAndPaste.id)
-                            .studioTourTarget(.heroDropAndPaste)
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 28)
+                        // Interactive Pull-To-Refresh Rotating Indicator
+                        pullToRefreshIndicator
+                        
+                        VStack(spacing: 20) {
+                            // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
+                            topActionCardsRow
+                                .padding(.horizontal, 24)
+                                .padding(.top, (isRefreshing || pullOffset > 0 || dragOffset > 0) ? 6 : 16)
+                            
+                            // 2. Central Queue Section (Directly under the action cards)
+                            centralQueueSection
+                                .id(StudioTourStep.heroDropAndPaste.id)
+                                .studioTourTarget(.heroDropAndPaste)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 28)
+                        }
+                    }
+                }
+                .coordinateSpace(name: "HubScrollViewCoordinateSpace")
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 5)
+                        .onChanged { gesture in
+                            guard !isRefreshing else { return }
+                            if gesture.translation.height > 0 {
+                                dragOffset = gesture.translation.height
+                            }
+                        }
+                        .onEnded { gesture in
+                            guard !isRefreshing else { return }
+                            if dragOffset >= 48 {
+                                executeRefresh()
+                            } else {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                    dragOffset = 0
+                                }
+                            }
+                        }
+                )
+                .onPreferenceChange(HubScrollOffsetPreferenceKey.self) { value in
+                    guard !isRefreshing else { return }
+                    let positive = max(0, value)
+                    pullOffset = positive
+                    if positive >= 50 && !isRefreshing {
+                        executeRefresh()
                     }
                 }
                 .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
@@ -69,6 +117,65 @@ public struct UnifiedStudioHubView: View {
         .coordinateSpace(name: "StudioTourCoordinateSpace")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
+    }
+    
+    // MARK: - Pull-to-Refresh Indicator & Action
+    private var pullToRefreshIndicator: some View {
+        let effectiveOffset = max(0, max(pullOffset, dragOffset))
+        let isVisible = isRefreshing || effectiveOffset > 5
+        let currentHeight: CGFloat = isRefreshing ? 38 : min(46, effectiveOffset)
+        let rotationDegrees: Double = isRefreshing ? spinAngle : Double(effectiveOffset) * 3.6
+        let progress = min(1.0, max(0.0, effectiveOffset / 50.0))
+        
+        return VStack(spacing: 0) {
+            if isVisible {
+                ZStack {
+                    Circle()
+                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
+                        .frame(width: 30, height: 30)
+                        .overlay(
+                            Circle()
+                                .stroke(isRefreshing || progress >= 1.0 ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.12), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isRefreshing || progress >= 1.0 ? Color.accentColor : Color.secondary)
+                        .rotationEffect(.degrees(rotationDegrees))
+                }
+                .scaleEffect(isRefreshing ? 1.0 : min(1.0, max(0.4, progress)))
+                .opacity(isRefreshing ? 1.0 : min(1.0, Double(effectiveOffset) / 25.0))
+                .padding(.top, isRefreshing ? 8 : 4)
+                .padding(.bottom, 4)
+                .frame(height: currentHeight)
+                .transition(.opacity.combined(with: .scale))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: isVisible ? currentHeight : 0)
+        .clipped()
+    }
+    
+    private func executeRefresh() {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        withAnimation(.linear(duration: 0.75).repeatForever(autoreverses: false)) {
+            spinAngle += 360
+        }
+        Task {
+            await viewModel.triggerManualRefresh()
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                spinAngle = 0
+            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                isRefreshing = false
+                dragOffset = 0
+                pullOffset = 0
+            }
+        }
     }
     
     // MARK: - 1. Top 6 Interactive Action Cards Row
@@ -806,7 +913,7 @@ public struct UnifiedStudioHubView: View {
                     .controlSize(.small)
                 }
                 
-                // Sort Menu Button (En Yeniden En Eskiye)
+                // Sort Menu Button (Compact Icon-Only with Glass Capsule)
                 if !viewModel.queueItems.isEmpty {
                     Menu {
                         Button(action: {
@@ -825,16 +932,24 @@ public struct UnifiedStudioHubView: View {
                             Label(viewModel.t("queue_sort_alphabetical"), systemImage: "textformat")
                         }
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.arrow.down")
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(viewModel.t("queue_sort_title"))
-                                .font(.system(size: 11, weight: .medium))
-                        }
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.secondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.06))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
+                            )
+                            .contentShape(Capsule())
                     }
                     .menuStyle(.borderlessButton)
                     .controlSize(.small)
-                    .help(viewModel.t("queue_sort_newest_first"))
+                    .help(viewModel.t("queue_sort_title"))
                 }
                 
                 // Primary Action Button: "Transkripte Yolla"
@@ -1159,5 +1274,12 @@ public struct UnifiedStudioHubView: View {
         case "de": return viewModel.t("hub_lang_de")
         default: return code.uppercased()
         }
+    }
+}
+
+private struct HubScrollOffsetPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

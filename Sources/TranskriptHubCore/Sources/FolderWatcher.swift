@@ -140,6 +140,10 @@ public final class FolderWatcher: ObservableObject {
             processedPaths.insert(path)
         }
     }
+    
+    public func isPathProcessed(_ path: String) -> Bool {
+        processedPaths.contains(path)
+    }
 
     public var isVoiceMemosDirectlyAccessible: Bool {
         let path = Self.voiceMemosDirectory.path

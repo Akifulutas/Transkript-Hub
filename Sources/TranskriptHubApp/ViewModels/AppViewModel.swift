@@ -249,6 +249,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var lastOutputURL: URL? = nil
     @Published public var errorMessage: String? = nil
     @Published public var copiedToast: Bool = false
+    @Published public var isPullRefreshing: Bool = false
     
     // Audio Playback & Interactive Waveform Scrubbing
     public let audioPlayer = AudioPlayerController()
@@ -537,6 +538,40 @@ public final class AppViewModel: ObservableObject {
         folderWatcher.customFolderURL = nil
         folderWatcher.watchCustomFolder = false
         objectWillChange.send()
+    }
+    
+    // MARK: - Interactive Pull-to-Refresh
+    public func triggerManualRefresh() async {
+        guard !isPullRefreshing else { return }
+        isPullRefreshing = true
+        defer {
+            isPullRefreshing = false
+        }
+        
+        checkFullDiskAccess()
+        
+        // Scan watched directories (iCloud Drive, Voice Memos, custom folders)
+        if !folderWatcher.isWatching {
+            folderWatcher.startWatching()
+        } else {
+            await folderWatcher.scanDirectory()
+        }
+        
+        // Check for any newly added Voice Memos if accessible
+        if folderWatcher.watchVoiceMemos && folderWatcher.isVoiceMemosDirectlyAccessible {
+            let files = folderWatcher.existingVoiceMemosFiles()
+            let unprocessed = files.filter { !folderWatcher.isPathProcessed($0.path) }
+            if !unprocessed.isEmpty {
+                addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
+            }
+        }
+        
+        // Refresh history & metadata
+        await loadHistoryFromDatabase()
+        await resolvePendingVideoTitles()
+        
+        // Minimum visual feedback duration so user perceives the action
+        try? await Task.sleep(nanoseconds: 600_000_000)
     }
     
     public func sourceLabel(for url: URL) -> String {
@@ -1526,6 +1561,21 @@ public final class AppViewModel: ObservableObject {
         runQueueProcessor()
     }
     
+    // MARK: - Whisper Engine Background Cache
+    private var cachedWhisperEngine: (modelPath: String, engine: WhisperCppEngine)? = nil
+    
+    private func getOrInitializeWhisperEngine(for modelURL: URL) async throws -> WhisperCppEngine {
+        let path = modelURL.path
+        if let cached = cachedWhisperEngine, cached.modelPath == path {
+            return cached.engine
+        }
+        let engine = try await Task.detached(priority: .userInitiated) {
+            try WhisperCppEngine(modelPath: path)
+        }.value
+        self.cachedWhisperEngine = (path, engine)
+        return engine
+    }
+    
     private func runQueueProcessor() {
         guard !isProcessing else {
             Log.info("Queue processor is already active; newly marked autoProcess items will be picked up automatically.")
@@ -1562,7 +1612,7 @@ public final class AppViewModel: ObservableObject {
                     modelURL = self.modelManager.localURL(for: model)
                 }
                 
-                let whisperEngine = try WhisperCppEngine(modelPath: modelURL.path)
+                let whisperEngine = try await self.getOrInitializeWhisperEngine(for: modelURL)
                 let audioDecoder = AudioDecoder()
                 let postProcessor = TranscriptPostProcessor()
                 var ytdlpClient: YTDLPClient? = nil
@@ -1655,7 +1705,10 @@ public final class AppViewModel: ObservableObject {
                             self.updateItem(current)
                             self.currentOperation = self.t("status_metal_active")
                             
-                            let prepared = try audioDecoder.decode(fileURL: media.localAudioURL)
+                            let localAudioURL = media.localAudioURL
+                            let prepared = try await Task.detached(priority: .userInitiated) {
+                                try audioDecoder.decode(fileURL: localAudioURL)
+                            }.value
                             let collector = SegmentCollector()
                             let itemId = current.id
                             let result = try await whisperEngine.transcribe(
@@ -1690,9 +1743,7 @@ public final class AppViewModel: ObservableObject {
                             current.segments = result.segments
                             
                             let waveformGen = WaveformGenerator()
-                            if let aURL = current.audioURL {
-                                current.waveformPoints = try? await waveformGen.generateWaveform(from: aURL, targetPoints: 200)
-                            }
+                            current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
                             
@@ -1774,7 +1825,9 @@ public final class AppViewModel: ObservableObject {
                             self.updateItem(current)
                             self.currentOperation = "Yerel ses çözümleniyor ve transkript ediliyor..."
                             
-                            let prepared = try audioDecoder.decode(fileURL: fileURL)
+                            let prepared = try await Task.detached(priority: .userInitiated) {
+                                try audioDecoder.decode(fileURL: fileURL)
+                            }.value
                             let collector = SegmentCollector()
                             let itemId = current.id
                             let result = try await whisperEngine.transcribe(
@@ -1800,7 +1853,7 @@ public final class AppViewModel: ObservableObject {
                             current.audioURL = fileURL
                             current.segments = result.segments
                             let waveformGen = WaveformGenerator()
-                            current.waveformPoints = try? await waveformGen.generateWaveform(from: fileURL, targetPoints: 200)
+                            current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
                             

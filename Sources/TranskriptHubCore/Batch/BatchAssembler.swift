@@ -20,7 +20,7 @@ public final class BatchAssembler: Sendable {
         let (batch, jobs, sections) = try database.dbQueue.read { db -> (BatchRecord?, [JobRecord], [String: TranscriptSectionRecord]) in
             let b = try BatchRecord.fetchOne(db, key: batchID)
             let j = try JobRecord.filter(Column("batch_id") == batchID).order(Column("sequence")).fetchAll(db)
-            let sList = try TranscriptSectionRecord.fetchAll(db)
+            let sList = try TranscriptSectionRecord.filter(sql: "job_id IN (SELECT id FROM job WHERE batch_id = ?)", arguments: [batchID]).fetchAll(db)
             var sMap: [String: TranscriptSectionRecord] = [:]
             for s in sList {
                 sMap[s.jobID] = s
@@ -33,7 +33,7 @@ public final class BatchAssembler: Sendable {
         }
         
         // Check if all jobs are terminal
-        let nonTerminal = jobs.filter { !JobState(rawValue: $0.state)!.isTerminal }
+        let nonTerminal = jobs.filter { JobState(rawValue: $0.state)?.isTerminal != true }
         if !nonTerminal.isEmpty {
             return .waiting(pendingCount: nonTerminal.count)
         }

@@ -17,8 +17,6 @@
     <!-- Hardened Runtime JIT & Memory Access for Whisper Metal / Local Execution -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
 </dict>

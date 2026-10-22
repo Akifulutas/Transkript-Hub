@@ -50,10 +50,11 @@ public final class AudioDecoder: Sendable {
             throw AudioDecoderError.conversionFailed("AVAudioConverter başlatılamadı.")
         }
         
-        let frameCount = AVAudioFrameCount(audioFile.length)
-        guard frameCount > 0 else {
-            throw AudioDecoderError.unsupportedMedia("Ses dosyası boş (0 frame).")
+        guard audioFile.length > 0 && audioFile.length <= Int64(UInt32.max) else {
+            throw AudioDecoderError.unsupportedMedia("Ses dosyası geçersiz uzunlukta veya boş (\(audioFile.length) frame).")
         }
+        
+        let frameCount = AVAudioFrameCount(audioFile.length)
         
         // Output frame estimation for 16kHz
         let ratio = Self.targetSampleRate / sourceFormat.sampleRate
@@ -65,6 +66,7 @@ public final class AudioDecoder: Sendable {
         
         var error: NSError?
         var readCompleted = false
+        var reusableChunkBuffer: AVAudioPCMBuffer? = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: 4096)
         
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
             if readCompleted {
@@ -72,11 +74,19 @@ public final class AudioDecoder: Sendable {
                 return nil
             }
             
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: inNumPackets) else {
+            let buffer: AVAudioPCMBuffer
+            if let existing = reusableChunkBuffer, existing.frameCapacity >= inNumPackets {
+                buffer = existing
+                buffer.frameLength = 0
+            } else if let newBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: max(inNumPackets, 4096)) {
+                reusableChunkBuffer = newBuffer
+                buffer = newBuffer
+            } else {
                 readCompleted = true
                 outStatus.pointee = .endOfStream
                 return nil
             }
+            
             do {
                 try audioFile.read(into: buffer)
                 if buffer.frameLength == 0 {
