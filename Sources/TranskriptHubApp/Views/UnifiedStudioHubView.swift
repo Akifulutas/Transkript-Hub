@@ -45,7 +45,6 @@ public struct UnifiedStudioHubView: View {
                             .padding(.bottom, 28)
                     }
                 }
-                .coordinateSpace(name: "StudioTourCoordinateSpace")
                 .onChange(of: viewModel.spotlightTourCurrentStep) { _, newStep in
                     if viewModel.isSpotlightTourActive {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
@@ -68,6 +67,7 @@ public struct UnifiedStudioHubView: View {
                 .zIndex(999999)
             }
         }
+        .coordinateSpace(name: "StudioTourCoordinateSpace")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
     }
@@ -101,8 +101,6 @@ public struct UnifiedStudioHubView: View {
                     hint: viewModel.t("hub_tooltip_model_hint"),
                     placement: .bottomLeading
                 )
-                .studioTourTarget(.modelSelection)
-                .id(StudioTourStep.modelSelection.id)
                 
                 // Card 1 'i' Info Button
                 Button(action: {
@@ -125,6 +123,8 @@ public struct UnifiedStudioHubView: View {
                     )
                 }
             }
+            .studioTourTarget(.modelSelection)
+            .id(StudioTourStep.modelSelection.id)
             
             // Card 2: Language Selection (Floating Popover anchored under Card 2)
             ZStack(alignment: .topTrailing) {
@@ -152,8 +152,6 @@ public struct UnifiedStudioHubView: View {
                     hint: viewModel.t("hub_tooltip_language_hint"),
                     placement: .bottomLeading
                 )
-                .studioTourTarget(.languageSelection)
-                .id(StudioTourStep.languageSelection.id)
                 
                 // Card 2 'i' Info Button
                 Button(action: {
@@ -176,6 +174,8 @@ public struct UnifiedStudioHubView: View {
                     )
                 }
             }
+            .studioTourTarget(.languageSelection)
+            .id(StudioTourStep.languageSelection.id)
             
             // Card 3: Clipboard Monitoring (Toggle Button)
             ZStack(alignment: .topTrailing) {
@@ -202,8 +202,6 @@ public struct UnifiedStudioHubView: View {
                     hint: viewModel.t("hub_tooltip_clipboard_hint"),
                     placement: .bottom
                 )
-                .studioTourTarget(.clipboardMonitoring)
-                .id(StudioTourStep.clipboardMonitoring.id)
                 
                 // Card 3 'i' Info Button
                 Button(action: {
@@ -226,6 +224,8 @@ public struct UnifiedStudioHubView: View {
                     )
                 }
             }
+            .studioTourTarget(.clipboardMonitoring)
+            .id(StudioTourStep.clipboardMonitoring.id)
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
             ZStack(alignment: .topTrailing) {
@@ -250,8 +250,6 @@ public struct UnifiedStudioHubView: View {
                     hint: viewModel.t("hub_tooltip_recording_hint"),
                     placement: .bottom
                 )
-                .studioTourTarget(.audioRecording)
-                .id(StudioTourStep.audioRecording.id)
                 
                 // Card 4 'i' Info Button
                 Button(action: {
@@ -274,6 +272,8 @@ public struct UnifiedStudioHubView: View {
                     )
                 }
             }
+            .studioTourTarget(.audioRecording)
+            .id(StudioTourStep.audioRecording.id)
             
             // Card 5: Watched Folder (Opens Native Sheet)
             ZStack(alignment: .topTrailing) {
@@ -301,8 +301,6 @@ public struct UnifiedStudioHubView: View {
                     hint: viewModel.t("hub_tooltip_folder_hint"),
                     placement: .bottomTrailing
                 )
-                .studioTourTarget(.watchedFolders)
-                .id(StudioTourStep.watchedFolders.id)
                 
                 // Card 5 'i' Info Button
                 Button(action: {
@@ -325,6 +323,8 @@ public struct UnifiedStudioHubView: View {
                     )
                 }
             }
+            .studioTourTarget(.watchedFolders)
+            .id(StudioTourStep.watchedFolders.id)
             
             // Card 6: History & Archive (Navigates to History Section)
             Button(action: {

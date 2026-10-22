@@ -131,7 +131,6 @@ public struct InteractiveSpotlightTourView: View {
                 SpotlightCutoutShape(cutoutRect: paddedCutout, cornerRadius: 14)
                     .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
                     .contentShape(SpotlightCutoutShape(cutoutRect: paddedCutout, cornerRadius: 14), eoFill: true)
-                    .ignoresSafeArea()
                     .onTapGesture {
                         // Advance to next step when tapping outside
                         advanceStep()
