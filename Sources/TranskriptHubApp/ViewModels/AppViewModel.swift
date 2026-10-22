@@ -269,6 +269,8 @@ public final class AppViewModel: ObservableObject {
     
     // Welcome & Feature Tour Onboarding
     @Published public var isOnboardingPresented: Bool = false
+    @Published public var isSpotlightTourActive: Bool = false
+    @Published public var spotlightTourCurrentStep: Int = 0
     public var isVoiceMemosEnabled: Bool {
         get { folderWatcher.watchVoiceMemos }
         set {
@@ -978,10 +980,12 @@ public final class AppViewModel: ObservableObject {
             self.clipboardMonitor.startMonitoring()
         }
         
-        // Present Feature Tour Onboarding if user has not completed it yet
-        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedAppOnboarding")
-        if !hasCompletedOnboarding {
-            self.isOnboardingPresented = true
+        // Present Interactive In-App Spotlight Tour if user has not completed it yet
+        let hasCompletedTour = UserDefaults.standard.bool(forKey: "hasCompletedSpotlightTour")
+        if !hasCompletedTour {
+            self.isSpotlightTourActive = true
+            self.spotlightTourCurrentStep = 0
+            self.isOnboardingPresented = false
         }
         
         let token = NotificationCenter.default.addObserver(
@@ -2095,13 +2099,30 @@ public final class AppViewModel: ObservableObject {
     }
     
     // MARK: - Welcome & Feature Tour Onboarding
-    public func completeOnboarding() {
+    public func completeSpotlightTour() {
+        UserDefaults.standard.set(true, forKey: "hasCompletedSpotlightTour")
         UserDefaults.standard.set(true, forKey: "hasCompletedAppOnboarding")
-        isOnboardingPresented = false
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isSpotlightTourActive = false
+            isOnboardingPresented = false
+        }
+    }
+    
+    public func startSpotlightTour() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            selectedSection = .queue
+            spotlightTourCurrentStep = 0
+            isSpotlightTourActive = true
+            isOnboardingPresented = false
+        }
+    }
+    
+    public func completeOnboarding() {
+        completeSpotlightTour()
     }
     
     public func openOnboardingTour() {
-        isOnboardingPresented = true
+        startSpotlightTour()
     }
     
     // MARK: - Queue Sorting

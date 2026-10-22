@@ -8,27 +8,55 @@ public struct UnifiedStudioHubView: View {
     @State private var isDropTargeted: Bool = false
     @State private var isModelPickerPresented: Bool = false
     @State private var isLanguagePickerPresented: Bool = false
+    @State private var studioTourTargets: [StudioTourStep: CGRect] = [:]
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
     }
     
     public var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
-                topActionCardsRow
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-                
-                // 2. Central Floating Hero Card: Drop & Paste Zone
-                centralHeroCard
-                    .padding(.horizontal, 24)
-                
-                // 3. Central Queue Section (Kuyruk & "Transkripte Yolla" Action)
-                centralQueueSection
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 28)
+        ZStack {
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
+                        topActionCardsRow
+                            .padding(.horizontal, 24)
+                            .padding(.top, 16)
+                        
+                        // 2. Central Floating Hero Card: Drop & Paste Zone
+                        centralHeroCard
+                            .id(StudioTourStep.heroDropAndPaste.id)
+                            .studioTourTarget(.heroDropAndPaste)
+                            .padding(.horizontal, 24)
+                        
+                        // 3. Central Queue Section (Kuyruk & "Transkripte Yolla" Action)
+                        centralQueueSection
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 28)
+                    }
+                }
+                .coordinateSpace(name: "StudioTourCoordinateSpace")
+                .onChange(of: viewModel.spotlightTourCurrentStep) { _, newStep in
+                    if viewModel.isSpotlightTourActive {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            scrollProxy.scrollTo(newStep, anchor: .center)
+                        }
+                    }
+                }
+            }
+            .onPreferenceChange(StudioTourTargetPreferenceKey.self) { targets in
+                self.studioTourTargets = targets
+            }
+            
+            // Interactive In-App Spotlight Guided Tour Overlay (Game-like walkthrough)
+            if viewModel.isSpotlightTourActive {
+                InteractiveSpotlightTourView(
+                    viewModel: viewModel,
+                    targetFrames: studioTourTargets
+                )
+                .transition(.opacity)
+                .zIndex(999999)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -63,6 +91,8 @@ public struct UnifiedStudioHubView: View {
                 hint: viewModel.t("hub_tooltip_model_hint"),
                 placement: .bottomLeading
             )
+            .studioTourTarget(.modelSelection)
+            .id(StudioTourStep.modelSelection.id)
             
             // Card 2: Language Selection (Floating Popover anchored under Card 2)
             Button(action: {
@@ -89,6 +119,8 @@ public struct UnifiedStudioHubView: View {
                 hint: viewModel.t("hub_tooltip_language_hint"),
                 placement: .bottomLeading
             )
+            .studioTourTarget(.languageSelection)
+            .id(StudioTourStep.languageSelection.id)
             
             // Card 3: Clipboard Monitoring (Toggle Button)
             Button(action: {
@@ -114,6 +146,8 @@ public struct UnifiedStudioHubView: View {
                 hint: viewModel.t("hub_tooltip_clipboard_hint"),
                 placement: .bottom
             )
+            .studioTourTarget(.clipboardMonitoring)
+            .id(StudioTourStep.clipboardMonitoring.id)
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
             Button(action: {
@@ -137,6 +171,8 @@ public struct UnifiedStudioHubView: View {
                 hint: viewModel.t("hub_tooltip_recording_hint"),
                 placement: .bottom
             )
+            .studioTourTarget(.audioRecording)
+            .id(StudioTourStep.audioRecording.id)
             
             // Card 5: Watched Folder (Opens Native Sheet)
             Button(action: {
@@ -163,6 +199,8 @@ public struct UnifiedStudioHubView: View {
                 hint: viewModel.t("hub_tooltip_folder_hint"),
                 placement: .bottomTrailing
             )
+            .studioTourTarget(.watchedFolders)
+            .id(StudioTourStep.watchedFolders.id)
             
             // Card 6: History & Archive (Navigates to History Section)
             Button(action: {
@@ -782,6 +820,8 @@ public struct UnifiedStudioHubView: View {
                     statusColor: viewModel.canStartQueue ? .accentColor : .secondary,
                     placement: .topTrailing
                 )
+                .studioTourTarget(.queueAndTranscribe)
+                .id(StudioTourStep.queueAndTranscribe.id)
             }
             .padding(.horizontal, 4)
             
