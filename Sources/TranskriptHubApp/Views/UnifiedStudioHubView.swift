@@ -42,7 +42,7 @@ public struct UnifiedStudioHubView: View {
             Button(action: {
                 isModelPickerPresented.toggle()
             }) {
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: "cpu.fill",
                     badgeColor: .orange,
                     caption: viewModel.t("hub_card_model"),
@@ -54,12 +54,21 @@ public struct UnifiedStudioHubView: View {
             .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
                 modelPickerPopover
             }
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_model_title"),
+                description: viewModel.t("hub_tooltip_model_desc"),
+                icon: "cpu.fill",
+                status: viewModel.selectedModelTitle,
+                statusColor: .orange,
+                hint: viewModel.t("hub_tooltip_model_hint"),
+                placement: .bottomLeading
+            )
             
             // Card 2: Language Selection (Floating Popover anchored under Card 2)
             Button(action: {
                 isLanguagePickerPresented.toggle()
             }) {
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: "globe",
                     badgeColor: .blue,
                     caption: viewModel.t("hub_card_speech_language"),
@@ -71,6 +80,15 @@ public struct UnifiedStudioHubView: View {
             .popover(isPresented: $isLanguagePickerPresented, arrowEdge: .bottom) {
                 languagePickerPopover
             }
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_language_title"),
+                description: viewModel.t("hub_tooltip_language_desc"),
+                icon: "globe",
+                status: languageTitle(viewModel.selectedLanguage),
+                statusColor: .blue,
+                hint: viewModel.t("hub_tooltip_language_hint"),
+                placement: .bottomLeading
+            )
             
             // Card 3: Clipboard Monitoring (Toggle Button)
             Button(action: {
@@ -78,7 +96,7 @@ public struct UnifiedStudioHubView: View {
                     viewModel.isClipboardMonitoring.toggle()
                 }
             }) {
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
                     badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
                     caption: viewModel.t("hub_card_clipboard"),
@@ -87,13 +105,21 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
-            .help(viewModel.t("hub_card_clipboard_help"))
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_clipboard_title"),
+                description: viewModel.t("hub_tooltip_clipboard_desc"),
+                icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
+                status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
+                statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                hint: viewModel.t("hub_tooltip_clipboard_hint"),
+                placement: .bottom
+            )
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
             Button(action: {
                 viewModel.isRecordingSourceSheetPresented = true
             }) {
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
                     badgeColor: .red,
                     caption: viewModel.t("hub_card_recording"),
@@ -102,7 +128,15 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
-            .help(viewModel.t("hub_card_recording_help"))
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_recording_title"),
+                description: viewModel.t("hub_tooltip_recording_desc"),
+                icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
+                status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                statusColor: .red,
+                hint: viewModel.t("hub_tooltip_recording_hint"),
+                placement: .bottom
+            )
             
             // Card 5: Watched Folder (Opens Native Sheet)
             Button(action: {
@@ -113,7 +147,7 @@ public struct UnifiedStudioHubView: View {
                     viewModel.folderWatcher.watchVoiceMemos,
                     viewModel.folderWatcher.watchCustomFolder
                 ].filter { $0 }.count
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: "folder.fill.badge.gearshape",
                     badgeColor: activeCount > 0 ? .teal : .secondary,
                     caption: viewModel.t("hub_card_watched_folder"),
@@ -121,12 +155,20 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_folder_title"),
+                description: viewModel.t("hub_tooltip_folder_desc"),
+                icon: "folder.fill.badge.gearshape",
+                statusColor: .teal,
+                hint: viewModel.t("hub_tooltip_folder_hint"),
+                placement: .bottomTrailing
+            )
             
             // Card 6: History & Archive (Navigates to History Section)
             Button(action: {
                 viewModel.selectedSection = .history
             }) {
-                interactiveCard(
+                StudioInteractiveCardView(
                     icon: "clock.arrow.circlepath",
                     badgeColor: .purple,
                     caption: viewModel.t("hub_card_history"),
@@ -134,6 +176,15 @@ public struct UnifiedStudioHubView: View {
                 )
             }
             .buttonStyle(.plain)
+            .hoverHelpTooltip(
+                title: viewModel.t("hub_tooltip_history_title"),
+                description: viewModel.t("hub_tooltip_history_desc"),
+                icon: "clock.arrow.circlepath",
+                status: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count),
+                statusColor: .purple,
+                hint: viewModel.t("hub_tooltip_history_hint"),
+                placement: .bottomTrailing
+            )
         }
     }
     
@@ -389,53 +440,61 @@ public struct UnifiedStudioHubView: View {
     }
     
     // MARK: - Interactive Card View Builder
-    private func interactiveCard(
-        icon: String,
-        badgeColor: Color,
-        caption: String,
-        title: String,
-        showsChevron: Bool = false,
-        isPulseActive: Bool = false
-    ) -> some View {
-        HStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(badgeColor.opacity(0.16))
-                    .frame(width: 30, height: 30)
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(badgeColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(caption)
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.secondary)
-                    .lineLimit(1)
+    private struct StudioInteractiveCardView: View {
+        let icon: String
+        let badgeColor: Color
+        let caption: String
+        let title: String
+        var showsChevron: Bool = false
+        var isPulseActive: Bool = false
+        @State private var isHovered: Bool = false
+        
+        var body: some View {
+            HStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(badgeColor.opacity(isHovered ? 0.28 : 0.16))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(badgeColor)
+                }
                 
-                Text(title)
-                    .font(.system(size: 12.5, weight: .bold))
-                    .foregroundStyle(Color.primary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(caption)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(isHovered ? Color.primary.opacity(0.85) : Color.secondary)
+                        .lineLimit(1)
+                    
+                    Text(title)
+                        .font(.system(size: 12.5, weight: .bold))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                }
+                
+                Spacer(minLength: 2)
+                
+                if isPulseActive {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: Color.green.opacity(0.8), radius: 3)
+                } else if showsChevron {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Color.secondary.opacity(0.7))
+                }
             }
-            
-            Spacer(minLength: 2)
-            
-            if isPulseActive {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 6, height: 6)
-                    .shadow(color: Color.green.opacity(0.8), radius: 3)
-            } else if showsChevron {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Color.secondary.opacity(0.7))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .liquidGlass(cornerRadius: 12, glowColor: badgeColor.opacity(isHovered ? 0.6 : 0.35), material: .ultraThinMaterial)
+            .scaleEffect(isHovered ? 1.018 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isHovered)
+            .onHover { hovering in
+                isHovered = hovering
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .liquidGlass(cornerRadius: 12, glowColor: badgeColor.opacity(0.35), material: .ultraThinMaterial)
     }
     
     // MARK: - 2. Central Floating Hero Card: Drop & Paste Zone
@@ -500,7 +559,13 @@ public struct UnifiedStudioHubView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
-                .help(viewModel.t("hub_paste_clipboard_help"))
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_paste_btn_title"),
+                    description: viewModel.t("hub_tooltip_paste_btn_desc"),
+                    icon: "doc.on.clipboard",
+                    statusColor: .accentColor,
+                    placement: .top
+                )
                 
                 Button(action: { selectLocalAudioFiles() }) {
                     HStack(spacing: 6) {
@@ -511,25 +576,54 @@ public struct UnifiedStudioHubView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_choose_file_title"),
+                    description: viewModel.t("hub_tooltip_choose_file_desc"),
+                    icon: "waveform",
+                    statusColor: .secondary,
+                    placement: .top
+                )
             }
             
-            // Small Info Row (Explaining Clipboard Monitoring & Audio Recording)
+            // Small Info Row (Explaining Clipboard Monitoring & Audio Recording on Hover)
             HStack(spacing: 12) {
-                // Clipboard status info
-                HStack(spacing: 5) {
-                    Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
-                        .font(.system(size: 9.5))
-                        .foregroundStyle(viewModel.isClipboardMonitoring ? Color.green : Color.secondary)
-                    Text(viewModel.isClipboardMonitoring ? viewModel.t("hub_clipboard_info_active") : viewModel.t("hub_clipboard_info_inactive"))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                // Clipboard status info button with interactive hover
+                Button(action: {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        viewModel.isClipboardMonitoring.toggle()
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(viewModel.isClipboardMonitoring ? Color.green : Color.secondary)
+                        Text(viewModel.isClipboardMonitoring ? viewModel.t("hub_clipboard_info_active") : viewModel.t("hub_clipboard_info_inactive"))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.primary.opacity(0.04))
+                    )
                 }
+                .buttonStyle(.plain)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_clipboard_title"),
+                    description: viewModel.t("hub_tooltip_clipboard_desc"),
+                    icon: "doc.on.clipboard.fill",
+                    status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
+                    statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                    hint: viewModel.t("hub_tooltip_clipboard_hint"),
+                    placement: .top
+                )
                 
                 Text("•")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary.opacity(0.35))
                 
-                // Audio recording action info
+                // Audio recording action info button with interactive hover
                 Button(action: {
                     viewModel.isRecordingSourceSheetPresented = true
                 }) {
@@ -541,9 +635,23 @@ public struct UnifiedStudioHubView: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.primary.opacity(0.04))
+                    )
                 }
                 .buttonStyle(.plain)
-                .help(viewModel.t("hub_card_recording_help"))
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_recording_title"),
+                    description: viewModel.t("hub_tooltip_recording_desc"),
+                    icon: "mic.fill",
+                    status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                    statusColor: .red,
+                    hint: viewModel.t("hub_tooltip_recording_hint"),
+                    placement: .top
+                )
             }
             .padding(.top, 4)
         }
@@ -662,9 +770,18 @@ public struct UnifiedStudioHubView: View {
                         Capsule().stroke(viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: 1)
                     )
                     .shadow(color: viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .disabled(!viewModel.canStartQueue)
+                .hoverHelpTooltip(
+                    title: viewModel.t("action_transcribe_queue"),
+                    description: viewModel.canStartQueue ? viewModel.t("hub_tooltip_queue_btn_ready") : viewModel.t("hub_tooltip_queue_btn_disabled"),
+                    icon: viewModel.canStartQueue ? "sparkles" : "pause.circle",
+                    status: viewModel.canStartQueue ? "\(viewModel.queueItems.count)" : viewModel.t("hub_status_off"),
+                    statusColor: viewModel.canStartQueue ? .accentColor : .secondary,
+                    placement: .topTrailing
+                )
             }
             .padding(.horizontal, 4)
             
@@ -814,8 +931,15 @@ public struct UnifiedStudioHubView: View {
                                 .background(Circle().fill(Color.accentColor.opacity(0.12)))
                         }
                         .buttonStyle(.plain)
-                        .help(viewModel.t("action_open_finder"))
                         .accessibilityLabel(viewModel.t("action_open_finder"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_tooltip_finder_title"),
+                            description: viewModel.t("hub_tooltip_finder_desc"),
+                            icon: "folder",
+                            statusColor: .accentColor,
+                            placement: .topTrailing,
+                            width: 220
+                        )
                     }
                     
                     Button(action: {

@@ -187,6 +187,16 @@ public struct FloatingSettingsSheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle(viewModel.t("settings_clipboard_auto_toggle"), isOn: $viewModel.isClipboardMonitoring)
                         .toggleStyle(.switch)
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_tooltip_clipboard_title"),
+                            description: viewModel.t("hub_tooltip_clipboard_desc"),
+                            icon: "doc.on.clipboard.fill",
+                            status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
+                            statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                            hint: viewModel.t("hub_tooltip_clipboard_hint"),
+                            placement: .bottomLeading,
+                            width: 250
+                        )
                     
                     Text(viewModel.t("settings_clipboard_auto_desc"))
                         .font(.system(size: 11))
@@ -231,6 +241,16 @@ public struct FloatingSettingsSheet: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_tooltip_recording_title"),
+                            description: viewModel.t("hub_tooltip_recording_desc"),
+                            icon: "record.circle",
+                            status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                            statusColor: .red,
+                            hint: viewModel.t("hub_tooltip_recording_hint"),
+                            placement: .bottomTrailing,
+                            width: 250
+                        )
                     }
                     .padding(.top, 2)
                 }

@@ -295,7 +295,15 @@ public struct TranscriptDetailView: View {
                         .foregroundColor(viewModel.isKaraokeMode ? .white : .primary)
                     }
                     .buttonStyle(.plain)
-                    .help(viewModel.t("detail_karaoke_help"))
+                    .hoverHelpTooltip(
+                        title: viewModel.t("hub_tooltip_karaoke_title"),
+                        description: viewModel.t("hub_tooltip_karaoke_desc"),
+                        icon: "sparkles",
+                        status: viewModel.isKaraokeMode ? viewModel.t("detail_karaoke") : viewModel.t("detail_plain_text"),
+                        statusColor: .purple,
+                        placement: .bottomTrailing,
+                        width: 230
+                    )
                     
                     // Session Combined View Toggle
                     if viewModel.completedCount > 1 {
@@ -332,7 +340,14 @@ public struct TranscriptDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .help(viewModel.t("action_open_finder"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_tooltip_finder_title"),
+                            description: viewModel.t("hub_tooltip_finder_desc"),
+                            icon: "folder",
+                            statusColor: .accentColor,
+                            placement: .bottomTrailing,
+                            width: 220
+                        )
                     }
                     
                     // Browser

@@ -198,7 +198,14 @@ struct QueueListView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
-                .help(viewModel.t("hub_paste_clipboard_help"))
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_paste_btn_title"),
+                    description: viewModel.t("hub_tooltip_paste_btn_desc"),
+                    icon: "doc.on.clipboard",
+                    statusColor: .accentColor,
+                    placement: .bottomLeading,
+                    width: 240
+                )
                 
                 Button(action: { selectLocalAudioFiles() }) {
                     Label(viewModel.t("action_audio_file"), systemImage: "waveform")
@@ -206,6 +213,14 @@ struct QueueListView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_choose_file_title"),
+                    description: viewModel.t("hub_tooltip_choose_file_desc"),
+                    icon: "waveform",
+                    statusColor: .secondary,
+                    placement: .bottomLeading,
+                    width: 240
+                )
                 
                 Spacer()
             }
@@ -392,7 +407,14 @@ struct StandardQueueRow: View {
                         .background(Circle().fill(Color.accentColor.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
-                .help(L10n.tr("action_open_finder"))
+                .hoverHelpTooltip(
+                    title: L10n.tr("hub_tooltip_finder_title"),
+                    description: L10n.tr("hub_tooltip_finder_desc"),
+                    icon: "folder",
+                    statusColor: .accentColor,
+                    placement: .topTrailing,
+                    width: 220
+                )
             }
             
             // Liquid Glass Status Pill

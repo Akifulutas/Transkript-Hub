@@ -60,6 +60,14 @@ public struct AudioRecordingSourceSheet: View {
                     accentColor: .red,
                     icon: "mic.fill"
                 )
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_mic_source_title"),
+                    description: viewModel.t("hub_tooltip_mic_source_desc"),
+                    icon: "mic.fill",
+                    statusColor: .red,
+                    placement: .bottomLeading,
+                    width: 220
+                )
                 
                 sourceSelectionCard(
                     source: .systemAudio,
@@ -67,6 +75,14 @@ public struct AudioRecordingSourceSheet: View {
                     description: viewModel.t("record_source_system_desc"),
                     accentColor: .blue,
                     icon: "display"
+                )
+                .hoverHelpTooltip(
+                    title: viewModel.t("hub_tooltip_system_source_title"),
+                    description: viewModel.t("hub_tooltip_system_source_desc"),
+                    icon: "display",
+                    statusColor: .blue,
+                    placement: .bottomTrailing,
+                    width: 220
                 )
             }
             .padding(.horizontal, 16)
