@@ -14,86 +14,55 @@ public struct AddMediaPopoverView: View {
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Header
+        VStack(spacing: 8) {
+            // 1. Link / YouTube Giriş Arayüzü
             HStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.16))
-                        .frame(width: 26, height: 26)
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.accentColor)
-                }
+                Image(systemName: "link")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.Premium.slateAzure)
+                    .frame(width: 18)
                 
-                Text(viewModel.t("add_media_popover_title"))
-                    .font(.system(size: 13, weight: .bold))
-                
-                Spacer()
-                
-                Button(action: { isPresented = false }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.secondary.opacity(0.6))
-                }
-                .buttonStyle(.plain)
-            }
-            
-            // YouTube / Video Link Input Section
-            VStack(alignment: .leading, spacing: 6) {
-                Text(viewModel.t("add_media_url_label"))
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                
-                HStack(spacing: 6) {
-                    Image(systemName: "link")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.secondary)
-                    
-                    TextField(viewModel.t("hub_paste_url_placeholder"), text: $urlText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 11.5))
-                        .focused($isUrlFieldFocused)
-                        .onSubmit {
-                            submitUrl()
-                        }
-                    
-                    if !urlText.isEmpty {
-                        Button(action: { urlText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color.secondary.opacity(0.7))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    Button(action: {
+                TextField(viewModel.t("add_media_paste_link_placeholder"), text: $urlText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .focused($isUrlFieldFocused)
+                    .onSubmit {
                         submitUrl()
-                    }) {
-                        Text(viewModel.t("action_add"))
-                            .font(.system(size: 10.5, weight: .bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2.5)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                
+                if !urlText.isEmpty {
+                    Button(action: { urlText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.secondary.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                
+                Button(action: {
+                    submitUrl()
+                }) {
+                    Text(viewModel.t("action_add"))
+                        .font(.system(size: 10.5, weight: .bold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(Color.primary.opacity(0.09), lineWidth: 1)
+            )
             
-            Divider()
-            
-            // Choose Audio File Button
+            // 2. Ses Dosyası Seçme Arayüzü (Benzer, simetrik kart)
             Button(action: {
                 isPresented = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -105,21 +74,33 @@ public struct AddMediaPopoverView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.Premium.cashmereViolet)
                         .frame(width: 18)
+                    
                     Text(viewModel.t("hub_choose_audio_file"))
                         .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(Color.primary)
+                    
                     Spacer()
+                    
+                    Image(systemName: "arrow.up.doc")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.secondary.opacity(0.7))
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(Color.primary.opacity(0.04))
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(Color.primary.opacity(0.09), lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
             .buttonStyle(.plain)
         }
-        .padding(14)
-        .frame(width: 330)
+        .padding(10)
+        .frame(width: 320)
         .onAppear {
             isUrlFieldFocused = true
         }

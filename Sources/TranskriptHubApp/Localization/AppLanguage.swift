@@ -272,6 +272,7 @@ public struct L10n {
             "toolbar_add_media_help": "Paste YouTube link or choose audio files (⌘O / ⌘V)",
             "add_media_popover_title": "Add Link or Audio File",
             "add_media_url_label": "YouTube or Media Link",
+            "add_media_paste_link_placeholder": "Paste link or video URL...",
             
             // Sidebar & Navigation
             "sidebar_processing": "Processing...",
@@ -774,6 +775,7 @@ public struct L10n {
             "toolbar_add_media_help": "YouTube linki yapıştır veya ses dosyası seç (⌘O / ⌘V)",
             "add_media_popover_title": "Link veya Ses Dosyası Ekle",
             "add_media_url_label": "YouTube veya Medya Linki",
+            "add_media_paste_link_placeholder": "Link yapıştırın (YouTube, ses/video)...",
             
             // Sidebar & Navigation
             "sidebar_processing": "İşleniyor...",
@@ -1276,6 +1278,7 @@ public struct L10n {
             "toolbar_add_media_help": "YouTube-Link einfügen oder Audiodatei auswählen (⌘O / ⌘V)",
             "add_media_popover_title": "Link oder Audiodatei hinzufügen",
             "add_media_url_label": "YouTube- oder Medien-Link",
+            "add_media_paste_link_placeholder": "Link oder Video-URL einfügen...",
             
             // Sidebar & Navigation
             "sidebar_processing": "Wird verarbeitet...",
