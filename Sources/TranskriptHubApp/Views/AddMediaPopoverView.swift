@@ -93,56 +93,30 @@ public struct AddMediaPopoverView: View {
             
             Divider()
             
-            // Quick Action Buttons
-            VStack(spacing: 6) {
-                Button(action: {
-                    isPresented = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        viewModel.addFromClipboard()
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.on.clipboard")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.Premium.slateAzure)
-                            .frame(width: 18)
-                        Text(viewModel.t("hub_paste_clipboard"))
-                            .font(.system(size: 11.5, weight: .medium))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
+            // Choose Audio File Button
+            Button(action: {
+                isPresented = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    viewModel.promptForLocalAudioFiles()
                 }
-                .buttonStyle(.plain)
-                
-                Button(action: {
-                    isPresented = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        viewModel.promptForLocalAudioFiles()
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.Premium.cashmereViolet)
-                            .frame(width: 18)
-                        Text(viewModel.t("hub_choose_audio_file"))
-                            .font(.system(size: 11.5, weight: .medium))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.Premium.cashmereViolet)
+                        .frame(width: 18)
+                    Text(viewModel.t("hub_choose_audio_file"))
+                        .font(.system(size: 11.5, weight: .medium))
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.04))
+                )
             }
+            .buttonStyle(.plain)
         }
         .padding(14)
         .frame(width: 330)
