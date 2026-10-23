@@ -4,210 +4,197 @@ import TranskriptHubCore
 
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
-    @State private var downloadingModel: WhisperModel? = nil
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                // Interface Language Section
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(viewModel.t("settings_language"))
-                        .font(.system(size: 14, weight: .bold))
-                    
-                    Text(viewModel.t("settings_language_desc"))
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    
-                    Picker("", selection: $viewModel.appLanguage) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.displayName).tag(lang)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
-                }
+            VStack(alignment: .leading, spacing: 20) {
+                // 1. Interface Language
+                languageSection
                 
-                // Whisper Models Section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(viewModel.t("settings_whisper_models"))
-                        .font(.system(size: 14, weight: .bold))
-                    
-                    Text(viewModel.t("settings_whisper_desc"))
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    
-                    VStack(spacing: 8) {
-                        modelRow(model: .tiny, name: "Tiny", size: "75 MB", desc: viewModel.t("model_tiny_desc"))
-                        Divider()
-                        modelRow(model: .base, name: "Base", size: "142 MB", desc: viewModel.t("model_base_desc"))
-                        Divider()
-                        modelRow(model: .small, name: "Small", size: "466 MB", desc: viewModel.t("model_small_desc"))
-                        Divider()
-                        modelRow(model: .largeV3Turbo, name: "Large-v3-Turbo", size: "1.6 GB", desc: viewModel.t("model_turbo_desc"))
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
-                }
+                // 2. Updates & AI Models (Unified Check & Model Scanning)
+                updatesAndModelsSection
                 
-                // Storage Section
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(viewModel.t("settings_output_dir"))
-                        .font(.system(size: 14, weight: .bold))
-                    
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.t("settings_txt_save_path"))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                            Text(viewModel.outputDirectoryURL.path)
-                                .font(.system(size: 11, design: .monospaced))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        
-                        Spacer()
-                        
-                        Button(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder")) {
-                            viewModel.selectOutputDirectory()
-                        }
-                        .font(.system(size: 11, weight: .semibold))
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        
-                        if viewModel.isCustomOutputDirectory {
-                            Button(viewModel.t("watched_reset_folder")) {
-                                viewModel.resetOutputDirectory()
-                            }
-                            .font(.system(size: 10))
-                            .buttonStyle(.plain)
-                            .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
-                        }
-                        
-                        Button(viewModel.t("settings_open_folder")) {
-                            viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
-                    
-                    // Session Media Cache Card
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.t("hub_media_cache"))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                            Text(String(format: viewModel.t("hub_media_cache_size"), viewModel.sessionMediaCacheSizeString))
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        }
-                        
-                        Spacer()
-                        
-                        Button(viewModel.t("hub_clear_cache")) {
-                            viewModel.evictSessionMediaCache()
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 14, glowColor: .white.opacity(0.6), material: .ultraThinMaterial)
-                }
+                // 3. Batch Transcript Format (YouTube & Multi-file)
+                batchFormatSection
+                
+                // 4. Help & Maintenance (Onboarding Tour & Media Cache)
+                maintenanceSection
                 
                 Spacer()
             }
-            .padding(20)
+            .padding(24)
         }
         .navigationTitle(viewModel.t("section_settings"))
     }
     
-    private func modelRow(model: WhisperModel, name: String, size: String, desc: String) -> some View {
-        let isDownloaded = viewModel.modelManager.isModelDownloaded(model)
-        
-        return HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(name)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(size)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                    
-                    if viewModel.selectedModel == model {
-                        Text(viewModel.t("settings_active"))
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.accentColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .liquidGlassCapsule(glowColor: .accentColor, material: .ultraThinMaterial)
-                    }
-                }
-                
-                Text(desc)
+    // MARK: - 1. Language Section
+    private var languageSection: some View {
+        cardSection(title: viewModel.t("settings_language"), icon: "globe") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(viewModel.t("settings_language_desc"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            if isDownloaded {
-                HStack(spacing: 10) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Color.Premium.emeraldMineral)
-                            .font(.system(size: 12))
-                        Text(viewModel.t("settings_downloaded"))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
+                
+                Picker("", selection: $viewModel.appLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
                     }
-                    
-                    Button(role: .destructive) {
-                        viewModel.deleteModelInSettings(model)
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11))
-                            .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
-                            .padding(4)
-                            .background(Color.Premium.crimsonVelvet.opacity(0.1))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(viewModel.t("hub_delete_model_help"))
                 }
-            } else if viewModel.downloadingModel == model {
-                HStack(spacing: 8) {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        ProgressView(value: viewModel.modelDownloadFraction)
-                            .progressViewStyle(.linear)
-                            .frame(width: 130)
-                        
-                        Text(viewModel.modelDownloadStatusText.isEmpty ? viewModel.t("hub_processing") : viewModel.modelDownloadStatusText)
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(action: {
-                        viewModel.cancelModelDownload()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 15))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(viewModel.t("hub_cancel_download_help"))
-                }
-            } else {
-                Button(viewModel.t("settings_download")) {
-                    viewModel.downloadModelInSettings(model)
-                }
-                .font(.system(size: 11, weight: .medium))
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .pickerStyle(.segmented)
             }
         }
-        .padding(.vertical, 4)
+    }
+    
+    // MARK: - 2. Updates & AI Models Section
+    private var updatesAndModelsSection: some View {
+        cardSection(title: viewModel.t("settings_updates_models_title"), icon: "arrow.triangle.2.circlepath") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Transkript Hub")
+                            .font(.system(size: 14, weight: .bold))
+                        Text(String(format: viewModel.t("settings_current_version"), UpdateChecker.currentVersion))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.initiateUnifiedUpdateCheck()
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "sparkles")
+                            Text(viewModel.t("settings_check_updates_and_models"))
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                
+                Text(viewModel.t("settings_updates_models_desc"))
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.secondary)
+                
+                Divider()
+                
+                HStack {
+                    Toggle(viewModel.t("settings_auto_check_updates"), isOn: $viewModel.autoCheckUpdates)
+                        .toggleStyle(.switch)
+                        .font(.system(size: 11))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.openInBrowser(url: "https://github.com/Akifulutas/Transkript-Hub")
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link")
+                            Text(viewModel.t("settings_open_repo"))
+                        }
+                        .font(.system(size: 11))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+    
+    // MARK: - 3. Batch Format Preferences Section
+    private var batchFormatSection: some View {
+        cardSection(title: viewModel.t("settings_batch_format_title"), icon: "doc.on.doc") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(viewModel.t("settings_save_format_question"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                
+                Picker("", selection: $viewModel.sessionSaveMode) {
+                    Text(viewModel.t("settings_save_both_opt")).tag(SessionSaveMode.both)
+                    Text(viewModel.t("settings_save_individual_opt")).tag(SessionSaveMode.individual)
+                    Text(viewModel.t("settings_save_combined_opt")).tag(SessionSaveMode.combined)
+                }
+                .pickerStyle(.radioGroup)
+                .font(.system(size: 11))
+            }
+        }
+    }
+    
+    // MARK: - 4. Help & Maintenance Section
+    private var maintenanceSection: some View {
+        cardSection(title: viewModel.t("settings_help_maintenance_title"), icon: "sparkles") {
+            VStack(alignment: .leading, spacing: 12) {
+                // Restart Onboarding Tour
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.t("menu_onboarding_tour"))
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(viewModel.t("settings_restart_onboarding_desc"))
+                            .font(.system(size: 10.5))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.openOnboardingTour()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.circle.fill")
+                            Text(viewModel.t("settings_restart_onboarding"))
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                
+                Divider()
+                
+                // Session Media Cache Cleanup
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.t("hub_media_cache"))
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(String(format: viewModel.t("hub_media_cache_size"), viewModel.sessionMediaCacheSizeString))
+                            .font(.system(size: 10.5, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.evictSessionMediaCache()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text(viewModel.t("hub_clear_cache"))
+                        }
+                        .font(.system(size: 11))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Card Container Helper
+    private func cardSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundColor(.accentColor)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+            }
+            
+            content()
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .liquidGlass(cornerRadius: 12, glowColor: .white.opacity(0.45), material: .ultraThinMaterial)
+        }
     }
 }
