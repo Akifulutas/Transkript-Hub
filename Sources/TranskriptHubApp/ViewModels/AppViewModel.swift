@@ -439,6 +439,7 @@ public final class AppViewModel: ObservableObject {
     private var appDatabase: AppDatabase?
     public private(set) var transcriptCacheManager: TranscriptCacheManager?
     private var didBecomeActiveObserver: NotificationObserverToken?
+    private var willTerminateObserver: NotificationObserverToken?
     
     public var isCustomOutputDirectory: Bool {
         outputWriter.isUsingCustomOutputDirectory
@@ -1048,6 +1049,43 @@ public final class AppViewModel: ObservableObject {
         statusMessage = "Medya önbelleği temizlendi."
     }
     
+    public func cleanupSessionMedia(forItemID id: String) {
+        let dir = sessionMediaDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for file in files {
+            if file.lastPathComponent.hasPrefix(id) {
+                if audioPlayer.currentURL == file {
+                    audioPlayer.stop()
+                }
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+    
+    public func evictOrphanedSessionMedia() {
+        let dir = sessionMediaDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        let activeIDs = Set(queueItems.map(\.id) + undoBackupItems.map(\.id))
+        for file in files {
+            let filename = file.deletingPathExtension().lastPathComponent
+            if !activeIDs.contains(filename) {
+                if audioPlayer.currentURL == file {
+                    audioPlayer.stop()
+                }
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+    
+    public func evictAllSessionMedia() {
+        audioPlayer.stop()
+        let dir = sessionMediaDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for file in files {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+    
     public init() {
         let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
         let initialLang = AppLanguage(rawValue: savedLang) ?? .turkish
@@ -1132,6 +1170,20 @@ public final class AppViewModel: ObservableObject {
             }
         }
         self.didBecomeActiveObserver = NotificationObserverToken(token)
+        
+        let termToken = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.evictAllSessionMedia()
+            }
+        }
+        self.willTerminateObserver = NotificationObserverToken(termToken)
+        
+        // Auto-purge any stale or orphaned session media left from prior runs
+        self.evictOrphanedSessionMedia()
         
         Task {
             do {
@@ -1673,6 +1725,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func removeItem(id: String) {
+        cleanupSessionMedia(forItemID: id)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll(where: { $0.id == id })
             checkedQueueItemIDs.remove(id)
@@ -1706,6 +1759,7 @@ public final class AppViewModel: ObservableObject {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 self.showUndoToast = false
                 self.undoBackupItems.removeAll()
+                self.evictOrphanedSessionMedia()
             }
         }
     }
@@ -1726,6 +1780,7 @@ public final class AppViewModel: ObservableObject {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             showUndoToast = false
             undoBackupItems.removeAll()
+            evictOrphanedSessionMedia()
         }
     }
     
