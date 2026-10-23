@@ -1546,9 +1546,19 @@ struct StudioQueueItemRow: View {
     
     private func stateBadge(for state: QueueItemState) -> some View {
         HStack(spacing: 4) {
-            Circle()
-                .fill(badgeColor(for: state))
-                .frame(width: 6, height: 6)
+            if state == .completed {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(badgeColor(for: state))
+            } else if state == .failed {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(badgeColor(for: state))
+            } else {
+                Circle()
+                    .fill(badgeColor(for: state))
+                    .frame(width: 6, height: 6)
+            }
             Text(localizedState(for: state))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(badgeColor(for: state))
