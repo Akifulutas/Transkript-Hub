@@ -32,7 +32,7 @@ public struct AppUpdateInfo: Sendable {
 }
 
 public actor UpdateChecker {
-    public static let currentVersion = "1.2.0"
+    public static let currentVersion = "1.3.0"
     public static let defaultDMGDownloadURL = "https://github.com/Akifulutas/Transkript-Hub/releases/latest/download/TranskriptHub.dmg"
     
     public init() {}

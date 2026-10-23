@@ -113,6 +113,7 @@ public final class FolderWatcher: ObservableObject {
     private var followUpScanTask: Task<Void, Never>?
     private var knownFiles: [String: Int64] = [:] // Path -> size
     private var processedPaths: Set<String> = []
+    private var dismissedPaths: Set<String> = []
     
     @Published public var activeCloudDownloads: Set<String> = [] // Filenames currently being downloaded from iCloud
     
@@ -168,7 +169,7 @@ public final class FolderWatcher: ObservableObject {
         ) else {
             return []
         }
-        return items.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
+        return items.filter { AudioValidator.isExtensionSupported($0.pathExtension) && !isPathDismissed($0.path) }
             .sorted { (u1, u2) -> Bool in
                 let d1 = (try? u1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
                 let d2 = (try? u2.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
@@ -179,11 +180,59 @@ public final class FolderWatcher: ObservableObject {
     public func markPathsAsProcessed(_ paths: [String]) {
         for path in paths {
             processedPaths.insert(path)
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+            processedPaths.insert(resolved)
         }
+        persistProcessedPaths()
     }
     
     public func isPathProcessed(_ path: String) -> Bool {
-        processedPaths.contains(path)
+        if processedPaths.contains(path) { return true }
+        let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+        return processedPaths.contains(resolved)
+    }
+
+    public func markPathsAsDismissed(_ paths: [String]) {
+        for path in paths {
+            dismissedPaths.insert(path)
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+            dismissedPaths.insert(resolved)
+            processedPaths.insert(path)
+            processedPaths.insert(resolved)
+        }
+        persistDismissedPaths()
+        persistProcessedPaths()
+    }
+
+    public func unmarkPathsAsDismissed(_ paths: [String]) {
+        for path in paths {
+            dismissedPaths.remove(path)
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+            dismissedPaths.remove(resolved)
+        }
+        persistDismissedPaths()
+    }
+
+    public func isPathDismissed(_ path: String) -> Bool {
+        if dismissedPaths.contains(path) { return true }
+        let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+        return dismissedPaths.contains(resolved)
+    }
+
+    private func persistProcessedPaths() {
+        if processedPaths.count > 5000 {
+            let trimmed = Array(processedPaths.suffix(3000))
+            processedPaths = Set(trimmed)
+        }
+        UserDefaults.standard.set(Array(processedPaths), forKey: "FolderWatcher.processedPaths")
+    }
+
+    private func persistDismissedPaths() {
+        if dismissedPaths.count > 5000 {
+            let trimmed = Array(dismissedPaths.suffix(3000))
+            dismissedPaths = Set(trimmed)
+        }
+        UserDefaults.standard.set(Array(dismissedPaths), forKey: "FolderWatcher.dismissedPaths")
     }
 
     public var isVoiceMemosDirectlyAccessible: Bool {
@@ -247,9 +296,16 @@ public final class FolderWatcher: ObservableObject {
         self.customFolderURLs = loadedCustom
         self.watchCustomFolder = !loadedCustom.isEmpty && ud.bool(forKey: "FolderWatcher.watchCustomFolder")
         
-        // Keep processedPaths in-memory per session so untranscribed files from previous runs are not skipped;
-        // already-transcribed files are deduplicated persistently by TranscriptCacheManager.
-        self.processedPaths = []
+        if let saved = ud.stringArray(forKey: "FolderWatcher.processedPaths") {
+            self.processedPaths = Set(saved)
+        } else {
+            self.processedPaths = []
+        }
+        if let savedDismissed = ud.stringArray(forKey: "FolderWatcher.dismissedPaths") {
+            self.dismissedPaths = Set(savedDismissed)
+        } else {
+            self.dismissedPaths = []
+        }
     }
     
     public func startWatching() {
@@ -305,6 +361,7 @@ public final class FolderWatcher: ObservableObject {
         }
         processedPaths = processedPaths.filter { !matchesPrefix($0) }
         knownFiles = knownFiles.filter { !matchesPrefix($0.key) }
+        persistProcessedPaths()
     }
     
     public func forceDownloadAllCloudItems() async {
@@ -414,7 +471,7 @@ public final class FolderWatcher: ObservableObject {
             activeCloudDownloads.remove(filename)
             
             let path = fileURL.path
-            guard !processedPaths.contains(path) else { continue }
+            guard !isPathProcessed(path) && !isPathDismissed(path) else { continue }
             
             // 4. Size stability check (> 0 bytes)
             guard let attrs = try? fm.attributesOfItem(atPath: path),
@@ -437,7 +494,7 @@ public final class FolderWatcher: ObservableObject {
             if isStable {
                 // Size is stable! Validate audio
                 if let _ = try? AudioValidator.validate(fileURL: fileURL) {
-                    processedPaths.insert(path)
+                    markPathsAsProcessed([path])
                     knownFiles.removeValue(forKey: path)
                     processedFilesCount += 1
                     lastProcessedFile = filename

@@ -216,6 +216,65 @@ public final class AppViewModel: ObservableObject {
     @Published public var queueItems: [QueueItem] = []
     @Published public var historyItems: [HistoryItem] = []
     
+    // MARK: - Queue Item Dismissal Persistence (Tombstones)
+    @Published private(set) public var dismissedQueueItemIDs: Set<String> = []
+    
+    public func isQueueItemDismissed(id: String) -> Bool {
+        if dismissedQueueItemIDs.contains(id) { return true }
+        if id.hasPrefix("/") {
+            let resolved = URL(fileURLWithPath: id).resolvingSymlinksInPath().standardizedFileURL.path
+            if dismissedQueueItemIDs.contains(resolved) { return true }
+        }
+        if folderWatcher?.isPathDismissed(id) == true { return true }
+        return false
+    }
+    
+    public func dismissQueueItem(id: String) {
+        dismissedQueueItemIDs.insert(id)
+        if id.hasPrefix("/") {
+            let resolved = URL(fileURLWithPath: id).resolvingSymlinksInPath().standardizedFileURL.path
+            dismissedQueueItemIDs.insert(resolved)
+            folderWatcher?.markPathsAsDismissed([id, resolved])
+        } else {
+            folderWatcher?.markPathsAsDismissed([id])
+        }
+        persistDismissedQueueItems()
+    }
+    
+    public func dismissQueueItems(ids: [String]) {
+        for id in ids {
+            dismissedQueueItemIDs.insert(id)
+            if id.hasPrefix("/") {
+                let resolved = URL(fileURLWithPath: id).resolvingSymlinksInPath().standardizedFileURL.path
+                dismissedQueueItemIDs.insert(resolved)
+                folderWatcher?.markPathsAsDismissed([id, resolved])
+            } else {
+                folderWatcher?.markPathsAsDismissed([id])
+            }
+        }
+        persistDismissedQueueItems()
+    }
+    
+    public func undismissQueueItem(id: String) {
+        dismissedQueueItemIDs.remove(id)
+        if id.hasPrefix("/") {
+            let resolved = URL(fileURLWithPath: id).resolvingSymlinksInPath().standardizedFileURL.path
+            dismissedQueueItemIDs.remove(resolved)
+            folderWatcher?.unmarkPathsAsDismissed([id, resolved])
+        } else {
+            folderWatcher?.unmarkPathsAsDismissed([id])
+        }
+        persistDismissedQueueItems()
+    }
+    
+    private func persistDismissedQueueItems() {
+        if dismissedQueueItemIDs.count > 5000 {
+            let trimmed = Array(dismissedQueueItemIDs.suffix(3000))
+            dismissedQueueItemIDs = Set(trimmed)
+        }
+        UserDefaults.standard.set(Array(dismissedQueueItemIDs), forKey: "dismissedQueueItemIDs")
+    }
+    
     // Playlist & Channel Batch Ingestion State
     @Published public var pendingBatchIngestion: PendingBatchIngestion? = nil
     @Published public var showMainWindowPlaylistSheet: Bool = false
@@ -653,7 +712,7 @@ public final class AppViewModel: ObservableObject {
         // Check for any newly added Voice Memos if directly accessible
         if folderWatcher.isVoiceMemosDirectlyAccessible {
             let files = folderWatcher.existingVoiceMemosFiles()
-            let unprocessed = files.filter { !folderWatcher.isPathProcessed($0.path) }
+            let unprocessed = files.filter { !folderWatcher.isPathProcessed($0.path) && !isQueueItemDismissed(id: $0.path) }
             if !unprocessed.isEmpty {
                 addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
             }
@@ -664,7 +723,7 @@ public final class AppViewModel: ObservableObject {
             let fm = FileManager.default
             if let files = try? fm.contentsOfDirectory(at: FolderWatcher.iCloudRootDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
                 let audioFiles = files.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
-                let unprocessed = audioFiles.filter { !folderWatcher.isPathProcessed($0.path) }
+                let unprocessed = audioFiles.filter { !folderWatcher.isPathProcessed($0.path) && !isQueueItemDismissed(id: $0.path) }
                 if !unprocessed.isEmpty {
                     addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
                 }
@@ -1154,6 +1213,11 @@ public final class AppViewModel: ObservableObject {
     }
     
     public init() {
+        if let savedDismissed = UserDefaults.standard.stringArray(forKey: "dismissedQueueItemIDs") {
+            self.dismissedQueueItemIDs = Set(savedDismissed)
+        } else {
+            self.dismissedQueueItemIDs = []
+        }
         let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
         let initialLang = AppLanguage(rawValue: savedLang) ?? .turkish
         self.appLanguage = initialLang
@@ -1274,7 +1338,17 @@ public final class AppViewModel: ObservableObject {
     
     private func handleAutoDiscoveredAudio(_ url: URL) async {
         guard AudioValidator.isExtensionSupported(url.pathExtension) else { return }
-        if let existingIdx = queueItems.firstIndex(where: { $0.id == url.path }) {
+        
+        let rawPath = url.path
+        let resolvedPath = url.resolvingSymlinksInPath().standardizedFileURL.path
+        
+        // If item was previously dismissed by user from queue, skip permanently
+        if isQueueItemDismissed(id: rawPath) || isQueueItemDismissed(id: resolvedPath) {
+            folderWatcher.markPathsAsProcessed([rawPath, resolvedPath])
+            return
+        }
+        
+        if let existingIdx = queueItems.firstIndex(where: { $0.id == rawPath || $0.id == resolvedPath }) {
             if queueItems[existingIdx].state == .queued && folderWatcher.autoTranscribe {
                 queueItems[existingIdx].autoProcess = true
                 startAutoProcessingWatchedItems()
@@ -1294,6 +1368,11 @@ public final class AppViewModel: ObservableObject {
             externalID: url.path
         ) {
             Log.info("Audio file previously processed, retrieved from cache: \(title)")
+            folderWatcher.markPathsAsProcessed([rawPath, resolvedPath])
+            
+            if isQueueItemDismissed(id: rawPath) || isQueueItemDismissed(id: resolvedPath) {
+                return
+            }
             var resolvedOutURL: URL? = nil
             if let outPath = cached.outputPath, FileManager.default.fileExists(atPath: outPath) {
                 resolvedOutURL = URL(fileURLWithPath: outPath)
@@ -1455,6 +1534,12 @@ public final class AppViewModel: ObservableObject {
                 }
             } else if AudioValidator.isExtensionSupported(url.pathExtension) {
                 resolvedURLs.append(url)
+            }
+        }
+        
+        if !autoProcess {
+            for url in resolvedURLs {
+                undismissQueueItem(id: url.path)
             }
         }
         
@@ -1803,10 +1888,27 @@ public final class AppViewModel: ObservableObject {
     
     public func removeItem(id: String) {
         cleanupSessionMedia(forItemID: id)
+        dismissQueueItem(id: id)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll(where: { $0.id == id })
             checkedQueueItemIDs.remove(id)
             if selectedItemID == id {
+                selectedItemID = nil
+            }
+        }
+    }
+    
+    public func removeCheckedItems() {
+        guard !checkedQueueItemIDs.isEmpty else { return }
+        let idsToRemove = Array(checkedQueueItemIDs)
+        for id in idsToRemove {
+            cleanupSessionMedia(forItemID: id)
+            dismissQueueItem(id: id)
+        }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            queueItems.removeAll(where: { idsToRemove.contains($0.id) })
+            checkedQueueItemIDs.removeAll()
+            if let sel = selectedItemID, idsToRemove.contains(sel) {
                 selectedItemID = nil
             }
         }
@@ -1820,6 +1922,8 @@ public final class AppViewModel: ObservableObject {
         }
         undoBackupItems = queueItems
         let count = queueItems.count
+        
+        dismissQueueItems(ids: queueItems.map(\.id))
         
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll()
@@ -1844,6 +1948,9 @@ public final class AppViewModel: ObservableObject {
     public func performUndo() {
         undoDismissTask?.cancel()
         guard !undoBackupItems.isEmpty else { return }
+        for item in undoBackupItems {
+            undismissQueueItem(id: item.id)
+        }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems = undoBackupItems
             selectedItemID = nil
@@ -2686,7 +2793,7 @@ public final class AppViewModel: ObservableObject {
         UserDefaults.standard.set(true, forKey: "VoiceMemos.hasConfiguredInitialImport")
         isVoiceMemosPromptPresented = false
         
-        let files = folderWatcher.existingVoiceMemosFiles()
+        let files = folderWatcher.existingVoiceMemosFiles().filter { !isQueueItemDismissed(id: $0.path) }
         if importAll {
             folderWatcher.watchVoiceMemos = true
             addAudioFiles(files, autoProcess: folderWatcher.autoTranscribe)

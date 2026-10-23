@@ -12,6 +12,8 @@ final class FolderWatcherTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchCustomFolder")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.autoTranscribe")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.processedPaths")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.dismissedPaths")
     }
     
     override func tearDown() {
@@ -21,6 +23,8 @@ final class FolderWatcherTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.watchCustomFolder")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.autoTranscribe")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.processedPaths")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.dismissedPaths")
         super.tearDown()
     }
     
@@ -333,5 +337,81 @@ final class FolderWatcherTests: XCTestCase {
         )
         XCTAssertEqual(newUnknownCompact.speed, 10.0, accuracy: 0.01)
         XCTAssertEqual(newUnknownCompact.accuracy, 4.0, accuracy: 0.01)
+    }
+    
+    @MainActor
+    func testFolderWatcherProcessedPathsPersistence() {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let sampleFile = tempDir.appendingPathComponent("note.m4a").path
+        
+        let watcher1 = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertFalse(watcher1.isPathProcessed(sampleFile))
+        
+        watcher1.markPathsAsProcessed([sampleFile])
+        XCTAssertTrue(watcher1.isPathProcessed(sampleFile))
+        
+        // A new watcher instance should load persisted processed paths from UserDefaults
+        let watcher2 = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertTrue(watcher2.isPathProcessed(sampleFile))
+        
+        // Resetting processed paths removes them
+        watcher2.resetProcessedPaths()
+        XCTAssertFalse(watcher2.isPathProcessed(sampleFile))
+        
+        let watcher3 = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertFalse(watcher3.isPathProcessed(sampleFile))
+    }
+    
+    @MainActor
+    func testFolderWatcherDismissedPathsPersistenceAndScanFiltering() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("DismissTest_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let audioFile = tempDir.appendingPathComponent("dismissed_note.wav")
+        let wavData = Self.makeValidWAVData(durationSeconds: 1.0, sampleRate: 16_000)
+        try wavData.write(to: audioFile)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-10)], ofItemAtPath: audioFile.path)
+        
+        let watcher1 = FolderWatcher(watchedDirectory: tempDir)
+        watcher1.watchiCloudDrive = false
+        watcher1.watchVoiceMemos = false
+        watcher1.customFolderURL = tempDir
+        watcher1.watchCustomFolder = true
+        
+        // Mark path as dismissed (deleted by user from queue)
+        watcher1.markPathsAsDismissed([audioFile.path])
+        XCTAssertTrue(watcher1.isPathDismissed(audioFile.path))
+        XCTAssertTrue(watcher1.isPathProcessed(audioFile.path))
+        
+        // A second instance across app restarts retains dismissed state
+        let watcher2 = FolderWatcher(watchedDirectory: tempDir)
+        XCTAssertTrue(watcher2.isPathDismissed(audioFile.path))
+        
+        var discoveredURLs: [URL] = []
+        watcher2.onNewAudioDiscovered = { url in
+            discoveredURLs.append(url)
+        }
+        
+        // Trigger scan: dismissed file must NEVER be discovered
+        watcher2.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(discoveredURLs.count, 0)
+        
+        // Resetting processed paths does NOT clear dismissed paths
+        watcher2.resetProcessedPaths()
+        XCTAssertTrue(watcher2.isPathDismissed(audioFile.path))
+        
+        watcher2.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(discoveredURLs.count, 0)
+        
+        // Explicitly unmarking dismissed path allows discovery
+        watcher2.unmarkPathsAsDismissed([audioFile.path])
+        XCTAssertFalse(watcher2.isPathDismissed(audioFile.path))
+        
+        watcher2.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(discoveredURLs.count, 1)
     }
 }

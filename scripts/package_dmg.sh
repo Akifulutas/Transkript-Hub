@@ -8,8 +8,9 @@ BUNDLE_NAME="TranskriptHub.app"
 DIST_DIR="$PROJECT_DIR/dist"
 APP_DIR="$DIST_DIR/$BUNDLE_NAME"
 DMG_PATH="$DIST_DIR/TranskriptHub.dmg"
+VERSION="${1:-$(grep 'public static let currentVersion' "$PROJECT_DIR/Sources/TranskriptHubCore/Updates/UpdateChecker.swift" | sed -E 's/.*"([^"]+)".*/\1/')}"
 
-echo "=== Transkript Hub DMG Packager ==="
+echo "=== Transkript Hub DMG Packager (v$VERSION) ==="
 echo "1. Building release binaries..."
 swift build -c release
 
@@ -32,7 +33,7 @@ echo "4. Configuring RPATH and dynamic linker..."
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
 
 echo "5. Generating Info.plist..."
-cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
+cat << EOF > "$APP_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -50,9 +51,9 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.0</string>
+    <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>1.2.0</string>
+    <string>$VERSION</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>

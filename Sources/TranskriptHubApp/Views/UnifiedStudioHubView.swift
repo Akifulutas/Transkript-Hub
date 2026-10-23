@@ -468,19 +468,41 @@ public struct UnifiedStudioHubView: View {
                     viewModel.isRecordingSourceSheetPresented = true
                 }) {
                     StudioInteractiveCardView(
-                        icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
+                        icon: "mic.fill",
+                        secondaryIcon: "speaker.wave.2.fill",
                         badgeColor: isAudioPermissionMissing ? Color.Premium.champagneBronze : Color.Premium.crimsonVelvet,
                         caption: viewModel.t("hub_card_recording"),
-                        title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
+                        title: viewModel.t("hub_card_recording_sources"),
                         showsChevron: true
                     )
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        Task { await viewModel.startRecording(source: .microphone) }
+                    } label: {
+                        Label(viewModel.t("record_source_mic"), systemImage: "mic.fill")
+                    }
+                    
+                    Button {
+                        Task { await viewModel.startRecording(source: .systemAudio) }
+                    } label: {
+                        Label(viewModel.t("record_source_system"), systemImage: "speaker.wave.2.fill")
+                    }
+                    
+                    Divider()
+                    
+                    Button {
+                        viewModel.isRecordingSourceSheetPresented = true
+                    } label: {
+                        Label(viewModel.t("sheet_recording_source_title"), systemImage: "slider.horizontal.3")
+                    }
+                }
                 .hoverHelpTooltip(
                     title: viewModel.t("hub_tooltip_recording_title"),
                     description: isAudioPermissionMissing ? viewModel.t("record_permission_both_desc") : viewModel.t("hub_tooltip_recording_desc"),
-                    icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                    status: isAudioPermissionMissing ? viewModel.t("watched_fda_badge_needed") : (viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system")),
+                    icon: "mic.fill",
+                    status: isAudioPermissionMissing ? viewModel.t("watched_fda_badge_needed") : viewModel.t("hub_card_recording_sources"),
                     statusColor: isAudioPermissionMissing ? Color.Premium.champagneBronze : Color.Premium.crimsonVelvet,
                     hint: viewModel.t("hub_tooltip_recording_hint"),
                     placement: .bottom
@@ -990,6 +1012,7 @@ public struct UnifiedStudioHubView: View {
     // MARK: - Interactive Card View Builder
     private struct StudioInteractiveCardView: View {
         let icon: String
+        var secondaryIcon: String? = nil
         let badgeColor: Color
         let caption: String
         let title: String
@@ -1003,9 +1026,19 @@ public struct UnifiedStudioHubView: View {
                     Circle()
                         .fill(badgeColor.opacity(isHovered ? 0.28 : 0.16))
                         .frame(width: 30, height: 30)
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .semibold))
+                    if let secondaryIcon = secondaryIcon {
+                        HStack(spacing: 2) {
+                            Image(systemName: icon)
+                                .font(.system(size: 9.5, weight: .bold))
+                            Image(systemName: secondaryIcon)
+                                .font(.system(size: 9.5, weight: .bold))
+                        }
                         .foregroundStyle(badgeColor)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(badgeColor)
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1018,9 +1051,10 @@ public struct UnifiedStudioHubView: View {
                         .font(.system(size: 12.5, weight: .bold))
                         .foregroundStyle(Color.primary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 
-                Spacer(minLength: 16)
+                Spacer(minLength: 8)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -1152,6 +1186,34 @@ public struct UnifiedStudioHubView: View {
                         }
                         .buttonStyle(.plain)
                         .help(viewModel.checkedQueueItemIDs.isEmpty ? viewModel.t("action_select_all") : viewModel.t("action_deselect"))
+                        
+                        // Remove Selected Action Pill
+                        if !viewModel.checkedQueueItemIDs.isEmpty && !viewModel.isProcessing {
+                            Button(action: {
+                                viewModel.removeCheckedItems()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 10))
+                                    Text(String(format: viewModel.t("hub_remove_selected"), viewModel.checkedQueueItemIDs.count))
+                                        .font(.system(size: 10.5, weight: .medium))
+                                }
+                                .foregroundStyle(Color.red.opacity(0.85))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.red.opacity(0.10))
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.red.opacity(0.25), lineWidth: 0.5)
+                                )
+                                .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .help(viewModel.t("action_remove_item"))
+                        }
                     }
                 }
                 

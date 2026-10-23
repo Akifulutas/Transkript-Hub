@@ -171,6 +171,19 @@ public struct ContentView: View {
                 window.titlebarAppearsTransparent = true
                 window.titleVisibility = .hidden
                 window.title = ""
+                
+                // Pin Add Media and Settings to the far right trailing edge via NSToolbar flexible space
+                let configureFlexibleSpace: () -> Void = {
+                    if let toolbar = window.toolbar {
+                        if !toolbar.items.contains(where: { $0.itemIdentifier == .flexibleSpace }) {
+                            let insertIndex = min(1, toolbar.items.count)
+                            toolbar.insertItem(withItemIdentifier: .flexibleSpace, at: insertIndex)
+                        }
+                    }
+                }
+                configureFlexibleSpace()
+                DispatchQueue.main.async { configureFlexibleSpace() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { configureFlexibleSpace() }
             }
         )
         .navigationTitle("")
@@ -241,45 +254,45 @@ public struct ContentView: View {
         }
         
         ToolbarItem(placement: .primaryAction) {
-            HStack(spacing: 8) {
-                // Add Media Button (YouTube link, Paste Clipboard, Choose Audio File)
-                Button(action: {
-                    isAddMediaPresented.toggle()
-                }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 11.5, weight: .semibold))
-                        Text(viewModel.t("toolbar_add_media"))
-                            .font(.system(size: 11.5, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.accentColor)
+            // Add Media Button (YouTube link, Paste Clipboard, Choose Audio File)
+            Button(action: {
+                isAddMediaPresented.toggle()
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Text(viewModel.t("toolbar_add_media"))
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .liquidGlassCapsule(glowColor: Color.accentColor.opacity(0.35), material: .ultraThinMaterial)
+            }
+            .buttonStyle(.plain)
+            .help(viewModel.t("toolbar_add_media_help"))
+            .popover(isPresented: $isAddMediaPresented, arrowEdge: .bottom) {
+                AddMediaPopoverView(
+                    viewModel: viewModel,
+                    isPresented: $isAddMediaPresented
+                )
+            }
+        }
+        
+        ToolbarItem(placement: .confirmationAction) {
+            // Settings Floating Modal Button
+            Button(action: {
+                viewModel.openSettings()
+            }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .liquidGlassCapsule(glowColor: Color.accentColor.opacity(0.35), material: .ultraThinMaterial)
-                }
-                .buttonStyle(.plain)
-                .help(viewModel.t("toolbar_add_media_help"))
-                .popover(isPresented: $isAddMediaPresented, arrowEdge: .bottom) {
-                    AddMediaPopoverView(
-                        viewModel: viewModel,
-                        isPresented: $isAddMediaPresented
-                    )
-                }
-                
-                // Settings Floating Modal Button
-                Button(action: {
-                    viewModel.openSettings()
-                }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
-                }
-                .buttonStyle(.plain)
-                .help("\(viewModel.t("section_settings")) (⌘,)")
+                    .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
             }
+            .buttonStyle(.plain)
+            .help("\(viewModel.t("section_settings")) (⌘,)")
         }
     }
     
