@@ -279,6 +279,51 @@ public struct AppOnboardingView: View {
             subtitle: viewModel.t("onboarding_step3_sub")
         ) {
             VStack(spacing: 12) {
+                // Interactive Full Disk Access Permission Card
+                HStack(spacing: 12) {
+                    Image(systemName: viewModel.fullDiskAccessStatus.isGranted ? "checkmark.shield.fill" : "lock.shield.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(viewModel.t("watched_fda_warning_title"))
+                                .font(.system(size: 12, weight: .bold))
+                            
+                            Text(viewModel.fullDiskAccessStatus.isGranted ? viewModel.t("settings_fda_granted") : viewModel.t("watched_fda_badge_needed"))
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1.5)
+                                .background(Capsule().fill((viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze).opacity(0.14)))
+                        }
+                        
+                        Text(viewModel.t("watched_fda_warning_desc"))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(Color.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if !viewModel.fullDiskAccessStatus.isGranted {
+                        Button(action: {
+                            viewModel.openFullDiskAccessSettings()
+                        }) {
+                            Text(viewModel.t("watched_open_settings"))
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(10)
+                .background((viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze).opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke((viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze).opacity(0.25), lineWidth: 1)
+                )
+                
                 featureHighlightCard(
                     icon: "waveform.circle.fill",
                     color: Color.Premium.crimsonVelvet,

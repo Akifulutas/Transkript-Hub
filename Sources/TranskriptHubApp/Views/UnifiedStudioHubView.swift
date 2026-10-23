@@ -381,16 +381,17 @@ public struct UnifiedStudioHubView: View {
                 Button(action: {
                     viewModel.isWatchedFolderPresented = true
                 }) {
+                    let isFdaMissing = viewModel.folderWatcher.watchVoiceMemos && !viewModel.fullDiskAccessStatus.isGranted
                     let activeCount = [
                         viewModel.folderWatcher.watchiCloudDrive,
                         viewModel.folderWatcher.watchVoiceMemos,
                         viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil
                     ].filter { $0 }.count
                     StudioInteractiveCardView(
-                        icon: "folder.fill.badge.gearshape",
-                        badgeColor: activeCount > 0 ? Color.Premium.obsidianTeal : .secondary,
+                        icon: isFdaMissing ? "lock.shield.fill" : "folder.fill.badge.gearshape",
+                        badgeColor: isFdaMissing ? Color.Premium.champagneBronze : (activeCount > 0 ? Color.Premium.obsidianTeal : .secondary),
                         caption: viewModel.t("hub_card_watched_folder"),
-                        title: activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure")
+                        title: isFdaMissing ? viewModel.t("watched_fda_badge_needed") : (activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure"))
                     )
                 }
                 .buttonStyle(.plain)

@@ -564,6 +564,7 @@ public final class AppViewModel: ObservableObject {
         if !folderWatcher.isWatching {
             folderWatcher.startWatching()
         }
+        await folderWatcher.forceDownloadAllCloudItems()
         folderWatcher.triggerImmediateScan()
         await folderWatcher.scanDirectory()
         
@@ -573,6 +574,18 @@ public final class AppViewModel: ObservableObject {
             let unprocessed = files.filter { !folderWatcher.isPathProcessed($0.path) }
             if !unprocessed.isEmpty {
                 addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
+            }
+        }
+        
+        // Check iCloud Transkript directory for any ready audio files
+        if folderWatcher.watchiCloudDrive && folderWatcher.isICloudTranskriptFolderReady {
+            let fm = FileManager.default
+            if let files = try? fm.contentsOfDirectory(at: FolderWatcher.iCloudTranskriptDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
+                let audioFiles = files.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
+                let unprocessed = audioFiles.filter { !folderWatcher.isPathProcessed($0.path) }
+                if !unprocessed.isEmpty {
+                    addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
+                }
             }
         }
         

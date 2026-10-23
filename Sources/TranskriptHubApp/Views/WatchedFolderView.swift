@@ -4,385 +4,266 @@ import TranskriptHubCore
 
 struct WatchedFolderView: View {
     @ObservedObject var viewModel: AppViewModel
-    @AppStorage("dismissedFDABanner") private var dismissedFDABanner: Bool = false
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header Banner
-                HStack(spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.12))
-                            .frame(width: 50, height: 50)
-                        Image(systemName: "folder.badge.gearshape")
-                            .font(.system(size: 24))
-                            .foregroundColor(.accentColor)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.t("watched_title"))
-                            .font(.system(size: 15, weight: .bold))
-                        Text(viewModel.t("watched_subtitle"))
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.bottom, 4)
-                
-                // Master Status & Auto-Transcription Mode Card (Liquid Glass)
-                VStack(spacing: 14) {
-                    HStack {
-                        HStack(spacing: 8) {
-                            ZStack {
-                                Circle()
-                                    .fill(viewModel.isFolderWatching ? Color.Premium.emeraldMineral : Color.gray)
-                                    .frame(width: 9, height: 9)
-                                if viewModel.isFolderWatching {
-                                    Circle()
-                                        .stroke(Color.Premium.emeraldMineral.opacity(0.4), lineWidth: 2)
-                                        .frame(width: 15, height: 15)
-                                }
-                            }
-                            
-                            Text(viewModel.isFolderWatching ? viewModel.t("watched_active") : viewModel.t("watched_inactive"))
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $viewModel.isFolderWatching)
-                            .toggleStyle(.switch)
-                    }
-                    
-                    Divider()
-                    
-                    // Auto-Transcribe Without Confirmation Toggle
-                    HStack(alignment: .top, spacing: 10) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal.opacity(0.14) : Color.secondary.opacity(0.1))
-                                .frame(width: 28, height: 28)
-                            Image(systemName: viewModel.folderWatcher.autoTranscribe ? "bolt.fill" : "hand.tap.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal : .secondary)
-                        }
+            VStack(alignment: .leading, spacing: 18) {
+                // 1. Full Disk Access Warning Banner (Prominently displayed if missing)
+                if !viewModel.fullDiskAccessStatus.isGranted {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.Premium.champagneBronze)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.t("watched_auto_transcribe_title"))
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(viewModel.t("watched_auto_transcribe_desc"))
+                            Text(viewModel.t("watched_fda_warning_title"))
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.primary)
+                            Text(viewModel.t("watched_fda_warning_desc"))
                                 .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $viewModel.folderWatcher.autoTranscribe)
-                            .toggleStyle(.switch)
-                    }
-                    
-                    Divider()
-                    
-                    // Quick Action & Status Row
-                    HStack(spacing: 10) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "circle.grid.cross.fill")
-                                .font(.system(size: 11))
-                                .foregroundColor(.accentColor)
-                            Text(String(format: viewModel.t("watched_active_sources_count"), viewModel.activeWatchedDirectoriesCount))
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(Color.secondary)
                         }
                         
                         Spacer()
                         
                         Button(action: {
-                            viewModel.triggerFolderScan()
+                            viewModel.openFullDiskAccessSettings()
                         }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.clockwise")
-                                Text(viewModel.t("watched_scan_now"))
-                            }
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        
-                        Button(action: {
-                            viewModel.triggerCloudScan()
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "icloud.and.arrow.down")
-                                Text(viewModel.t("watched_scan_cloud"))
-                            }
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .help("Force scan and download any pending .icloud files in watched directory")
-                    }
-                    
-                    if viewModel.isCloudDownloading {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(viewModel.t("watched_cloud_downloading"))
+                            Text(viewModel.t("watched_open_settings"))
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.accentColor)
-                            
-                            ForEach(Array(viewModel.activeCloudDownloads).sorted(), id: \.self) { name in
-                                HStack(spacing: 8) {
-                                    ProgressView().controlSize(.small)
-                                    Text(name)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text("Downloading...")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(8)
-                                .background(Color.accentColor.opacity(0.08))
-                                .cornerRadius(8)
-                            }
                         }
-                        .padding(.top, 4)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                     }
+                    .padding(12)
+                    .background(Color.Premium.champagneBronze.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.Premium.champagneBronze.opacity(0.35), lineWidth: 1)
+                    )
                 }
-                .padding(16)
-                .liquidGlass(cornerRadius: 14, glowColor: viewModel.isFolderWatching ? .green.opacity(0.6) : .white, material: .ultraThinMaterial)
                 
-                // Section 1: Monitored Audio Sources (Input)
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.t("watched_sources_title"))
-                            .font(.system(size: 14, weight: .bold))
-                        Text(viewModel.t("watched_sources_desc"))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                // 2. Auto-Transcription Setting Card
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal.opacity(0.18) : Color.primary.opacity(0.06))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: viewModel.folderWatcher.autoTranscribe ? "bolt.fill" : "bolt.slash")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal : Color.secondary)
                     }
                     
-                    // Source 1: iCloud Drive
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.t("watched_auto_transcribe_title"))
+                            .font(.system(size: 12.5, weight: .semibold))
+                        Text(viewModel.t("watched_auto_transcribe_desc"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $viewModel.folderWatcher.autoTranscribe)
+                        .toggleStyle(.switch)
+                }
+                .padding(12)
+                .background(Color.primary.opacity(0.035))
+                .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+                )
+                
+                // 3. Audio Sources Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(viewModel.t("watched_sources_title"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.secondary)
+                        .textCase(.uppercase)
+                    
+                    VStack(spacing: 0) {
+                        // Source A: iCloud Drive
+                        HStack(spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.Premium.slateAzure.opacity(0.12))
-                                    .frame(width: 32, height: 32)
+                                    .fill(Color.Premium.slateAzure.opacity(0.15))
+                                    .frame(width: 30, height: 30)
                                 Image(systemName: "icloud.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.Premium.slateAzure)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color.Premium.slateAzure)
                             }
                             
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
                                     Text(viewModel.t("watched_icloud_title"))
-                                        .font(.system(size: 13, weight: .semibold))
-                                    
-                                    if viewModel.folderWatcher.isICloudDriveAvailable {
-                                        Text(viewModel.t("watched_icloud_status_ready"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.emeraldMineral)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.Premium.emeraldMineral.opacity(0.12)))
-                                    } else {
-                                        Text(viewModel.t("watched_icloud_status_missing"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.champagneBronze)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.Premium.champagneBronze.opacity(0.12)))
-                                    }
-                                    
+                                        .font(.system(size: 12.5, weight: .semibold))
                                     if viewModel.folderWatcher.isICloudTranskriptFolderReady {
-                                        Text(viewModel.t("watched_icloud_folder_ready"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.slateAzure)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
+                                        Text("Transkript")
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color.Premium.slateAzure)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1.5)
                                             .background(Capsule().fill(Color.Premium.slateAzure.opacity(0.12)))
                                     }
                                 }
                                 Text(viewModel.t("watched_icloud_desc"))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(Color.secondary)
                             }
                             
                             Spacer()
+                            
+                            Button(action: {
+                                viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
+                            }) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 11))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .help(viewModel.t("action_open_finder"))
                             
                             Toggle("", isOn: $viewModel.folderWatcher.watchiCloudDrive)
                                 .toggleStyle(.switch)
                         }
+                        .padding(12)
                         
-                        // iCloud Setup & Finder Buttons
-                        HStack(spacing: 8) {
-                            Button(action: {
-                                viewModel.setupICloudTranskriptFolderAndSetOutput()
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "folder.badge.plus")
-                                    Text(viewModel.t("watched_icloud_folder_setup_btn"))
-                                }
-                                .font(.system(size: 11, weight: .semibold))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            
-                            Button(viewModel.t("action_open_finder")) {
-                                viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
-                            }
-                            .font(.system(size: 11))
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            
-                            Spacer()
-                        }
-                        .padding(.top, 2)
+                        Divider()
+                            .padding(.leading, 54)
                         
-                        if viewModel.folderWatcher.watchiCloudDrive {
-                            Divider()
-                            
-                            HStack {
-                                Toggle(isOn: $viewModel.folderWatcher.watchiCloudRoot) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(viewModel.t("watched_icloud_root_opt"))
-                                            .font(.system(size: 11, weight: .medium))
-                                        Text(FolderWatcher.iCloudRootDirectory.path)
-                                            .font(.system(size: 10, design: .monospaced))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .toggleStyle(.checkbox)
-                                
-                                Spacer()
-                                
-                                Button(viewModel.t("action_open_finder")) {
-                                    viewModel.openInFinder(path: FolderWatcher.iCloudRootDirectory.path)
-                                }
-                                .font(.system(size: 10))
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-                            .padding(10)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchiCloudDrive ? .blue.opacity(0.5) : .white, material: .ultraThinMaterial)
-                    
-                    // Source 2: Apple Voice Memos (Sesli Notlar)
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top) {
+                        // Source B: Apple Voice Memos
+                        HStack(spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.Premium.champagneBronze.opacity(0.12))
-                                    .frame(width: 32, height: 32)
+                                    .fill(Color.Premium.champagneBronze.opacity(0.15))
+                                    .frame(width: 30, height: 30)
                                 Image(systemName: "waveform")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.Premium.champagneBronze)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color.Premium.champagneBronze)
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
                                     Text(viewModel.t("watched_voicememos_title"))
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(.system(size: 12.5, weight: .semibold))
                                     
-                                    if viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
-                                        Text(viewModel.t("watched_status_accessible"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.emeraldMineral)
+                                    if !viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
+                                        Button(action: {
+                                            viewModel.openFullDiskAccessSettings()
+                                        }) {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .font(.system(size: 8))
+                                                Text(viewModel.t("watched_fda_badge_needed"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                            }
+                                            .foregroundStyle(Color.Premium.champagneBronze)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.Premium.emeraldMineral.opacity(0.12)))
-                                    } else {
-                                        Text(viewModel.t("watched_status_fda_needed"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.champagneBronze)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.Premium.champagneBronze.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.champagneBronze.opacity(0.14)))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help(viewModel.t("watched_fda_warning_desc"))
                                     }
                                 }
                                 Text(viewModel.t("watched_voicememos_desc"))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(Color.secondary)
                             }
                             
                             Spacer()
+                            
+                            if viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
+                                Button(action: {
+                                    viewModel.openInFinder(path: FolderWatcher.voiceMemosDirectory.path)
+                                }) {
+                                    Image(systemName: "folder")
+                                        .font(.system(size: 11))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help(viewModel.t("action_open_finder"))
+                            }
                             
                             Toggle("", isOn: $viewModel.isVoiceMemosEnabled)
                                 .toggleStyle(.switch)
                         }
+                        .padding(12)
                         
-                        if viewModel.folderWatcher.watchVoiceMemos {
-                            Divider()
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(FolderWatcher.voiceMemosDirectory.path)
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer()
-                                
-                                if !viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
-                                    Button(viewModel.t("watched_open_settings")) {
-                                        viewModel.openFullDiskAccessSettings()
-                                    }
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.small)
-                                } else {
-                                    Button(viewModel.t("action_open_finder")) {
-                                        viewModel.openInFinder(path: FolderWatcher.voiceMemosDirectory.path)
-                                    }
-                                    .font(.system(size: 10))
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                }
-                            }
-                            .padding(10)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchVoiceMemos ? Color.Premium.champagneBronze.opacity(0.4) : .white, material: .ultraThinMaterial)
-                    
-                    // Source 3: Custom Watched Folder (İzlenecek Klasör)
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top) {
+                        Divider()
+                            .padding(.leading, 54)
+                        
+                        // Source C: Custom Folder
+                        HStack(spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.Premium.cashmereViolet.opacity(0.12))
-                                    .frame(width: 32, height: 32)
+                                    .fill(Color.Premium.cashmereViolet.opacity(0.15))
+                                    .frame(width: 30, height: 30)
                                 Image(systemName: "folder.badge.plus")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.Premium.cashmereViolet)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color.Premium.cashmereViolet)
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(viewModel.t("watched_custom_title"))
-                                        .font(.system(size: 13, weight: .semibold))
-                                    if viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil {
-                                        Text(viewModel.t("settings_active"))
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(Color.Premium.cashmereViolet)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.Premium.cashmereViolet.opacity(0.12)))
-                                    }
+                                Text(viewModel.t("watched_custom_title"))
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                
+                                if let custom = viewModel.folderWatcher.customFolderURL {
+                                    Text(custom.path)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(Color.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                } else {
+                                    Text(viewModel.t("watched_no_custom_selected"))
+                                        .font(.system(size: 10.5))
+                                        .foregroundStyle(Color.secondary)
                                 }
-                                Text(viewModel.t("watched_custom_desc"))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
                             }
                             
                             Spacer()
+                            
+                            if let custom = viewModel.folderWatcher.customFolderURL {
+                                Button(action: {
+                                    viewModel.selectCustomWatchedFolder()
+                                }) {
+                                    Text(viewModel.t("watched_change_folder"))
+                                        .font(.system(size: 10.5, weight: .medium))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                
+                                Button(action: {
+                                    viewModel.resetCustomWatchedFolder()
+                                }) {
+                                    Image(systemName: "xmark.circle")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.red.opacity(0.8))
+                                }
+                                .buttonStyle(.plain)
+                                .help(viewModel.t("watched_reset_folder"))
+                                
+                                Button(action: {
+                                    viewModel.openInFinder(path: custom.path)
+                                }) {
+                                    Image(systemName: "folder")
+                                        .font(.system(size: 11))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help(viewModel.t("action_open_finder"))
+                            } else {
+                                Button(action: {
+                                    viewModel.selectCustomWatchedFolder()
+                                }) {
+                                    Text(viewModel.t("watched_choose_folder"))
+                                        .font(.system(size: 10.5, weight: .semibold))
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
                             
                             Toggle("", isOn: Binding(
                                 get: { viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil },
@@ -400,190 +281,116 @@ struct WatchedFolderView: View {
                             ))
                             .toggleStyle(.switch)
                         }
-                        
-                        Divider()
-                        
-                        if let customURL = viewModel.folderWatcher.customFolderURL {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(customURL.lastPathComponent)
-                                        .font(.system(size: 11, weight: .semibold))
-                                    Text(customURL.path)
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer()
-                                Button(viewModel.t("watched_change_folder")) {
-                                    viewModel.selectCustomWatchedFolder()
-                                }
-                                .font(.system(size: 10))
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                
-                                Button(viewModel.t("watched_reset_folder")) {
-                                    viewModel.resetCustomWatchedFolder()
-                                }
-                                .font(.system(size: 10))
-                                .buttonStyle(.plain)
-                                .foregroundColor(.red.opacity(0.8))
-                                
-                                Button(viewModel.t("action_open_finder")) {
-                                    viewModel.openInFinder(path: customURL.path)
-                                }
-                                .font(.system(size: 10))
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-                            .padding(10)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
-                        } else {
-                            HStack {
-                                Text(viewModel.t("watched_no_custom_selected"))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Button(viewModel.t("watched_choose_folder")) {
-                                    viewModel.selectCustomWatchedFolder()
-                                }
-                                .font(.system(size: 11, weight: .semibold))
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
-                            }
-                            .padding(10)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
-                        }
+                        .padding(12)
                     }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchCustomFolder ? .purple.opacity(0.5) : .white, material: .ultraThinMaterial)
+                    .background(Color.primary.opacity(0.035))
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+                    )
                 }
                 
-                // Section 2: Transcript Output Directory (.txt Save Location)
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.t("watched_output_title"))
-                            .font(.system(size: 14, weight: .bold))
-                        Text(viewModel.t("watched_output_desc"))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
+                // 4. Output Location Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(viewModel.t("watched_output_title"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.secondary)
+                        .textCase(.uppercase)
                     
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .center, spacing: 12) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.Premium.obsidianTeal.opacity(0.14))
-                                    .frame(width: 34, height: 34)
-                                Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.Premium.obsidianTeal)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(viewModel.outputDirectoryURL.lastPathComponent)
-                                        .font(.system(size: 13, weight: .semibold))
-                                    
-                                    Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundColor(viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : .secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            Capsule().fill(
-                                                (viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : Color.secondary).opacity(0.12)
-                                            )
-                                        )
-                                }
-                                
-                                Text(viewModel.outputDirectoryURL.path)
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            }
-                            
-                            Spacer()
-                            
-                            Button(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder")) {
-                                viewModel.selectOutputDirectory()
-                            }
-                            .font(.system(size: 11, weight: .semibold))
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            
-                            if viewModel.isCustomOutputDirectory {
-                                Button(viewModel.t("watched_reset_folder")) {
-                                    viewModel.resetOutputDirectory()
-                                }
-                                .font(.system(size: 10))
-                                .buttonStyle(.plain)
-                                .foregroundColor(.red.opacity(0.8))
-                            }
-                            
-                            Button(viewModel.t("action_open_finder")) {
-                                viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
-                            }
-                            .font(.system(size: 10))
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                    }
-                    .padding(14)
-                    .liquidGlass(cornerRadius: 12, glowColor: .teal.opacity(0.45), material: .ultraThinMaterial)
-                }
-                
-                // Full Disk Access Banner for Voice Memos
-                if !viewModel.fullDiskAccessStatus.isGranted && !dismissedFDABanner {
                     HStack(spacing: 12) {
-                        Image(systemName: "lock.shield")
-                            .font(.system(size: 22))
-                            .foregroundColor(.orange)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.Premium.obsidianTeal.opacity(0.15))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.Premium.obsidianTeal)
+                        }
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(viewModel.t("watched_fda_title"))
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(viewModel.t("watched_fda_desc"))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                            HStack(spacing: 6) {
+                                Text(viewModel.outputDirectoryURL.lastPathComponent)
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : Color.secondary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(Capsule().fill((viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : Color.secondary).opacity(0.12)))
+                            }
+                            Text(viewModel.outputDirectoryURL.path)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                         }
                         
                         Spacer()
                         
-                        Button(viewModel.t("watched_open_settings")) {
-                            viewModel.openFullDiskAccessSettings()
+                        Button(action: {
+                            viewModel.selectOutputDirectory()
+                        }) {
+                            Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_change_folder") : viewModel.t("watched_choose_folder"))
+                                .font(.system(size: 10.5, weight: .medium))
                         }
-                        .font(.system(size: 11, weight: .medium))
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                         .controlSize(.small)
                         
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                dismissedFDABanner = true
+                        if viewModel.isCustomOutputDirectory {
+                            Button(action: {
+                                viewModel.resetOutputDirectory()
+                            }) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.secondary)
                             }
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.secondary)
-                                .padding(4)
+                            .buttonStyle(.plain)
+                            .help(viewModel.t("watched_reset_folder"))
                         }
-                        .buttonStyle(.plain)
-                        .help("Dismiss this alert")
+                        
+                        Button(action: {
+                            viewModel.openInFinder(path: viewModel.outputDirectoryURL.path)
+                        }) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help(viewModel.t("action_open_finder"))
                     }
-                    .padding(14)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
+                    .padding(12)
+                    .background(Color.primary.opacity(0.035))
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .stroke(Color.primary.opacity(0.07), lineWidth: 1)
                     )
                 }
                 
-                Spacer()
+                // 5. Cloud Downloading Status Bar (if active)
+                if viewModel.isCloudDownloading {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text(viewModel.t("watched_cloud_downloading"))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        
+                        ForEach(Array(viewModel.activeCloudDownloads).sorted(), id: \.self) { name in
+                            Text(name)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.accentColor.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
             }
-            .padding(20)
+            .padding(18)
         }
         .navigationTitle(viewModel.t("section_watched_folder"))
         .onAppear {
@@ -636,7 +443,7 @@ public struct WatchedFolderSheet: View {
                 .controlSize(.small)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
             .padding(.vertical, 12)
             .background(.ultraThinMaterial)
             
@@ -644,7 +451,7 @@ public struct WatchedFolderSheet: View {
             
             WatchedFolderView(viewModel: viewModel)
         }
-        .frame(width: 680, height: 560)
+        .frame(width: 620, height: 500)
         .background(.ultraThinMaterial)
     }
 }
