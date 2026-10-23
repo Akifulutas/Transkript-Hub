@@ -481,8 +481,38 @@ public struct UnifiedStudioHubView: View {
                 }
                 
                 Spacer()
+                
+                // Refresh / Scan Online Models Button
+                Button(action: {
+                    viewModel.checkOnlineModels()
+                }) {
+                    HStack(spacing: 4) {
+                        if viewModel.isCheckingOnlineModels {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        Text(viewModel.t("settings_scan_new_models"))
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isCheckingOnlineModels)
             }
             .padding(.bottom, 2)
+            
+            if !viewModel.onlineModelStatusText.isEmpty {
+                Text(viewModel.onlineModelStatusText)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 2)
+            }
             
             Divider()
             
@@ -496,7 +526,7 @@ public struct UnifiedStudioHubView: View {
             }
         }
         .padding(14)
-        .frame(width: 470)
+        .frame(width: 480)
     }
     
     private func popoverModelRow(spec: WhisperModelSpec) -> some View {

@@ -2608,17 +2608,22 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func findCandidateNewModel() -> WhisperModelSpec? {
-        let uninstalled = WhisperModelCatalog.availableModels.filter { !modelManager.isModelDownloaded($0.model) }
-        guard !uninstalled.isEmpty else { return nil }
+        let downloaded = modelManager.downloadedModels()
         
-        // Prefer Apple Silicon-optimized / Turbo models first
-        if let turboQ5 = uninstalled.first(where: { $0.model == .largeV3TurboQ5 }) {
-            return turboQ5
+        // If the user already has Large-v3-Turbo, they are running the flagship model.
+        // Never suggest smaller or quantized models (like Large-v3-Turbo Q5_0 or Base) as an update.
+        if downloaded.contains(.largeV3Turbo) {
+            return nil
         }
-        if let turbo = uninstalled.first(where: { $0.model == .largeV3Turbo }) {
-            return turbo
+        
+        // If the user has any working models installed, do not show an intrusive modal prompt;
+        // all other models (e.g. lightweight or quantized) can be selected directly in the model picker.
+        if !downloaded.isEmpty {
+            return nil
         }
-        return uninstalled.first
+        
+        // Fresh install with zero downloaded models: propose Large-v3-Turbo
+        return WhisperModelCatalog.availableModels.first(where: { $0.model == .largeV3Turbo })
     }
     
     public func downloadModelInUpdateDialog(_ model: WhisperModel) {
