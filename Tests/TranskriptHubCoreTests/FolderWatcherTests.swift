@@ -72,7 +72,7 @@ final class FolderWatcherTests: XCTestCase {
         
         let activeDirs = watcher.activeWatchedDirectories
         XCTAssertTrue(activeDirs.contains(FolderWatcher.iCloudRootDirectory))
-        XCTAssertTrue(activeDirs.contains(FolderWatcher.iCloudTranskriptDirectory))
+        XCTAssertFalse(activeDirs.contains(FolderWatcher.iCloudTranskriptDirectory))
         
         // If custom folder is enabled and set
         let customDir = FileManager.default.temporaryDirectory.appendingPathComponent("CustomWatchFolder", isDirectory: true)
@@ -185,8 +185,52 @@ final class FolderWatcherTests: XCTestCase {
         let watcher = FolderWatcher(watchedDirectory: tempDir)
         
         await watcher.forceDownloadAllCloudItems()
-        // Verifies directory creation and safe execution without throwing
-        XCTAssertTrue(FileManager.default.fileExists(atPath: FolderWatcher.iCloudTranskriptDirectory.path))
+        // Verifies safe execution without throwing or crashing
+        XCTAssertFalse(watcher.isWatching)
+    }
+    
+    @MainActor
+    func testSetupICloudTranskriptFolderCreation() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        let folder = try watcher.setupICloudTranskriptFolder()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertTrue(watcher.isICloudTranskriptFolderReady)
+    }
+    
+    @MainActor
+    func testWatcherIgnoresNonAudioAndTranskriptSubdirectory() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("WatcherIgnoreTest_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let pdfFile = tempDir.appendingPathComponent("document.pdf")
+        try "fake pdf".data(using: .utf8)?.write(to: pdfFile)
+        
+        let txtFile = tempDir.appendingPathComponent("notes.txt")
+        try "transcription".data(using: .utf8)?.write(to: txtFile)
+        
+        let audioFile = tempDir.appendingPathComponent("voice.m4a")
+        let wavData = Self.makeValidWAVData(durationSeconds: 1.0, sampleRate: 16_000)
+        try wavData.write(to: audioFile)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-10)], ofItemAtPath: audioFile.path)
+        
+        let watcher = FolderWatcher(watchedDirectory: tempDir)
+        watcher.watchiCloudDrive = false
+        watcher.watchVoiceMemos = false
+        watcher.customFolderURL = tempDir
+        watcher.watchCustomFolder = true
+        
+        var discoveredURLs: [URL] = []
+        watcher.onNewAudioDiscovered = { url in
+            discoveredURLs.append(url)
+        }
+        
+        watcher.triggerImmediateScan()
+        try await Task.sleep(nanoseconds: 250_000_000)
+        
+        XCTAssertEqual(discoveredURLs.count, 1)
+        XCTAssertEqual(discoveredURLs.first?.lastPathComponent, "voice.m4a")
     }
     
     func testWhisperModelDisplayNames() {

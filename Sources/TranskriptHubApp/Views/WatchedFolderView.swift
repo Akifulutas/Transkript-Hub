@@ -96,18 +96,8 @@ struct WatchedFolderView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(viewModel.t("watched_icloud_title"))
-                                        .font(.system(size: 12.5, weight: .semibold))
-                                    if viewModel.folderWatcher.isICloudTranskriptFolderReady {
-                                        Text("Transkript")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(Color.Premium.slateAzure)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1.5)
-                                            .background(Capsule().fill(Color.Premium.slateAzure.opacity(0.12)))
-                                    }
-                                }
+                                Text(viewModel.t("watched_icloud_title"))
+                                    .font(.system(size: 12.5, weight: .semibold))
                                 Text(viewModel.t("watched_icloud_desc"))
                                     .font(.system(size: 10.5))
                                     .foregroundStyle(Color.secondary)
@@ -116,7 +106,7 @@ struct WatchedFolderView: View {
                             Spacer()
                             
                             Button(action: {
-                                viewModel.openInFinder(path: FolderWatcher.iCloudTranskriptDirectory.path)
+                                viewModel.openInFinder(path: FolderWatcher.iCloudRootDirectory.path)
                             }) {
                                 Image(systemName: "folder")
                                     .font(.system(size: 11))
@@ -297,6 +287,49 @@ struct WatchedFolderView: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Color.secondary)
                         .textCase(.uppercase)
+                    
+                    if !viewModel.folderWatcher.isICloudTranskriptFolderReady {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color.Premium.slateAzure.opacity(0.15))
+                                    .frame(width: 30, height: 30)
+                                Image(systemName: "folder.badge.plus")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color.Premium.slateAzure)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(viewModel.t("watched_icloud_folder_missing_title"))
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                Text(viewModel.t("watched_icloud_folder_missing_desc"))
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(Color.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                viewModel.setupICloudTranskriptFolderAndSetOutput()
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 11))
+                                    Text(viewModel.t("watched_icloud_folder_setup_btn"))
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+                        .padding(12)
+                        .background(Color.Premium.slateAzure.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                .stroke(Color.Premium.slateAzure.opacity(0.2), lineWidth: 1)
+                        )
+                    }
                     
                     HStack(spacing: 12) {
                         ZStack {

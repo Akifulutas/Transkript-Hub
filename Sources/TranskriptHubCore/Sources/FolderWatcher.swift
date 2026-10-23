@@ -13,7 +13,6 @@ public final class FolderWatcher: ObservableObject {
             UserDefaults.standard.set(watchiCloudDrive, forKey: "FolderWatcher.watchiCloudDrive")
             if watchiCloudDrive {
                 resetProcessedPaths(under: Self.iCloudRootDirectory)
-                resetProcessedPaths(under: Self.iCloudTranskriptDirectory)
             }
             triggerImmediateScan()
         }
@@ -170,10 +169,7 @@ public final class FolderWatcher: ObservableObject {
     public var activeWatchedDirectories: [URL] {
         var dirs: [URL] = []
         if watchiCloudDrive {
-            if watchiCloudRoot {
-                dirs.append(Self.iCloudRootDirectory)
-            }
-            dirs.append(Self.iCloudTranskriptDirectory)
+            dirs.append(Self.iCloudRootDirectory)
         }
         if watchVoiceMemos && isVoiceMemosDirectlyAccessible {
             dirs.append(Self.voiceMemosDirectory)
@@ -276,25 +272,17 @@ public final class FolderWatcher: ObservableObject {
     }
     
     public func forceDownloadAllCloudItems() async {
-        if watchiCloudDrive && !FileManager.default.fileExists(atPath: Self.iCloudTranskriptDirectory.path) {
-            try? FileManager.default.createDirectory(at: Self.iCloudTranskriptDirectory, withIntermediateDirectories: true)
-        }
         await scanDirectory()
     }
     
     public func scanDirectory() async {
-        // Ensure iCloud Transkript directory exists if iCloud watching is enabled
-        if watchiCloudDrive && !FileManager.default.fileExists(atPath: Self.iCloudTranskriptDirectory.path) {
-            try? FileManager.default.createDirectory(at: Self.iCloudTranskriptDirectory, withIntermediateDirectories: true)
-        }
-        
         let dirs = activeWatchedDirectories
         for dir in dirs {
             await scanSingleDirectory(dir)
         }
     }
     
-    private func scanSingleDirectory(_ directory: URL) async {
+    private func scanSingleDirectory(_ directory: URL, isSubdirectory: Bool = false) async {
         let fm = FileManager.default
         guard fm.fileExists(atPath: directory.path) else { return }
         
@@ -320,12 +308,18 @@ public final class FolderWatcher: ObservableObject {
             let filename = fileURL.lastPathComponent
             
             // Exclude system meta files
-            if filename == ".DS_Store" || filename.hasPrefix("._") || filename == "." || filename == ".." {
+            if filename == ".DS_Store" || filename.hasPrefix("._") || filename == "." || filename == ".." || filename == ".Trash" {
                 continue
             }
             
             var isDir: ObjCBool = false
             if fm.fileExists(atPath: fileURL.path, isDirectory: &isDir), isDir.boolValue {
+                // If scanning iCloud Drive root, scan child directories (except Transkript output and hidden/app folders)
+                if !isSubdirectory && directory.standardizedFileURL.path == Self.iCloudRootDirectory.standardizedFileURL.path {
+                    if !filename.hasPrefix(".") && filename != "Transkript" && !filename.hasSuffix(".app") {
+                        await scanSingleDirectory(fileURL, isSubdirectory: true)
+                    }
+                }
                 continue
             }
             
@@ -356,7 +350,15 @@ public final class FolderWatcher: ObservableObject {
                 continue
             }
             
-            // 2. Check for ubiquitous item whose download is pending locally
+            // 2. Regular exclusions (non-icloud hidden files and incomplete browser downloads)
+            if filename.hasPrefix(".") || filename.hasSuffix(".part") || filename.hasSuffix(".download") {
+                continue
+            }
+            
+            let ext = fileURL.pathExtension.lowercased()
+            guard AudioValidator.isExtensionSupported(ext) else { continue }
+            
+            // 3. Check for ubiquitous item whose download is pending locally
             if let res = try? fileURL.resourceValues(forKeys: [
                 .ubiquitousItemDownloadingStatusKey,
                 .ubiquitousItemIsDownloadingKey
@@ -364,21 +366,13 @@ public final class FolderWatcher: ObservableObject {
                 if status == .notDownloaded {
                     try? fm.startDownloadingUbiquitousItem(at: fileURL)
                     activeCloudDownloads.insert(filename)
-                    Log.info("iCloud file not yet downloaded locally, initiated automatic download: \(filename)")
+                    Log.info("iCloud audio file not yet downloaded locally, initiated automatic download: \(filename)")
                     continue
                 } else if status != .current && status != .downloaded {
                     activeCloudDownloads.insert(filename)
                     continue
                 }
             }
-            
-            // 3. Regular exclusions (non-icloud hidden files and incomplete browser downloads)
-            if filename.hasPrefix(".") || filename.hasSuffix(".part") || filename.hasSuffix(".download") {
-                continue
-            }
-            
-            let ext = fileURL.pathExtension.lowercased()
-            guard AudioValidator.isExtensionSupported(ext) else { continue }
             
             // File is locally present and downloaded! Remove from active downloads
             activeCloudDownloads.remove(filename)

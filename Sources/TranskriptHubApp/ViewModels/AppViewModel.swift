@@ -591,10 +591,10 @@ public final class AppViewModel: ObservableObject {
             }
         }
         
-        // Check iCloud Transkript directory for any ready audio files
-        if folderWatcher.watchiCloudDrive && folderWatcher.isICloudTranskriptFolderReady {
+        // Check iCloud Drive directly for any ready audio files
+        if folderWatcher.watchiCloudDrive && folderWatcher.isICloudDriveAvailable {
             let fm = FileManager.default
-            if let files = try? fm.contentsOfDirectory(at: FolderWatcher.iCloudTranskriptDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
+            if let files = try? fm.contentsOfDirectory(at: FolderWatcher.iCloudRootDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
                 let audioFiles = files.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
                 let unprocessed = audioFiles.filter { !folderWatcher.isPathProcessed($0.path) }
                 if !unprocessed.isEmpty {
@@ -2405,10 +2405,13 @@ public final class AppViewModel: ObservableObject {
     public func setupICloudTranskriptFolderAndSetOutput() {
         do {
             let url = try folderWatcher.setupICloudTranskriptFolder()
+            self.outputWriter.setCustomOutputDirectory(url)
             self.outputDirectoryURL = url
             self.folderWatcher.watchiCloudDrive = true
             openInFinder(path: url.path)
             statusMessage = t("watched_icloud_setup_success")
+            self.folderWatcher.objectWillChange.send()
+            self.objectWillChange.send()
         } catch {
             errorMessage = "iCloud Transkript klasörü oluşturulamadı: \(error.localizedDescription)"
         }
