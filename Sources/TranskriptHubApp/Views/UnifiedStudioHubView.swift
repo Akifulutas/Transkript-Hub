@@ -51,11 +51,19 @@ public struct UnifiedStudioHubView: View {
                             onTap: { executeRefresh() }
                         )
                         
-                        VStack(spacing: 20) {
+                        VStack(spacing: 14) {
+                            // Proactive Audio & Microphone Permission Warning HUD (Top of Screen)
+                            if audioPermissionWarningInfo != nil {
+                                audioPermissionWarningBanner
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 10)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+                            
                             // 1. Top 6 Interactive Action Cards (Replaces static KPIs)
                             topActionCardsRow
                                 .padding(.horizontal, 24)
-                                .padding(.top, 14)
+                                .padding(.top, audioPermissionWarningInfo == nil ? 14 : 0)
                             
                             // 2. Central Queue Section (Directly under the action cards)
                             centralQueueSection
@@ -168,6 +176,132 @@ public struct UnifiedStudioHubView: View {
                 isRefreshing = false
                 dragOffset = 0
                 pullOffset = 0
+            }
+        }
+    }
+    
+    // MARK: - Proactive Audio & Microphone Permission Warning HUD (Baştan Uyarı)
+    private struct HubPermissionWarning {
+        let icon: String
+        let title: String
+        let description: String
+        let primaryButtonTitle: String
+        let primaryAction: () -> Void
+        let secondaryButtonTitle: String?
+        let secondaryAction: (() -> Void)?
+    }
+    
+    private var audioPermissionWarningInfo: HubPermissionWarning? {
+        let micMissing = !viewModel.isMicrophonePermissionGranted
+        let systemMissing = !viewModel.isSystemAudioPermissionGranted
+        
+        if micMissing && systemMissing {
+            return HubPermissionWarning(
+                icon: "waveform.badge.exclamationmark",
+                title: viewModel.t("record_permission_both_title"),
+                description: viewModel.t("record_permission_both_desc"),
+                primaryButtonTitle: viewModel.t("record_permission_request_btn"),
+                primaryAction: {
+                    if viewModel.microphonePermissionStatus == .notDetermined {
+                        viewModel.requestMicrophonePermission()
+                    } else {
+                        viewModel.openMicrophoneSettings()
+                    }
+                },
+                secondaryButtonTitle: viewModel.t("watched_open_settings"),
+                secondaryAction: {
+                    viewModel.openSystemAudioSettings()
+                }
+            )
+        } else if micMissing {
+            let isNotDetermined = viewModel.microphonePermissionStatus == .notDetermined
+            return HubPermissionWarning(
+                icon: "mic.badge.plus",
+                title: viewModel.t("record_permission_mic_title"),
+                description: viewModel.t("record_permission_mic_desc"),
+                primaryButtonTitle: isNotDetermined ? viewModel.t("record_permission_request_btn") : viewModel.t("watched_open_settings"),
+                primaryAction: {
+                    if isNotDetermined {
+                        viewModel.requestMicrophonePermission()
+                    } else {
+                        viewModel.openMicrophoneSettings()
+                    }
+                },
+                secondaryButtonTitle: nil,
+                secondaryAction: nil
+            )
+        } else if systemMissing {
+            let hasOpened = viewModel.hasOpenedSystemAudioSettings
+            return HubPermissionWarning(
+                icon: "display",
+                title: viewModel.t("record_permission_system_title"),
+                description: viewModel.t("record_permission_system_desc"),
+                primaryButtonTitle: hasOpened ? viewModel.t("record_relaunch_app") : viewModel.t("watched_open_settings"),
+                primaryAction: {
+                    if hasOpened {
+                        viewModel.relaunchApp()
+                    } else {
+                        viewModel.openSystemAudioSettings()
+                    }
+                },
+                secondaryButtonTitle: hasOpened ? viewModel.t("watched_open_settings") : nil,
+                secondaryAction: hasOpened ? { viewModel.openSystemAudioSettings() } : nil
+            )
+        }
+        return nil
+    }
+    
+    private var audioPermissionWarningBanner: some View {
+        Group {
+            if let warning = audioPermissionWarningInfo {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.Premium.champagneBronze.opacity(0.18))
+                            .frame(width: 28, height: 28)
+                        Image(systemName: warning.icon)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.Premium.champagneBronze)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(warning.title)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.primary)
+                        Text(warning.description)
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 8) {
+                        if let secondaryTitle = warning.secondaryButtonTitle, let secondaryAction = warning.secondaryAction {
+                            Button(action: secondaryAction) {
+                                Text(secondaryTitle)
+                                    .font(.system(size: 10.5, weight: .medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        
+                        Button(action: warning.primaryAction) {
+                            Text(warning.primaryButtonTitle)
+                                .font(.system(size: 10.5, weight: .semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.Premium.champagneBronze.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.Premium.champagneBronze.opacity(0.3), lineWidth: 1)
+                )
             }
         }
     }
