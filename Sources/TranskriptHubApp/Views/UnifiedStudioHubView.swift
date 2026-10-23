@@ -916,6 +916,35 @@ public struct UnifiedStudioHubView: View {
                         .popover(isPresented: $isSortPopoverPresented, arrowEdge: .bottom) {
                             sortPopoverView
                         }
+                        
+                        // Select All / Deselect Toggle Pill
+                        Button(action: {
+                            viewModel.toggleSelectAllQueueItems()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: viewModel.isAllQueueItemsChecked ? "checkmark.circle.fill" : (viewModel.checkedQueueItemIDs.isEmpty ? "circle" : "checkmark.circle"))
+                                    .font(.system(size: 10, weight: .semibold))
+                                
+                                Text(viewModel.checkedQueueItemIDs.isEmpty
+                                     ? viewModel.t("action_select_all")
+                                     : String(format: viewModel.t("hub_selected_count"), viewModel.checkedQueueItemIDs.count))
+                                    .font(.system(size: 10.5, weight: .medium))
+                            }
+                            .foregroundStyle(viewModel.checkedQueueItemIDs.isEmpty ? Color.secondary.opacity(0.85) : Color.accentColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(viewModel.checkedQueueItemIDs.isEmpty ? Color.primary.opacity(0.05) : Color.accentColor.opacity(0.14))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(viewModel.checkedQueueItemIDs.isEmpty ? Color.primary.opacity(0.10) : Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                            )
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help(viewModel.checkedQueueItemIDs.isEmpty ? viewModel.t("action_select_all") : viewModel.t("action_deselect"))
                     }
                 }
                 
@@ -931,7 +960,7 @@ public struct UnifiedStudioHubView: View {
                     .controlSize(.small)
                 }
                 
-                // Primary Action Button: "Transkripte Yolla"
+                // Primary Action Button: "Transkripte Yolla" (veya "Seçilenleri Başlat (X)")
                 Button(action: {
                     viewModel.requestStartQueue()
                 }) {
@@ -944,7 +973,7 @@ public struct UnifiedStudioHubView: View {
                         } else {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 11, weight: .bold))
-                            Text(viewModel.t("action_transcribe_queue"))
+                            Text(transcribeButtonTitle)
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
@@ -1039,6 +1068,14 @@ public struct UnifiedStudioHubView: View {
                 }
             }
         }
+    }
+    
+    private var transcribeButtonTitle: String {
+        let count = viewModel.checkedEligibleQueueItemsCount
+        if count > 0 {
+            return String(format: viewModel.t("hub_transcribe_selected"), count)
+        }
+        return viewModel.t("action_transcribe_queue")
     }
     
     // MARK: - Local Audio Selection Helper
@@ -1162,108 +1199,158 @@ struct StudioQueueItemRow: View {
         item.state == .completed
     }
     
+    var isChecked: Bool {
+        viewModel.isQueueItemChecked(id: item.id)
+    }
+    
     var body: some View {
-        Button(action: {
-            viewModel.selectedItemID = item.id
-        }) {
-            HStack(spacing: 12) {
-                // Media Type Icon / Thumbnail
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
-                        .frame(width: 48, height: 36)
+        HStack(spacing: 10) {
+            // Checkbox / Select Box Button
+            Button(action: {
+                viewModel.toggleQueueItemChecked(id: item.id)
+            }) {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 16, weight: isChecked ? .bold : .regular))
+                    .foregroundStyle(isChecked ? Color.accentColor : Color.secondary.opacity(isHovered ? 0.75 : 0.35))
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(isChecked ? viewModel.t("action_deselect") : viewModel.t("hub_select"))
+            
+            // Middle Content: Media Icon + Title & Subtitle
+            Button(action: {
+                if isCompleted {
+                    viewModel.selectedItemID = item.id
+                } else {
+                    viewModel.toggleQueueItemChecked(id: item.id)
+                }
+            }) {
+                HStack(spacing: 12) {
+                    // Media Type Icon / Thumbnail
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
+                            .frame(width: 48, height: 36)
+                        
+                        if let thumbURL = item.thumbnailURL {
+                            AsyncImage(url: thumbURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 48, height: 36)
+                                        .clipped()
+                                case .failure:
+                                    Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
+                                case .empty:
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(width: 48, height: 36)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        } else {
+                            Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                                .font(.system(size: 16))
+                                .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
+                        }
+                    }
+                    .frame(width: 48, height: 36)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    )
                     
-                    if let thumbURL = item.thumbnailURL {
-                        AsyncImage(url: thumbURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 48, height: 36)
-                                    .clipped()
-                            case .failure:
-                                Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
-                            case .empty:
-                                ProgressView()
-                                    .controlSize(.mini)
-                            @unknown default:
-                                EmptyView()
+                    // Title and Subtitle
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.title)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.primary)
+                            .lineLimit(1)
+                        
+                        HStack(spacing: 6) {
+                            Text(item.subtitle)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary)
+                            
+                            if let dur = item.durationSec {
+                                Text("• \(AudioPlayerController.formatTime(dur))")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(Color.secondary)
                             }
                         }
-                        .frame(width: 48, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    } else {
-                        Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
-                            .font(.system(size: 16))
-                            .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
                     }
-                }
-                .frame(width: 48, height: 36)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-                
-                // Title and Subtitle
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.title)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.primary)
-                        .lineLimit(1)
                     
-                    HStack(spacing: 6) {
-                        Text(item.subtitle)
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.secondary)
-                        
-                        if let dur = item.durationSec {
-                            Text("• \(AudioPlayerController.formatTime(dur))")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Color.secondary)
-                        }
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            
+            // Status Badge & Inline Actions
+            HStack(spacing: 6) {
+                stateBadge(for: item.state)
+                
+                if isCompleted {
+                    // Quick Copy Transcript Content Button
+                    Button(action: {
+                        copyTranscriptContent()
+                    }) {
+                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(isCopied ? Color.Premium.emeraldMineral : Color.accentColor)
+                            .padding(5)
+                            .background(
+                                Circle()
+                                    .fill(isCopied ? Color.Premium.emeraldMineral.opacity(0.20) : Color.accentColor.opacity(0.12))
+                            )
+                            .contentShape(Circle())
                     }
-                }
-                
-                Spacer()
-                
-                // Status Badge & Inline Actions
-                HStack(spacing: 6) {
-                    stateBadge(for: item.state)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(viewModel.t("action_copy_transcript"))
+                    .hoverHelpTooltip(
+                        title: viewModel.t("action_copy_transcript"),
+                        description: viewModel.t("hub_tooltip_copy_transcript_desc"),
+                        icon: isCopied ? "checkmark" : "doc.on.doc",
+                        statusColor: isCopied ? Color.Premium.emeraldMineral : .accentColor,
+                        placement: .topTrailing,
+                        width: 220
+                    )
                     
-                    if isCompleted {
-                        // Quick Copy Transcript Content Button
+                    // Show in Finder Button
+                    Button(action: {
+                        viewModel.openItemOutputInFinder(item)
+                    }) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(5)
+                            .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(viewModel.t("action_open_finder"))
+                    .hoverHelpTooltip(
+                        title: viewModel.t("hub_tooltip_finder_title"),
+                        description: viewModel.t("hub_tooltip_finder_desc"),
+                        icon: "folder",
+                        statusColor: .accentColor,
+                        placement: .topTrailing,
+                        width: 220
+                    )
+                    
+                    // Open Source Link or Original Audio File Button
+                    if let url = item.canonicalURL {
                         Button(action: {
-                            copyTranscriptContent()
+                            viewModel.openInBrowser(url: url)
                         }) {
-                            Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(isCopied ? Color.Premium.emeraldMineral : Color.accentColor)
-                                .padding(5)
-                                .background(
-                                    Circle()
-                                        .fill(isCopied ? Color.Premium.emeraldMineral.opacity(0.20) : Color.accentColor.opacity(0.12))
-                                )
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(viewModel.t("action_copy_transcript"))
-                        .hoverHelpTooltip(
-                            title: viewModel.t("action_copy_transcript"),
-                            description: viewModel.t("hub_tooltip_copy_transcript_desc"),
-                            icon: isCopied ? "checkmark" : "doc.on.doc",
-                            statusColor: isCopied ? Color.Premium.emeraldMineral : .accentColor,
-                            placement: .topTrailing,
-                            width: 220
-                        )
-                        
-                        // Show in Finder Button
-                        Button(action: {
-                            viewModel.openItemOutputInFinder(item)
-                        }) {
-                            Image(systemName: "folder")
+                            Image(systemName: "arrow.up.right")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
                                 .padding(5)
@@ -1271,88 +1358,78 @@ struct StudioQueueItemRow: View {
                                 .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(viewModel.t("action_open_finder"))
+                        .accessibilityLabel(viewModel.t("action_open_browser"))
                         .hoverHelpTooltip(
-                            title: viewModel.t("hub_tooltip_finder_title"),
-                            description: viewModel.t("hub_tooltip_finder_desc"),
-                            icon: "folder",
+                            title: viewModel.t("action_open_browser"),
+                            description: url,
+                            icon: "arrow.up.right",
                             statusColor: .accentColor,
                             placement: .topTrailing,
                             width: 220
                         )
-                        
-                        // Open Source Link or Original Audio File Button
-                        if let url = item.canonicalURL {
-                            Button(action: {
-                                viewModel.openInBrowser(url: url)
-                            }) {
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.accentColor)
-                                    .padding(5)
-                                    .background(Circle().fill(Color.accentColor.opacity(0.12)))
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(viewModel.t("action_open_browser"))
-                            .hoverHelpTooltip(
-                                title: viewModel.t("action_open_browser"),
-                                description: url,
-                                icon: "arrow.up.right",
-                                statusColor: .accentColor,
-                                placement: .topTrailing,
-                                width: 220
-                            )
-                        } else if let audioURL = item.effectiveAudioURL {
-                            Button(action: {
-                                viewModel.openInFinder(path: audioURL.path)
-                            }) {
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.accentColor)
-                                    .padding(5)
-                                    .background(Circle().fill(Color.accentColor.opacity(0.12)))
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(viewModel.t("hub_action_open_source_audio"))
-                            .hoverHelpTooltip(
-                                title: viewModel.t("hub_action_open_source_audio"),
-                                description: audioURL.lastPathComponent,
-                                icon: "arrow.up.right",
-                                statusColor: .accentColor,
-                                placement: .topTrailing,
-                                width: 220
-                            )
+                    } else if let audioURL = item.effectiveAudioURL {
+                        Button(action: {
+                            viewModel.openInFinder(path: audioURL.path)
+                        }) {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                .contentShape(Circle())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("hub_action_open_source_audio"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_action_open_source_audio"),
+                            description: audioURL.lastPathComponent,
+                            icon: "arrow.up.right",
+                            statusColor: .accentColor,
+                            placement: .topTrailing,
+                            width: 220
+                        )
                     }
-                    
+                } else if item.state == .queued || item.state == .failed {
+                    // Single Item Immediate Start Button
                     Button(action: {
-                        viewModel.removeItem(id: item.id)
+                        viewModel.startProcessingSingleItem(id: item.id)
                     }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.secondary.opacity(0.7))
-                            .padding(4)
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(5)
+                            .background(Circle().fill(Color.accentColor.opacity(0.12)))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    .help(viewModel.t("action_remove_item"))
-                    .accessibilityLabel(viewModel.t("action_remove_item"))
+                    .help(viewModel.t("action_start_now"))
+                    .accessibilityLabel(viewModel.t("action_start_now"))
                 }
+                
+                Button(action: {
+                    viewModel.removeItem(id: item.id)
+                }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.secondary.opacity(0.7))
+                        .padding(4)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.t("action_remove_item"))
+                .accessibilityLabel(viewModel.t("action_remove_item"))
             }
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .background(rowBackground)
-            .overlay(rowBorder)
-            .shadow(
-                color: isCompleted ? Color.Premium.emeraldMineral.opacity(0.12) : Color.black.opacity(0.04),
-                radius: isCompleted ? 8 : 6,
-                x: 0,
-                y: isCompleted ? 3 : 2
-            )
         }
-        .buttonStyle(.plain)
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(rowBackground)
+        .overlay(rowBorder)
+        .shadow(
+            color: isCompleted ? Color.Premium.emeraldMineral.opacity(0.12) : Color.black.opacity(0.04),
+            radius: isCompleted ? 8 : 6,
+            x: 0,
+            y: isCompleted ? 3 : 2
+        )
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
@@ -1360,7 +1437,7 @@ struct StudioQueueItemRow: View {
         }
     }
     
-    // MARK: - Row Background (Tamamlananlar: Saydam Yeşil | Diğerleri: Blurlu, Renksiz)
+    // MARK: - Row Background (Tamamlananlar: Saydam Yeşil | Seçilenler: Aksan Camı | Diğerleri: Blurlu Nötr)
     @ViewBuilder
     private var rowBackground: some View {
         if isCompleted {
@@ -1382,6 +1459,15 @@ struct StudioQueueItemRow: View {
                         )
                     )
             }
+        } else if isChecked {
+            // Seçili olanlar: Hafif aksan renkli cam dokusu
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.thinMaterial)
+                
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(isHovered ? 0.12 : 0.07))
+            }
         } else {
             // Diğerleri / Yapılacak olanlar: Daha blurlu, renksiz, nötr buzlu cam
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -1399,15 +1485,19 @@ struct StudioQueueItemRow: View {
                         .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.55 : 0.40), location: 0.0),
                         .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.30 : 0.20), location: 0.5),
                         .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.45 : 0.30), location: 1.0)
+                    ] : (isChecked ? [
+                        .init(color: Color.accentColor.opacity(isHovered ? 0.70 : 0.50), location: 0.0),
+                        .init(color: Color.accentColor.opacity(isHovered ? 0.45 : 0.30), location: 0.5),
+                        .init(color: Color.accentColor.opacity(isHovered ? 0.60 : 0.40), location: 1.0)
                     ] : [
                         .init(color: Color.white.opacity(isHovered ? 0.22 : 0.14), location: 0.0),
                         .init(color: Color.white.opacity(isHovered ? 0.08 : 0.04), location: 0.6),
                         .init(color: .clear, location: 1.0)
-                    ],
+                    ]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: isCompleted ? 1.0 : 0.75
+                lineWidth: (isCompleted || isChecked) ? 1.0 : 0.75
             )
             .allowsHitTesting(false)
     }

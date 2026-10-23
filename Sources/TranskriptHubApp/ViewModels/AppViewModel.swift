@@ -735,12 +735,61 @@ public final class AppViewModel: ObservableObject {
         }.joined(separator: "\n\n\n")
     }
     
+    // MARK: - Queue Item Checkbox Selection
+    @Published public var checkedQueueItemIDs: Set<String> = []
+    
+    public var isAllQueueItemsChecked: Bool {
+        !queueItems.isEmpty && checkedQueueItemIDs.count == queueItems.count
+    }
+    
+    public var checkedEligibleQueueItemsCount: Int {
+        queueItems.filter { checkedQueueItemIDs.contains($0.id) && ($0.state == .queued || $0.state == .failed) }.count
+    }
+    
+    public func toggleQueueItemChecked(id: String) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if checkedQueueItemIDs.contains(id) {
+                checkedQueueItemIDs.remove(id)
+            } else {
+                checkedQueueItemIDs.insert(id)
+            }
+        }
+    }
+    
+    public func isQueueItemChecked(id: String) -> Bool {
+        checkedQueueItemIDs.contains(id)
+    }
+    
+    public func toggleSelectAllQueueItems() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
+            let pendingIDs = Set(pending.map(\.id))
+            if !pendingIDs.isEmpty && pendingIDs.isSubset(of: checkedQueueItemIDs) {
+                checkedQueueItemIDs.subtract(pendingIDs)
+            } else if !pendingIDs.isEmpty {
+                checkedQueueItemIDs.formUnion(pendingIDs)
+            } else {
+                if checkedQueueItemIDs.count == queueItems.count {
+                    checkedQueueItemIDs.removeAll()
+                } else {
+                    checkedQueueItemIDs = Set(queueItems.map(\.id))
+                }
+            }
+        }
+    }
+    
     public func selectAllQueueItems() {
-        selectedItemIDs = Set(queueItems.map(\.id))
+        withAnimation(.easeInOut(duration: 0.15)) {
+            checkedQueueItemIDs = Set(queueItems.map(\.id))
+            selectedItemIDs = Set(queueItems.map(\.id))
+        }
     }
     
     public func deselectAllQueueItems() {
-        selectedItemIDs.removeAll()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            checkedQueueItemIDs.removeAll()
+            selectedItemIDs.removeAll()
+        }
     }
     
     public var selectedHistoryItem: HistoryItem? {
@@ -1626,6 +1675,7 @@ public final class AppViewModel: ObservableObject {
     public func removeItem(id: String) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll(where: { $0.id == id })
+            checkedQueueItemIDs.remove(id)
             if selectedItemID == id {
                 selectedItemID = nil
             }
@@ -1640,6 +1690,7 @@ public final class AppViewModel: ObservableObject {
         
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll()
+            checkedQueueItemIDs.removeAll()
             selectedItemID = nil
             undoToastMessage = "\(count) işlem kuyruktan kaldırıldı."
             showUndoToast = true
@@ -1698,18 +1749,27 @@ public final class AppViewModel: ObservableObject {
     
     // MARK: - Unified Processing Loop
     public var canStartQueue: Bool {
-        !isProcessing && queueItems.contains(where: { $0.state == .queued || $0.state == .failed })
+        if !checkedQueueItemIDs.isEmpty {
+            return !isProcessing && queueItems.contains(where: { checkedQueueItemIDs.contains($0.id) && ($0.state == .queued || $0.state == .failed) })
+        }
+        return !isProcessing && queueItems.contains(where: { $0.state == .queued || $0.state == .failed })
     }
     
     public func requestStartQueue() {
         guard canStartQueue else { return }
-        let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
-        let pendingYouTube = pending.filter { $0.isYouTube }
+        let targetItems: [QueueItem]
+        if !checkedQueueItemIDs.isEmpty {
+            targetItems = queueItems.filter { checkedQueueItemIDs.contains($0.id) && ($0.state == .queued || $0.state == .failed) }
+        } else {
+            targetItems = queueItems.filter { $0.state == .queued || $0.state == .failed }
+        }
+        
+        let pendingYouTube = targetItems.filter { $0.isYouTube }
         // Save mode prompt (combined vs individual) is strictly for multi-video YouTube batches.
         // Audio files and Voice Memos are always saved individually as single .txt files.
         if pendingYouTube.count > 1 {
             isSaveModePromptPresented = true
-        } else if !pending.isEmpty {
+        } else if !targetItems.isEmpty {
             startProcessingQueue(saveMode: .individual)
         }
     }
@@ -1734,15 +1794,34 @@ public final class AppViewModel: ObservableObject {
         guard !queueItems.isEmpty else { return }
         self.sessionSaveMode = saveMode
         
+        let hasChecked = !checkedQueueItemIDs.isEmpty
         for i in 0..<queueItems.count {
-            if queueItems[i].state == .queued || queueItems[i].state == .failed {
-                queueItems[i].state = .queued
-                queueItems[i].autoProcess = true
-                queueItems[i].errorMessage = nil
+            if hasChecked {
+                if checkedQueueItemIDs.contains(queueItems[i].id) && (queueItems[i].state == .queued || queueItems[i].state == .failed) {
+                    queueItems[i].state = .queued
+                    queueItems[i].autoProcess = true
+                    queueItems[i].errorMessage = nil
+                }
+            } else {
+                if queueItems[i].state == .queued || queueItems[i].state == .failed {
+                    queueItems[i].state = .queued
+                    queueItems[i].autoProcess = true
+                    queueItems[i].errorMessage = nil
+                }
             }
         }
         
         runQueueProcessor()
+    }
+    
+    public func startProcessingSingleItem(id: String) {
+        guard !isProcessing else { return }
+        if let idx = queueItems.firstIndex(where: { $0.id == id }) {
+            queueItems[idx].state = .queued
+            queueItems[idx].autoProcess = true
+            queueItems[idx].errorMessage = nil
+            runQueueProcessor()
+        }
     }
     
     // MARK: - Whisper Engine Background Cache
@@ -2134,6 +2213,10 @@ public final class AppViewModel: ObservableObject {
     private func updateItem(_ item: QueueItem) {
         if let idx = queueItems.firstIndex(where: { $0.id == item.id }) {
             queueItems[idx] = item
+            if item.state == .completed {
+                checkedQueueItemIDs.remove(item.id)
+                sortQueue(by: currentSortOrder)
+            }
         }
     }
     
@@ -2405,22 +2488,27 @@ public final class AppViewModel: ObservableObject {
     
     public func sortQueue(by order: QueueSortOrder = .newestFirst) {
         self.currentSortOrder = order
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            switch order {
-            case .newestFirst:
-                queueItems.sort { (item1, item2) -> Bool in
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            queueItems.sort { (item1, item2) -> Bool in
+                // Completed items always sink to the bottom so pending items stay at the top
+                let comp1 = item1.state == .completed
+                let comp2 = item2.state == .completed
+                if comp1 != comp2 {
+                    return !comp1
+                }
+                
+                switch order {
+                case .newestFirst:
                     let d1 = item1.fileModificationDate ?? item1.addedAt
                     let d2 = item2.fileModificationDate ?? item2.addedAt
                     return d1 > d2
-                }
-            case .oldestFirst:
-                queueItems.sort { (item1, item2) -> Bool in
+                case .oldestFirst:
                     let d1 = item1.fileModificationDate ?? item1.addedAt
                     let d2 = item2.fileModificationDate ?? item2.addedAt
                     return d1 < d2
+                case .title:
+                    return item1.title.localizedCaseInsensitiveCompare(item2.title) == .orderedAscending
                 }
-            case .title:
-                queueItems.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             }
         }
     }
