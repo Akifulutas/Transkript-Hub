@@ -524,29 +524,29 @@ public final class AppViewModel: ObservableObject {
     
     public func selectCustomWatchedFolder() {
         let panel = NSOpenPanel()
-        panel.canChooseFiles = true
+        panel.canChooseFiles = false
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
         panel.canCreateDirectories = true
         panel.prompt = t("action_add")
         panel.message = t("watched_choose_folder_prompt")
         
-        if let current = folderWatcher.customFolderURL {
-            panel.directoryURL = current
+        if let first = folderWatcher.customFolderURLs.first {
+            panel.directoryURL = first
         } else {
             panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
         }
         
-        if panel.runModal() == .OK, let selectedURL = panel.url {
-            var isDir: ObjCBool = false
-            let folderURL: URL
-            if FileManager.default.fileExists(atPath: selectedURL.path, isDirectory: &isDir), isDir.boolValue {
-                folderURL = selectedURL
-            } else {
-                folderURL = selectedURL.deletingLastPathComponent()
+        if panel.runModal() == .OK {
+            for selectedURL in panel.urls {
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: selectedURL.path, isDirectory: &isDir), isDir.boolValue {
+                    folderWatcher.addCustomFolder(selectedURL)
+                }
             }
-            folderWatcher.customFolderURL = folderURL
-            folderWatcher.watchCustomFolder = true
+            if !folderWatcher.customFolderURLs.isEmpty {
+                folderWatcher.watchCustomFolder = true
+            }
             if !isFolderWatching {
                 isFolderWatching = true
             }
@@ -557,10 +557,19 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public func removeCustomWatchedFolder(_ url: URL) {
+        folderWatcher.removeCustomFolder(url)
+        objectWillChange.send()
+        Task {
+            await folderWatcher.scanDirectory()
+        }
+    }
+    
     public func resetCustomWatchedFolder() {
-        folderWatcher.customFolderURL = nil
+        folderWatcher.customFolderURLs = []
         folderWatcher.watchCustomFolder = false
         UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPaths")
         UserDefaults.standard.set(false, forKey: "FolderWatcher.watchCustomFolder")
         objectWillChange.send()
     }

@@ -40,33 +40,63 @@ public final class FolderWatcher: ObservableObject {
     
     @Published public var watchCustomFolder: Bool {
         didSet {
-            // Cannot watch custom folder if no valid custom folder is configured
-            if watchCustomFolder && customFolderURL == nil {
+            // Cannot watch custom folder if no valid custom folders are configured
+            if watchCustomFolder && customFolderURLs.isEmpty {
                 watchCustomFolder = false
                 return
             }
             UserDefaults.standard.set(watchCustomFolder, forKey: "FolderWatcher.watchCustomFolder")
-            if watchCustomFolder, let url = customFolderURL {
-                resetProcessedPaths(under: url)
+            if watchCustomFolder {
+                for url in customFolderURLs {
+                    resetProcessedPaths(under: url)
+                }
             }
             triggerImmediateScan()
         }
     }
     
-    @Published public var customFolderURL: URL? {
+    @Published public var customFolderURLs: [URL] {
         didSet {
-            UserDefaults.standard.set(customFolderURL?.path, forKey: "FolderWatcher.customFolderPath")
-            if let url = customFolderURL {
+            let paths = customFolderURLs.map(\.path)
+            UserDefaults.standard.set(paths, forKey: "FolderWatcher.customFolderPaths")
+            UserDefaults.standard.set(customFolderURLs.first?.path, forKey: "FolderWatcher.customFolderPath")
+            for url in customFolderURLs {
                 resetProcessedPaths(under: url)
-                if !watchCustomFolder {
-                    watchCustomFolder = true
-                }
-            } else {
-                if watchCustomFolder {
-                    watchCustomFolder = false
-                }
+            }
+            if customFolderURLs.isEmpty {
+                watchCustomFolder = false
+            } else if !watchCustomFolder {
+                watchCustomFolder = true
             }
             triggerImmediateScan()
+        }
+    }
+    
+    public var customFolderURL: URL? {
+        get { customFolderURLs.first }
+        set {
+            if let val = newValue {
+                if !customFolderURLs.contains(where: { $0.path == val.path }) {
+                    customFolderURLs = [val]
+                }
+            } else {
+                customFolderURLs = []
+            }
+        }
+    }
+    
+    public func addCustomFolder(_ url: URL) {
+        guard !customFolderURLs.contains(where: { $0.path == url.path }) else { return }
+        customFolderURLs.append(url)
+        if !watchCustomFolder {
+            watchCustomFolder = true
+        }
+    }
+    
+    public func removeCustomFolder(_ url: URL) {
+        customFolderURLs.removeAll(where: { $0.path == url.path })
+        if customFolderURLs.isEmpty {
+            watchCustomFolder = false
         }
     }
     
@@ -174,8 +204,8 @@ public final class FolderWatcher: ObservableObject {
         if watchVoiceMemos && isVoiceMemosDirectlyAccessible {
             dirs.append(Self.voiceMemosDirectory)
         }
-        if watchCustomFolder, let custom = customFolderURL {
-            dirs.append(custom)
+        if watchCustomFolder {
+            dirs.append(contentsOf: customFolderURLs)
         }
         if dirs.isEmpty {
             dirs.append(watchedDirectory)
@@ -196,20 +226,26 @@ public final class FolderWatcher: ObservableObject {
         self.watchiCloudRoot = ud.object(forKey: "FolderWatcher.watchiCloudRoot") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudRoot")
         self.watchVoiceMemos = ud.object(forKey: "FolderWatcher.watchVoiceMemos") == nil ? true : ud.bool(forKey: "FolderWatcher.watchVoiceMemos")
         self.autoTranscribe = ud.object(forKey: "FolderWatcher.autoTranscribe") == nil ? true : ud.bool(forKey: "FolderWatcher.autoTranscribe")
-        if let customPath = ud.string(forKey: "FolderWatcher.customFolderPath"), !customPath.isEmpty {
+        
+        var loadedCustom: [URL] = []
+        if let paths = ud.stringArray(forKey: "FolderWatcher.customFolderPaths") {
+            for p in paths {
+                let u = URL(fileURLWithPath: p, isDirectory: true)
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: u.path, isDirectory: &isDir), isDir.boolValue {
+                    loadedCustom.append(u)
+                }
+            }
+        }
+        if loadedCustom.isEmpty, let customPath = ud.string(forKey: "FolderWatcher.customFolderPath"), !customPath.isEmpty {
             let url = URL(fileURLWithPath: customPath, isDirectory: true)
             var isDir: ObjCBool = false
             if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-                self.customFolderURL = url
-                self.watchCustomFolder = ud.bool(forKey: "FolderWatcher.watchCustomFolder")
-            } else {
-                self.customFolderURL = nil
-                self.watchCustomFolder = false
+                loadedCustom.append(url)
             }
-        } else {
-            self.customFolderURL = nil
-            self.watchCustomFolder = false
         }
+        self.customFolderURLs = loadedCustom
+        self.watchCustomFolder = !loadedCustom.isEmpty && ud.bool(forKey: "FolderWatcher.watchCustomFolder")
         
         // Keep processedPaths in-memory per session so untranscribed files from previous runs are not skipped;
         // already-transcribed files are deduplicated persistently by TranscriptCacheManager.
