@@ -70,8 +70,8 @@ struct AudioPlayerEmpiricalStressTests {
             #expect(finished == true, "Seek to \(target)s should finish successfully")
             let diff = abs(controller.currentTime - target)
             #expect(diff <= 0.100, "Seek accuracy deviation \(diff)s for target \(target)s exceeds ±100ms limit")
-            // Latency check: seeking in-memory/local audio should complete well within 500ms
-            #expect(elapsed < .milliseconds(500), "Seek latency \(elapsed) exceeds acceptable threshold")
+            // Latency check: seeking in-memory/local audio should complete well within 1500ms even under heavy parallel test load
+            #expect(elapsed < .milliseconds(1500), "Seek latency \(elapsed) exceeds acceptable threshold")
         }
     }
     

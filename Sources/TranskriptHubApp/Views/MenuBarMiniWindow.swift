@@ -102,7 +102,7 @@ struct MenuBarMiniWindow: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(isDropTargeted ? Color.accentColor : Color.primary.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
             )
-            .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
+            .onDrop(of: [.fileURL, .url, .item, .content, .text], isTargeted: $isDropTargeted) { providers in
                 handleDrop(providers: providers)
                 return true
             }
@@ -182,18 +182,6 @@ struct MenuBarMiniWindow: View {
     }
     
     private func handleDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url = url else { return }
-                DispatchQueue.main.async {
-                    if url.isFileURL {
-                        self.viewModel.addAudioFiles([url])
-                    } else {
-                        self.viewModel.quickInputText = url.absoluteString
-                        self.viewModel.addFromQuickInput()
-                    }
-                }
-            }
-        }
+        _ = viewModel.handleUniversalDrop(providers: providers)
     }
 }

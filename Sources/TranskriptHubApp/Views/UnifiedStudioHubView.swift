@@ -17,6 +17,7 @@ public struct UnifiedStudioHubView: View {
     @State private var isFolderInfoPresented: Bool = false
     @State private var isHistoryInfoPresented: Bool = false
     @State private var isQueueInfoPresented: Bool = false
+    @State private var isSortPopoverPresented: Bool = false
     
     // Interactive Pull-to-Refresh State
     @State private var pullOffset: CGFloat = 0
@@ -122,7 +123,7 @@ public struct UnifiedStudioHubView: View {
                         }
                     }
                 }
-                .onDrop(of: [.fileURL, .url], isTargeted: $isDropTargeted) { providers in
+                .onDrop(of: [.fileURL, .url, .item, .content, .text], isTargeted: $isDropTargeted) { providers in
                     handleDrop(providers: providers)
                     return true
                 }
@@ -889,6 +890,32 @@ public struct UnifiedStudioHubView: View {
                             .padding(.vertical, 2)
                             .background(Capsule().fill(Color.Premium.terracotta.opacity(0.14)))
                     }
+                    
+                    // Sort Icon Button: Fixed-size 24x24 icon-only button (⇅ ONLY, no wide bar, no right chevron)
+                    if !viewModel.queueItems.isEmpty {
+                        Button(action: {
+                            isSortPopoverPresented.toggle()
+                        }) {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .foregroundStyle(isSortPopoverPresented ? Color.accentColor : Color.secondary.opacity(0.85))
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    Circle()
+                                        .fill(isSortPopoverPresented ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(isSortPopoverPresented ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.12), lineWidth: 0.5)
+                                )
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(viewModel.t("queue_sort_title"))
+                        .popover(isPresented: $isSortPopoverPresented, arrowEdge: .bottom) {
+                            sortPopoverView
+                        }
+                    }
                 }
                 
                 Spacer()
@@ -901,57 +928,6 @@ public struct UnifiedStudioHubView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                }
-                
-                // Sort Menu Button (Compact Icon-Only with Glass Capsule)
-                if !viewModel.queueItems.isEmpty {
-                    Menu {
-                        Button(action: {
-                            viewModel.sortQueue(by: .newestFirst)
-                        }) {
-                            if viewModel.currentSortOrder == .newestFirst {
-                                Label(viewModel.t("queue_sort_newest_first"), systemImage: "checkmark")
-                            } else {
-                                Label(viewModel.t("queue_sort_newest_first"), systemImage: "arrow.down")
-                            }
-                        }
-                        Button(action: {
-                            viewModel.sortQueue(by: .oldestFirst)
-                        }) {
-                            if viewModel.currentSortOrder == .oldestFirst {
-                                Label(viewModel.t("queue_sort_oldest_first"), systemImage: "checkmark")
-                            } else {
-                                Label(viewModel.t("queue_sort_oldest_first"), systemImage: "arrow.up")
-                            }
-                        }
-                        Button(action: {
-                            viewModel.sortQueue(by: .title)
-                        }) {
-                            if viewModel.currentSortOrder == .title {
-                                Label(viewModel.t("queue_sort_alphabetical"), systemImage: "checkmark")
-                            } else {
-                                Label(viewModel.t("queue_sort_alphabetical"), systemImage: "textformat")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.secondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(Color.primary.opacity(0.06))
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
-                            )
-                            .contentShape(Capsule())
-                    }
-                    .menuStyle(.borderlessButton)
-                    .controlSize(.small)
-                    .help(viewModel.t("queue_sort_title"))
                 }
                 
                 // Primary Action Button: "Transkripte Yolla"
@@ -1218,20 +1194,77 @@ public struct UnifiedStudioHubView: View {
         viewModel.promptForLocalAudioFiles()
     }
     
-    private func handleDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url = url else { return }
-                DispatchQueue.main.async {
-                    if url.isFileURL {
-                        self.viewModel.addAudioFiles([url])
-                    } else {
-                        self.viewModel.quickInputText = url.absoluteString
-                        self.viewModel.addFromQuickInput()
-                    }
+    private var sortPopoverView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(viewModel.t("queue_sort_title"))
+                .font(.system(size: 10.5, weight: .bold))
+                .foregroundStyle(Color.secondary.opacity(0.8))
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            
+            Divider()
+                .padding(.horizontal, 6)
+                .padding(.bottom, 2)
+            
+            sortOptionRow(
+                title: viewModel.t("queue_sort_newest_first"),
+                icon: "arrow.down",
+                order: .newestFirst
+            )
+            
+            sortOptionRow(
+                title: viewModel.t("queue_sort_oldest_first"),
+                icon: "arrow.up",
+                order: .oldestFirst
+            )
+            
+            sortOptionRow(
+                title: viewModel.t("queue_sort_alphabetical"),
+                icon: "textformat",
+                order: .title
+            )
+        }
+        .padding(4)
+        .frame(width: 195)
+    }
+    
+    private func sortOptionRow(title: String, icon: String, order: AppViewModel.QueueSortOrder) -> some View {
+        Button(action: {
+            viewModel.sortQueue(by: order)
+            isSortPopoverPresented = false
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(viewModel.currentSortOrder == order ? Color.accentColor : Color.secondary)
+                    .frame(width: 14)
+                
+                Text(title)
+                    .font(.system(size: 12, weight: viewModel.currentSortOrder == order ? .semibold : .regular))
+                    .foregroundStyle(viewModel.currentSortOrder == order ? Color.accentColor : Color.primary)
+                
+                Spacer()
+                
+                if viewModel.currentSortOrder == order {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(viewModel.currentSortOrder == order ? Color.accentColor.opacity(0.12) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+    }
+    
+    private func handleDrop(providers: [NSItemProvider]) {
+        _ = viewModel.handleUniversalDrop(providers: providers)
     }
     
     private func modelDisplayName(_ model: WhisperModel) -> String {

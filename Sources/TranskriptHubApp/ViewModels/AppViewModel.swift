@@ -1215,9 +1215,28 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func addAudioFiles(_ urls: [URL], autoProcess: Bool = false) {
-        var anyAddedForAuto = false
+        var resolvedURLs: [URL] = []
         for url in urls {
-            guard AudioValidator.isExtensionSupported(url.pathExtension) else { continue }
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                if let enumerator = FileManager.default.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: [.isRegularFileKey],
+                    options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                ) {
+                    for case let fileURL as URL in enumerator {
+                        if AudioValidator.isExtensionSupported(fileURL.pathExtension) {
+                            resolvedURLs.append(fileURL)
+                        }
+                    }
+                }
+            } else if AudioValidator.isExtensionSupported(url.pathExtension) {
+                resolvedURLs.append(url)
+            }
+        }
+        
+        var anyAddedForAuto = false
+        for url in resolvedURLs {
             guard !queueItems.contains(where: { $0.id == url.path }) else { continue }
             
             let title = url.deletingPathExtension().lastPathComponent
@@ -1268,6 +1287,113 @@ public final class AppViewModel: ObservableObject {
         }
         if anyAddedForAuto {
             startAutoProcessingWatchedItems()
+        }
+    }
+    
+    // MARK: - Universal Drag-and-Drop Ingestion (Anywhere in App)
+    @discardableResult
+    public func handleUniversalDrop(providers: [NSItemProvider]) -> Bool {
+        guard !providers.isEmpty else { return false }
+        
+        var didAcceptAny = false
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
+                didAcceptAny = true
+                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { [weak self] item, _ in
+                    guard let self = self else { return }
+                    var fileURL: URL?
+                    if let url = item as? URL {
+                        fileURL = url
+                    } else if let nsurl = item as? NSURL {
+                        fileURL = nsurl as URL
+                    } else if let data = item as? Data {
+                        fileURL = URL(dataRepresentation: data, relativeTo: nil)
+                    } else if let string = item as? String {
+                        fileURL = URL(string: string) ?? URL(fileURLWithPath: string)
+                    }
+                    if let url = fileURL {
+                        DispatchQueue.main.async {
+                            self.processDroppedURL(url)
+                        }
+                    }
+                }
+            } else if provider.canLoadObject(ofClass: URL.self) {
+                didAcceptAny = true
+                _ = provider.loadObject(ofClass: URL.self) { [weak self] url, _ in
+                    guard let self = self, let url = url else { return }
+                    DispatchQueue.main.async {
+                        self.processDroppedURL(url)
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier("public.text") {
+                didAcceptAny = true
+                provider.loadItem(forTypeIdentifier: "public.text", options: nil) { [weak self] item, _ in
+                    guard let self = self, let text = item as? String else { return }
+                    DispatchQueue.main.async {
+                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.hasPrefix("file://"), let fileURL = URL(string: trimmed) {
+                            self.processDroppedURL(fileURL)
+                        } else if trimmed.hasPrefix("/") && FileManager.default.fileExists(atPath: trimmed) {
+                            self.processDroppedURL(URL(fileURLWithPath: trimmed))
+                        } else {
+                            let parsed = URLParser.parseBulk(trimmed)
+                            if !parsed.isEmpty {
+                                for p in parsed {
+                                    self.addYouTubeVideo(p)
+                                }
+                                self.selectedItemID = nil
+                                self.selectedItemIDs.removeAll()
+                                self.selectedSection = .queue
+                            } else {
+                                self.quickInputText = trimmed
+                                self.addFromQuickInput()
+                                self.selectedItemID = nil
+                                self.selectedItemIDs.removeAll()
+                                self.selectedSection = .queue
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return didAcceptAny
+    }
+    
+    public func processDroppedURL(_ url: URL) {
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+            if let enumerator = FileManager.default.enumerator(
+                at: url,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) {
+                var files: [URL] = []
+                for case let fileURL as URL in enumerator {
+                    if AudioValidator.isExtensionSupported(fileURL.pathExtension) {
+                        files.append(fileURL)
+                    }
+                }
+                if !files.isEmpty {
+                    addAudioFiles(files)
+                    selectedItemID = nil
+                    selectedItemIDs.removeAll()
+                    selectedSection = .queue
+                }
+            }
+        } else if url.isFileURL {
+            if AudioValidator.isExtensionSupported(url.pathExtension) {
+                addAudioFiles([url])
+                selectedItemID = nil
+                selectedItemIDs.removeAll()
+                selectedSection = .queue
+            }
+        } else {
+            // Web / YouTube URL
+            quickInputText = url.absoluteString
+            addFromQuickInput()
+            selectedItemID = nil
+            selectedItemIDs.removeAll()
+            selectedSection = .queue
         }
     }
     

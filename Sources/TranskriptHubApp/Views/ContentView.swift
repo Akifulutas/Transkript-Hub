@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import TranskriptHubCore
 
 public struct ContentView: View {
@@ -120,6 +121,37 @@ public struct ContentView: View {
                 }
             }
         }
+        .onDrop(of: [.fileURL, .url, .item, .content, .text], isTargeted: $viewModel.isDropTargetActive) { providers in
+            viewModel.handleUniversalDrop(providers: providers)
+        }
+        .overlay(
+            Group {
+                if viewModel.isDropTargetActive {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.accentColor.opacity(0.85), lineWidth: 2)
+                            .background(Color.accentColor.opacity(0.06))
+                        
+                        VStack(spacing: 8) {
+                            Image(systemName: "arrow.down.doc.fill")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                            Text(viewModel.t("hub_tooltip_drop_zone_title"))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(Color.primary)
+                        }
+                        .padding(20)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .shadow(color: Color.black.opacity(0.2), radius: 12, y: 6)
+                    }
+                    .padding(6)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: viewModel.isDropTargetActive)
+        )
         // Real macOS Liquid Glass Translucency & Specular Ambiance
         .background(
             WindowAccessor { window in

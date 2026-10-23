@@ -128,7 +128,7 @@ struct QueueListView: View {
             }
         }
         .navigationTitle(viewModel.t("section_queue"))
-        .onDrop(of: [.fileURL, .text], isTargeted: $viewModel.isDropTargetActive) { providers in
+        .onDrop(of: [.fileURL, .url, .item, .content, .text], isTargeted: $viewModel.isDropTargetActive) { providers in
             handleUniversalDrop(providers: providers)
         }
     }
@@ -314,28 +314,7 @@ struct QueueListView: View {
     }
     
     private func handleUniversalDrop(providers: [NSItemProvider]) -> Bool {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-                    guard let data = item as? Data,
-                          let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
-                    DispatchQueue.main.async {
-                        viewModel.addAudioFiles([url])
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier("public.text") {
-                provider.loadItem(forTypeIdentifier: "public.text", options: nil) { item, _ in
-                    guard let str = item as? String else { return }
-                    DispatchQueue.main.async {
-                        let parsed = URLParser.parseBulk(str)
-                        for p in parsed {
-                            viewModel.addYouTubeVideo(p)
-                        }
-                    }
-                }
-            }
-        }
-        return true
+        viewModel.handleUniversalDrop(providers: providers)
     }
 }
 
