@@ -832,6 +832,18 @@ public final class AppViewModel: ObservableObject {
     
     public func segments(for item: QueueItem) -> [Segment] {
         if !item.segments.isEmpty {
+            // Strip synthetic alternating "Speaker 1" / "Speaker 2" tags when real neural diarization was not executed
+            let hasOnlySyntheticAlternating = item.segments.allSatisfy { seg in
+                guard let spk = seg.speaker else { return true }
+                return spk.hasPrefix("Speaker ")
+            }
+            if hasOnlySyntheticAlternating && item.segments.contains(where: { $0.speaker != nil }) {
+                return item.segments.map { seg in
+                    var cleaned = seg
+                    cleaned.speaker = nil
+                    return cleaned
+                }
+            }
             return item.segments
         }
         let text = item.transcript ?? ""
@@ -844,7 +856,7 @@ public final class AppViewModel: ObservableObject {
             let start = Double(i) * step
             let end = min(totalDuration, start + step)
             let words = Segment.interpolateWords(for: line, start: start, end: end)
-            return Segment(start: start, end: end, text: line, speaker: "Speaker \((i % 2) + 1)", words: words)
+            return Segment(start: start, end: end, text: line, speaker: nil, words: words)
         }
     }
     
@@ -858,7 +870,7 @@ public final class AppViewModel: ObservableObject {
             let start = Double(i) * step
             let end = min(totalDuration, start + step)
             let words = Segment.interpolateWords(for: line, start: start, end: end)
-            return Segment(start: start, end: end, text: line, speaker: "Speaker \((i % 2) + 1)", words: words)
+            return Segment(start: start, end: end, text: line, speaker: nil, words: words)
         }
     }
     
@@ -2251,6 +2263,14 @@ public final class AppViewModel: ObservableObject {
             return
         }
         openInFinder(path: outputDirectoryURL.path)
+    }
+    
+    public func openItemSource(_ item: QueueItem) {
+        if let canon = item.canonicalURL {
+            openInBrowser(url: canon)
+        } else if let audioURL = item.effectiveAudioURL {
+            openInFinder(path: audioURL.path)
+        }
     }
     
     // MARK: - iCloud Transkript Setup & Output Binding

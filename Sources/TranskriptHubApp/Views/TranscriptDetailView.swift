@@ -48,7 +48,8 @@ public struct TranscriptDetailView: View {
                 duration: item.durationSec,
                 transcript: transcript,
                 outputURL: item.outputURL,
-                browserURL: item.canonicalURL
+                browserURL: item.canonicalURL,
+                sourceAudioURL: item.effectiveAudioURL
             )
             
             Divider()
@@ -224,7 +225,8 @@ public struct TranscriptDetailView: View {
         duration: Double?,
         transcript: String?,
         outputURL: URL?,
-        browserURL: String?
+        browserURL: String?,
+        sourceAudioURL: URL? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
@@ -317,29 +319,53 @@ public struct TranscriptDetailView: View {
                                 systemImage: viewModel.showCombinedSessionTranscript ? "doc.plaintext" : "rectangle.stack.fill"
                             )
                             .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(viewModel.showCombinedSessionTranscript ? Color.accentColor : Color.primary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4.5)
+                            .background(
+                                Capsule()
+                                    .fill(viewModel.showCombinedSessionTranscript ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
+                            )
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .foregroundColor(viewModel.showCombinedSessionTranscript ? .accentColor : .primary)
+                        .buttonStyle(.plain)
                     }
                     
                     // Copy
                     Button(action: { viewModel.copyTranscript(text: transcript) }) {
-                        Label(viewModel.copiedToast ? viewModel.t("action_copied") : "\(viewModel.t("action_copy")) (⌘⇧C)", systemImage: viewModel.copiedToast ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: viewModel.copiedToast ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(viewModel.copiedToast ? Color.Premium.emeraldMineral : Color.accentColor)
+                            .padding(5)
+                            .background(
+                                Circle()
+                                    .fill(viewModel.copiedToast ? Color.Premium.emeraldMineral.opacity(0.20) : Color.accentColor.opacity(0.12))
+                            )
+                            .contentShape(Circle())
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(.plain)
                     .disabled(transcript == nil || transcript!.isEmpty)
+                    .accessibilityLabel(viewModel.t("action_copy_transcript"))
+                    .hoverHelpTooltip(
+                        title: "\(viewModel.t("action_copy")) (⌘⇧C)",
+                        description: viewModel.t("hub_tooltip_copy_transcript_desc"),
+                        icon: viewModel.copiedToast ? "checkmark" : "doc.on.doc",
+                        statusColor: viewModel.copiedToast ? Color.Premium.emeraldMineral : .accentColor,
+                        placement: .bottomTrailing,
+                        width: 220
+                    )
                     
                     // Finder
                     if let output = outputURL {
                         Button(action: { viewModel.openInFinder(path: output.path) }) {
                             Image(systemName: "folder")
-                                .font(.system(size: 11))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                .contentShape(Circle())
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("action_open_finder"))
                         .hoverHelpTooltip(
                             title: viewModel.t("hub_tooltip_finder_title"),
                             description: viewModel.t("hub_tooltip_finder_desc"),
@@ -350,15 +376,45 @@ public struct TranscriptDetailView: View {
                         )
                     }
                     
-                    // Browser
+                    // Source Link / Original Audio File
                     if let browser = browserURL {
                         Button(action: { viewModel.openInBrowser(url: browser) }) {
-                            Image(systemName: "arrow.up.right.square")
-                                .font(.system(size: 11))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                .contentShape(Circle())
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .help(viewModel.t("action_open_browser"))
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("action_open_browser"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("action_open_browser"),
+                            description: browser,
+                            icon: "arrow.up.right",
+                            statusColor: .accentColor,
+                            placement: .bottomTrailing,
+                            width: 220
+                        )
+                    } else if let audioURL = sourceAudioURL {
+                        Button(action: { viewModel.openInFinder(path: audioURL.path) }) {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("hub_action_open_source_audio"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_action_open_source_audio"),
+                            description: audioURL.lastPathComponent,
+                            icon: "arrow.up.right",
+                            statusColor: .accentColor,
+                            placement: .bottomTrailing,
+                            width: 220
+                        )
                     }
                 }
             }

@@ -1279,6 +1279,51 @@ struct StudioQueueItemRow: View {
                             placement: .topTrailing,
                             width: 220
                         )
+                        
+                        // Open Source Link or Original Audio File Button
+                        if let url = item.canonicalURL {
+                            Button(action: {
+                                viewModel.openInBrowser(url: url)
+                            }) {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                                    .padding(5)
+                                    .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                    .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(viewModel.t("action_open_browser"))
+                            .hoverHelpTooltip(
+                                title: viewModel.t("action_open_browser"),
+                                description: url,
+                                icon: "arrow.up.right",
+                                statusColor: .accentColor,
+                                placement: .topTrailing,
+                                width: 220
+                            )
+                        } else if let audioURL = item.effectiveAudioURL {
+                            Button(action: {
+                                viewModel.openInFinder(path: audioURL.path)
+                            }) {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                                    .padding(5)
+                                    .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                    .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(viewModel.t("hub_action_open_source_audio"))
+                            .hoverHelpTooltip(
+                                title: viewModel.t("hub_action_open_source_audio"),
+                                description: audioURL.lastPathComponent,
+                                icon: "arrow.up.right",
+                                statusColor: .accentColor,
+                                placement: .topTrailing,
+                                width: 220
+                            )
+                        }
                     }
                     
                     Button(action: {
