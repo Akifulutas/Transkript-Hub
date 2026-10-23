@@ -691,7 +691,7 @@ public struct L10n {
             // Statuses
             "status_attention_required": "MÜDAHALE GEREKİYOR",
             "status_processing_queue": "İŞLENİYOR & KUYRUK",
-            "status_completed": "TAMAMLANANLAR",
+            "status_completed": "Tamamlandı",
             "status_queued": "Kuyrukta",
             "status_fetching": "İndiriliyor",
             "status_transcribing": "Transkript Ediliyor",

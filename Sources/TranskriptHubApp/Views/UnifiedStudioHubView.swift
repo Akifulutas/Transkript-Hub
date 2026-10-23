@@ -1585,27 +1585,38 @@ struct StudioQueueItemRow: View {
     }
     
     private func stateBadge(for state: QueueItemState) -> some View {
-        HStack(spacing: 4) {
+        Group {
             if state == .completed {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 8.5, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(badgeColor(for: state))
-            } else if state == .failed {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 8.5, weight: .semibold))
-                    .foregroundStyle(badgeColor(for: state))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
+                    .overlay(
+                        Capsule().stroke(badgeColor(for: state).opacity(0.28), lineWidth: 0.5)
+                    )
+                    .help(localizedState(for: state))
             } else {
-                Circle()
-                    .fill(badgeColor(for: state))
-                    .frame(width: 6, height: 6)
+                HStack(spacing: 4) {
+                    if state == .failed {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .foregroundStyle(badgeColor(for: state))
+                    } else {
+                        Circle()
+                            .fill(badgeColor(for: state))
+                            .frame(width: 6, height: 6)
+                    }
+                    Text(localizedState(for: state))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(badgeColor(for: state))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
             }
-            Text(localizedState(for: state))
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(badgeColor(for: state))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
     }
     
     private func localizedState(for state: QueueItemState) -> String {
