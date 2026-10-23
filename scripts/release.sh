@@ -83,22 +83,27 @@ if [ -n "$EXISTING_ID" ]; then
     curl -s -X DELETE -H "Authorization: token $TOKEN" "https://api.github.com/repos/$REPO/releases/$EXISTING_ID" >/dev/null
 fi
 
-CREATE_PAYLOAD=$(cat <<EOF
-{
-  "tag_name": "$TAG",
-  "name": "$RELEASE_TITLE",
-  "body": $(printf '%s' "$RELEASE_BODY" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),
-  "draft": false,
-  "prerelease": false
+TMP_PAYLOAD=$(mktemp /tmp/transkripthub_release_XXXXXX.json)
+python3 -c '
+import json, sys, os
+payload = {
+    "tag_name": sys.argv[1],
+    "name": sys.argv[2],
+    "body": sys.argv[3],
+    "draft": False,
+    "prerelease": False
 }
-EOF
-)
+with open(sys.argv[4], "w") as f:
+    json.dump(payload, f)
+' "$TAG" "$RELEASE_TITLE" "$RELEASE_BODY" "$TMP_PAYLOAD"
 
 RELEASE_RESPONSE=$(curl -s -X POST \
     -H "Authorization: token $TOKEN" \
     -H "Accept: application/vnd.github.v3+json" \
+    -H "Content-Type: application/json" \
     "https://api.github.com/repos/$REPO/releases" \
-    -d "$CREATE_PAYLOAD")
+    -d @"$TMP_PAYLOAD")
+rm -f "$TMP_PAYLOAD"
 
 RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | awk '{print $2}')
 HTML_URL=$(echo "$RELEASE_RESPONSE" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
