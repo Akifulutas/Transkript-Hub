@@ -462,6 +462,22 @@ struct WatchedFolderView: View {
                 
                 Spacer()
                 
+                if !viewModel.folderWatcher.isICloudTranskriptFolderReady {
+                    Button(action: {
+                        viewModel.setupICloudTranskriptFolderAndSetOutput()
+                    }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 8.5))
+                            Text(viewModel.t("watched_icloud_folder_setup_short_btn"))
+                                .font(.system(size: 9.5, weight: .bold))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(accent)
+                    .controlSize(.mini)
+                }
+                
                 Toggle("", isOn: $viewModel.folderWatcher.watchiCloudDrive)
                     .toggleStyle(.switch)
                     .controlSize(.mini)
@@ -711,7 +727,7 @@ struct WatchedFolderView: View {
                         .frame(width: 6, height: 6)
                         .shadow(color: activePipesCount > 0 ? Color(hex: "#00E676") : Color.clear, radius: 3)
                     
-                    Text("\(activePipesCount)/3 BORU BAĞLI")
+                    Text(String(format: viewModel.t("watched_hud_sources_count"), activePipesCount))
                         .font(.system(size: 9.5, weight: .heavy, design: .monospaced))
                         .foregroundStyle(activePipesCount > 0 ? Color(hex: "#00E676") : Color.secondary)
                 }
@@ -719,7 +735,7 @@ struct WatchedFolderView: View {
                 Text("•")
                     .foregroundStyle(Color.secondary.opacity(0.4))
                 
-                Text(activePipesCount == 3 ? "Tam Güç Akış Hazır" : (activePipesCount > 0 ? "Otomatik Dinleme Aktif" : "Boru Bağlantısı Bekleniyor"))
+                Text(activePipesCount == 3 ? viewModel.t("watched_hud_all_active") : (activePipesCount > 0 ? viewModel.t("watched_hud_listening_active") : viewModel.t("watched_hud_waiting")))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.secondary)
                 

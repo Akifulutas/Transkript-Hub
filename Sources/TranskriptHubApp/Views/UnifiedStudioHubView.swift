@@ -231,21 +231,18 @@ public struct UnifiedStudioHubView: View {
                 secondaryAction: nil
             )
         } else if systemMissing {
-            let hasOpened = viewModel.hasOpenedSystemAudioSettings
             return HubPermissionWarning(
                 icon: "display",
                 title: viewModel.t("record_permission_system_title"),
                 description: viewModel.t("record_permission_system_desc"),
-                primaryButtonTitle: hasOpened ? viewModel.t("record_relaunch_app") : viewModel.t("watched_open_settings"),
+                primaryButtonTitle: viewModel.t("watched_open_settings"),
                 primaryAction: {
-                    if hasOpened {
-                        viewModel.relaunchApp()
-                    } else {
-                        viewModel.openSystemAudioSettings()
-                    }
+                    viewModel.openSystemAudioSettings()
                 },
-                secondaryButtonTitle: hasOpened ? viewModel.t("watched_open_settings") : nil,
-                secondaryAction: hasOpened ? { viewModel.openSystemAudioSettings() } : nil
+                secondaryButtonTitle: viewModel.t("record_relaunch_app"),
+                secondaryAction: {
+                    viewModel.relaunchApp()
+                }
             )
         }
         return nil
@@ -673,7 +670,7 @@ public struct UnifiedStudioHubView: View {
             }
         }
         .padding(14)
-        .frame(width: 480)
+        .frame(width: 510)
     }
     
     private func popoverModelRow(spec: WhisperModelSpec) -> some View {
@@ -681,7 +678,7 @@ public struct UnifiedStudioHubView: View {
         let isActive = viewModel.selectedModel == spec.model
         let visuals = modelSpecVisuals(spec)
         
-        return HStack(spacing: 8) {
+        return HStack(spacing: 9) {
             // Colorful Model Icon Badge
             ZStack {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -692,9 +689,9 @@ public struct UnifiedStudioHubView: View {
                     .foregroundStyle(visuals.color)
             }
             
-            // Model Info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            // Model Info: Name, Size, and Dual Speed/Accuracy Benchmark Barmeter
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
                     Text(spec.displayName)
                         .font(.system(size: 12, weight: .bold))
                         .lineLimit(1)
@@ -705,23 +702,37 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                    
-                    if let badge = spec.badge {
-                        Text(badge)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(visuals.color)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(Capsule().fill(visuals.color.opacity(0.12)))
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                    }
                 }
                 
-                Text(spec.summary)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 12) {
+                    // Speed Meter
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 8.5))
+                            .foregroundStyle(Color.orange)
+                        Text(viewModel.t("model_speed_label"))
+                            .font(.system(size: 9.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        benchmarkMiniBar(score: spec.speedScore, color: Color.orange)
+                        Text("\(formattedScore(spec.speedScore))/10")
+                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    
+                    // Accuracy Meter
+                    HStack(spacing: 4) {
+                        Image(systemName: "target")
+                            .font(.system(size: 8.5))
+                            .foregroundStyle(Color.Premium.emeraldMineral)
+                        Text(viewModel.t("model_accuracy_label"))
+                            .font(.system(size: 9.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        benchmarkMiniBar(score: spec.accuracyScore, color: Color.Premium.emeraldMineral)
+                        Text("\(formattedScore(spec.accuracyScore))/10")
+                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                }
             }
             
             Spacer(minLength: 8)
@@ -893,6 +904,25 @@ public struct UnifiedStudioHubView: View {
             return ("leaf.fill", Color.Premium.emeraldMineral)
         case .medium:
             return ("books.vertical.fill", Color.Premium.slateAzure)
+        }
+    }
+    
+    private func benchmarkMiniBar(score: Double, color: Color) -> some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(Color.primary.opacity(0.08))
+                .frame(width: 42, height: 4.5)
+            Capsule()
+                .fill(color)
+                .frame(width: max(3.0, 42.0 * CGFloat(min(max(score / 10.0, 0.0), 1.0))), height: 4.5)
+        }
+    }
+    
+    private func formattedScore(_ score: Double) -> String {
+        if score.truncatingRemainder(dividingBy: 1.0) == 0 {
+            return "\(Int(score))"
+        } else {
+            return String(format: "%.1f", score)
         }
     }
     

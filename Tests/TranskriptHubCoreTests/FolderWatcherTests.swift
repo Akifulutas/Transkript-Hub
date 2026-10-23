@@ -264,4 +264,74 @@ final class FolderWatcherTests: XCTestCase {
             XCTAssertLessThanOrEqual(spec.summary.count, 40, "Model summary '\(spec.summary)' should be concise")
         }
     }
+    
+    func testWhisperModelBenchmarkTenPointScaleRatings() {
+        let models = WhisperModelCatalog.availableModels
+        
+        guard let tiny = models.first(where: { $0.model == .tiny }),
+              let base = models.first(where: { $0.model == .base }),
+              let small = models.first(where: { $0.model == .small }),
+              let turboQ5 = models.first(where: { $0.model == .largeV3TurboQ5 }),
+              let medium = models.first(where: { $0.model == .medium }),
+              let turbo = models.first(where: { $0.model == .largeV3Turbo }) else {
+            XCTFail("Missing expected models in catalog")
+            return
+        }
+        
+        // Verified Empirical Benchmark Scale (out of 10)
+        XCTAssertEqual(tiny.speedScore, 10.0, accuracy: 0.01)
+        XCTAssertEqual(tiny.accuracyScore, 4.0, accuracy: 0.01)
+        
+        XCTAssertEqual(base.speedScore, 9.0, accuracy: 0.01)
+        XCTAssertEqual(base.accuracyScore, 5.5, accuracy: 0.01)
+        
+        XCTAssertEqual(small.speedScore, 7.0, accuracy: 0.01)
+        XCTAssertEqual(small.accuracyScore, 7.5, accuracy: 0.01)
+        
+        XCTAssertEqual(turboQ5.speedScore, 9.0, accuracy: 0.01)
+        XCTAssertEqual(turboQ5.accuracyScore, 9.0, accuracy: 0.01)
+        
+        XCTAssertEqual(medium.speedScore, 5.0, accuracy: 0.01)
+        XCTAssertEqual(medium.accuracyScore, 8.5, accuracy: 0.01)
+        
+        XCTAssertEqual(turbo.speedScore, 8.5, accuracy: 0.01)
+        XCTAssertEqual(turbo.accuracyScore, 9.5, accuracy: 0.01)
+        
+        for spec in models {
+            XCTAssertGreaterThanOrEqual(spec.speedScore, 1.0)
+            XCTAssertLessThanOrEqual(spec.speedScore, 10.0)
+            XCTAssertGreaterThanOrEqual(spec.accuracyScore, 1.0)
+            XCTAssertLessThanOrEqual(spec.accuracyScore, 10.0)
+        }
+    }
+    
+    func testDynamicWhisperModelBenchmarkEvaluation() {
+        // Test evaluation for a newly discovered / custom online model
+        let newCustomTurbo = WhisperModelCatalog.evaluateBenchmarkScores(
+            modelName: "whisper-large-v3-turbo-custom",
+            sizeBytes: 1_600_000_000,
+            isTurbo: true,
+            isQuantized: false
+        )
+        XCTAssertEqual(newCustomTurbo.speed, 8.5, accuracy: 0.01)
+        XCTAssertEqual(newCustomTurbo.accuracy, 9.5, accuracy: 0.01)
+        
+        let newCustomQuantized = WhisperModelCatalog.evaluateBenchmarkScores(
+            modelName: "whisper-turbo-q4_k",
+            sizeBytes: 520_000_000,
+            isTurbo: true,
+            isQuantized: true
+        )
+        XCTAssertEqual(newCustomQuantized.speed, 9.0, accuracy: 0.01)
+        XCTAssertEqual(newCustomQuantized.accuracy, 9.0, accuracy: 0.01)
+        
+        let newUnknownCompact = WhisperModelCatalog.evaluateBenchmarkScores(
+            modelName: "distil-whisper-mini",
+            sizeBytes: 85_000_000,
+            isTurbo: false,
+            isQuantized: false
+        )
+        XCTAssertEqual(newUnknownCompact.speed, 10.0, accuracy: 0.01)
+        XCTAssertEqual(newUnknownCompact.accuracy, 4.0, accuracy: 0.01)
+    }
 }

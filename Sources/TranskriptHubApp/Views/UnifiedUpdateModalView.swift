@@ -377,19 +377,19 @@ public struct UnifiedUpdateModalView: View {
                 
                 HStack(spacing: 8) {
                     HStack(spacing: 2) {
-                        Text("Hız:")
+                        Text("\(viewModel.t("model_speed_label")):")
                             .font(.system(size: 9.5))
                             .foregroundStyle(Color.secondary)
-                        Text("\(model.speedRating)/5")
+                        Text("\(formattedScore(model.speedScore))/10")
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(Color.accentColor)
                     }
                     
                     HStack(spacing: 2) {
-                        Text("Doğruluk:")
+                        Text("\(viewModel.t("model_accuracy_label")):")
                             .font(.system(size: 9.5))
                             .foregroundStyle(Color.secondary)
-                        Text("\(model.accuracyRating)/5")
+                        Text("\(formattedScore(model.accuracyScore))/10")
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(Color.Premium.emeraldMineral)
                     }
@@ -466,6 +466,14 @@ public struct UnifiedUpdateModalView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
+        }
+    }
+    
+    private func formattedScore(_ score: Double) -> String {
+        if score.truncatingRemainder(dividingBy: 1.0) == 0 {
+            return "\(Int(score))"
+        } else {
+            return String(format: "%.1f", score)
         }
     }
 }

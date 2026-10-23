@@ -14,6 +14,8 @@ public struct AudioRecordingSourceSheet: View {
         let description: String
         let buttonTitle: String
         let action: () -> Void
+        var secondaryButtonTitle: String? = nil
+        var secondaryAction: (() -> Void)? = nil
     }
     
     private var activePermissionWarning: PermissionWarningInfo? {
@@ -34,15 +36,13 @@ public struct AudioRecordingSourceSheet: View {
             return PermissionWarningInfo(
                 title: viewModel.t("record_permission_both_title"),
                 description: viewModel.t("record_permission_both_desc"),
-                buttonTitle: viewModel.t("record_permission_request_btn"),
+                buttonTitle: viewModel.t("watched_open_settings"),
                 action: {
-                    if viewModel.microphonePermissionStatus == .notDetermined {
-                        viewModel.requestMicrophonePermission()
-                    } else if !viewModel.isSystemAudioPermissionGranted {
-                        viewModel.requestSystemAudioPermission()
-                    } else {
-                        viewModel.openMicrophoneSettings()
-                    }
+                    viewModel.openSystemAudioSettings()
+                },
+                secondaryButtonTitle: viewModel.t("record_relaunch_app"),
+                secondaryAction: {
+                    viewModel.relaunchApp()
                 }
             )
         } else if micMissing {
@@ -70,17 +70,16 @@ public struct AudioRecordingSourceSheet: View {
     }
     
     private var systemAudioWarningInfo: PermissionWarningInfo {
-        let hasOpened = viewModel.hasOpenedSystemAudioSettings
         return PermissionWarningInfo(
             title: viewModel.t("record_permission_system_title"),
             description: viewModel.t("record_permission_system_desc"),
-            buttonTitle: hasOpened ? viewModel.t("record_relaunch_app") : viewModel.t("record_permission_open_settings"),
+            buttonTitle: viewModel.t("watched_open_settings"),
             action: {
-                if hasOpened {
-                    viewModel.relaunchApp()
-                } else {
-                    viewModel.openSystemAudioSettings()
-                }
+                viewModel.openSystemAudioSettings()
+            },
+            secondaryButtonTitle: viewModel.t("record_relaunch_app"),
+            secondaryAction: {
+                viewModel.relaunchApp()
             }
         )
     }
@@ -146,14 +145,25 @@ public struct AudioRecordingSourceSheet: View {
                     
                     Spacer()
                     
-                    Button(action: {
-                        warning.action()
-                    }) {
-                        Text(warning.buttonTitle)
-                            .font(.system(size: 10.5, weight: .semibold))
+                    HStack(spacing: 6) {
+                        if let secTitle = warning.secondaryButtonTitle, let secAction = warning.secondaryAction {
+                            Button(action: secAction) {
+                                Text(secTitle)
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        
+                        Button(action: {
+                            warning.action()
+                        }) {
+                            Text(warning.buttonTitle)
+                                .font(.system(size: 10.5, weight: .bold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -248,22 +258,7 @@ public struct AudioRecordingSourceSheet: View {
         let cardTint = isMissingPermission ? Color.Premium.champagneBronze : accentColor
         
         return Button(action: {
-            if isMissingPermission {
-                if source == .microphone {
-                    if viewModel.microphonePermissionStatus == .notDetermined {
-                        viewModel.requestMicrophonePermission()
-                    } else {
-                        viewModel.openMicrophoneSettings()
-                    }
-                } else {
-                    if viewModel.hasOpenedSystemAudioSettings {
-                        viewModel.relaunchApp()
-                    } else {
-                        viewModel.requestSystemAudioPermission()
-                    }
-                }
-                return
-            }
+            // Non-blocking: always invoke recording flow directly so user is never trapped
             viewModel.requestRecording(source: source)
         }) {
             VStack(spacing: 8) {
@@ -309,37 +304,18 @@ public struct AudioRecordingSourceSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 8)
                 
-                if isMissingPermission {
-                    let btnText = (source == .systemAudio && viewModel.hasOpenedSystemAudioSettings)
-                        ? viewModel.t("record_relaunch_app")
-                        : viewModel.t("record_permission_request_btn")
-                    let btnIcon = (source == .systemAudio && viewModel.hasOpenedSystemAudioSettings)
-                        ? "arrow.clockwise"
-                        : "hand.raised.fill"
-                    HStack(spacing: 4) {
-                        Text(btnText)
-                            .font(.system(size: 11, weight: .semibold))
-                        Image(systemName: btnIcon)
-                            .font(.system(size: 10))
-                    }
-                    .foregroundStyle(Color.Premium.champagneBronze)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.Premium.champagneBronze.opacity(isHovered ? 0.22 : 0.1))
-                    .clipShape(Capsule())
-                } else {
-                    HStack(spacing: 4) {
-                        Text(viewModel.t("record_action_start"))
-                            .font(.system(size: 11, weight: .semibold))
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundStyle(accentColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(accentColor.opacity(isHovered ? 0.22 : 0.1))
-                    .clipShape(Capsule())
+                // Bottom Button - Clear Call to Action
+                HStack(spacing: 4) {
+                    Text(viewModel.t("record_action_start"))
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 11))
                 }
+                .foregroundStyle(accentColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(accentColor.opacity(isHovered ? 0.22 : 0.1))
+                .clipShape(Capsule())
             }
             .frame(maxWidth: .infinity, minHeight: 140)
             .padding(.vertical, 12)
