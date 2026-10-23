@@ -62,7 +62,7 @@ public enum RecordingEngineError: Error, LocalizedError, Equatable {
         case .permissionDenied:
             return "Mikrofon izni verilmemiş. Sistem Ayarları › Gizlilik ve Güvenlik › Mikrofon bölümünden Transkript Hub'ı açın."
         case .systemAudioPermissionDenied:
-            return "Bilgisayar sesini kaydetmek için izin gerekli. Sistem Ayarları › Gizlilik ve Güvenlik › Ekran ve Sistem Sesi Kaydı bölümünden Transkript Hub'ı açın, ardından uygulamayı yeniden başlatın."
+            return "Bilgisayar sesini kaydetmek için izin gerekli.\n\nSistem Ayarları › Gizlilik ve Güvenlik › Ekran ve Sistem Sesi Kaydı bölümünden Transkript Hub'ı açın.\n\n⚠️ Eğer izni zaten verdiyseniz: macOS güvenlik kuralı gereği ayarın geçerli olması için uygulamanın yeniden başlatılması gerekmektedir."
         case .bufferAllocationFailed:
             return "Ses tamponu tahsis edilemedi."
         case .noAudioCaptured:

@@ -20,7 +20,11 @@ public final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelega
         do {
             content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         } catch {
-            throw RecordingEngineError.systemAudioPermissionDenied
+            let nsError = error as NSError
+            if nsError.code == SCStreamError.userDeclined.rawValue || !CGPreflightScreenCaptureAccess() {
+                throw RecordingEngineError.systemAudioPermissionDenied
+            }
+            throw RecordingEngineError.engineFailed("Sistem ekran ve ses içeriğine erişilemedi: \(error.localizedDescription)")
         }
         guard let display = content.displays.first else {
             throw RecordingEngineError.engineFailed("Kayıt için bir ekran bulunamadı.")
@@ -44,7 +48,7 @@ public final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelega
         do {
             try await stream.startCapture()
         } catch {
-            if (error as NSError).code == SCStreamError.userDeclined.rawValue {
+            if (error as NSError).code == SCStreamError.userDeclined.rawValue || !CGPreflightScreenCaptureAccess() {
                 throw RecordingEngineError.systemAudioPermissionDenied
             }
             throw RecordingEngineError.engineFailed("Sistem sesi kaydı başlatılamadı: \(error.localizedDescription)")

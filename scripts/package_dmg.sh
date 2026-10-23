@@ -63,6 +63,8 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
     <string>public.app-category.productivity</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Transkript Hub, ses kayıtlarınızı doğrudan metne dönüştürmek için mikrofonunuza erişim sağlar.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Transkript Hub, bilgisayarınızda çalan toplantı ve sistem seslerini transkript edebilmek için sistem sesi kaydı izni gerektirir.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026. All rights reserved.</string>
 </dict>
@@ -74,14 +76,18 @@ xattr -cr "$APP_DIR" || true
 
 ENTITLEMENTS="$PROJECT_DIR/Resources/TranskriptHub.entitlements"
 SIGN_IDENTITY="-"
+BUNDLE_ID="com.akifulutas.TranskriptHub"
+REQ="=designated => identifier \"$BUNDLE_ID\""
 
 # Sign embedded framework first (bottom-up signing)
 codesign --force --options runtime -s "$SIGN_IDENTITY" "$APP_DIR/Contents/Frameworks/whisper.framework" 2>/dev/null || codesign --force -s "$SIGN_IDENTITY" "$APP_DIR/Contents/Frameworks/whisper.framework"
 
-# Sign main application bundle with Hardened Runtime and Entitlements
+# Sign main Mach-O executable with entitlements and stable designated requirement
 if [ -f "$ENTITLEMENTS" ]; then
-    codesign --force --options runtime --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR" 2>/dev/null || codesign --force --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR"
+    codesign --force --options runtime --entitlements "$ENTITLEMENTS" --requirements "$REQ" -s "$SIGN_IDENTITY" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || codesign --force --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR/Contents/MacOS/TranskriptHub"
+    codesign --force --options runtime --entitlements "$ENTITLEMENTS" --requirements "$REQ" -s "$SIGN_IDENTITY" "$APP_DIR" 2>/dev/null || codesign --force --entitlements "$ENTITLEMENTS" -s "$SIGN_IDENTITY" "$APP_DIR"
 else
+    codesign --force -s "$SIGN_IDENTITY" "$APP_DIR/Contents/MacOS/TranskriptHub"
     codesign --force -s "$SIGN_IDENTITY" "$APP_DIR"
 fi
 

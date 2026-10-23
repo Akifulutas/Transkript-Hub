@@ -176,14 +176,15 @@ public struct L10n {
             "record_action_start": "Start",
             "sheet_recording_footer_info": "When stopped, the recording is automatically queued and transcribed with your chosen model.",
             "record_permission_mic_title": "Microphone Access Required",
-            "record_permission_mic_desc": "Microphone permission is required to record live audio. Please grant access.",
+            "record_permission_mic_desc": "Microphone permission is required to record live audio. Please grant access in System Settings.",
             "record_permission_system_title": "System Audio Access Required",
-            "record_permission_system_desc": "Screen & System Audio permission is required to capture Mac and meeting audio.",
+            "record_permission_system_desc": "Screen & System Audio permission is required. If already granted, relaunch the app to apply changes.",
             "record_permission_both_title": "Audio Permissions Required",
             "record_permission_both_desc": "Permissions are required to record microphone or system audio on macOS.",
             "record_permission_request_btn": "Grant Permission",
             "record_permission_open_settings": "Open System Settings",
             "record_permission_needed_badge": "Permission Required",
+            "record_relaunch_app": "Relaunch App",
             
             // Hub Header Cards
             "hub_card_model": "AI MODEL",
@@ -730,12 +731,13 @@ public struct L10n {
             "record_permission_mic_title": "Mikrofon İzni Gerekli",
             "record_permission_mic_desc": "Canlı ses kaydı alabilmek için mikrofon erişimine izin verilmelidir.",
             "record_permission_system_title": "Sistem Sesi İzni Gerekli",
-            "record_permission_system_desc": "Mac ve toplantı sesini kaydedebilmek için Ekran ve Sistem Sesi izni verilmelidir.",
+            "record_permission_system_desc": "Ekran ve Sistem Sesi izni verilmelidir. İzni verdiyseniz, geçerli olması için uygulamayı yeniden başlatın.",
             "record_permission_both_title": "Ses Kaydı İzni Gerekli",
             "record_permission_both_desc": "Mikrofon veya sistem sesi kaydetmek için macOS Sistem Ayarları'ndan izin verilmelidir.",
             "record_permission_request_btn": "İzin İste",
             "record_permission_open_settings": "Sistem Ayarlarını Aç",
             "record_permission_needed_badge": "İzin Gerekiyor",
+            "record_relaunch_app": "Uygulamayı Yeniden Başlat",
             
             // Hub Header Cards
             "hub_card_model": "YAPAY ZEKA MODELİ",
@@ -1282,12 +1284,13 @@ public struct L10n {
             "record_permission_mic_title": "Mikrofonzugriff erforderlich",
             "record_permission_mic_desc": "Für Live-Audioaufnahmen ist ein Mikrofonzugriff erforderlich.",
             "record_permission_system_title": "Systemaudio-Zugriff erforderlich",
-            "record_permission_system_desc": "Für die Aufnahme von Mac- und Meeting-Audio ist die Berechtigung für Systemaudio erforderlich.",
+            "record_permission_system_desc": "Berechtigung für Systemaudio erforderlich. Falls bereits erteilt, starten Sie die App neu.",
             "record_permission_both_title": "Audio-Berechtigungen erforderlich",
             "record_permission_both_desc": "Für Mikrofon- oder Systemaudio-Aufnahmen sind Berechtigungen erforderlich.",
             "record_permission_request_btn": "Berechtigung anfordern",
             "record_permission_open_settings": "Systemeinstellungen öffnen",
             "record_permission_needed_badge": "Berechtigung erforderlich",
+            "record_relaunch_app": "App neu starten",
             
             // Hub Header Cards
             "hub_card_model": "KI-MODELL",

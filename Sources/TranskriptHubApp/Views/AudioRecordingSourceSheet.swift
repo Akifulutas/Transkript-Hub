@@ -70,12 +70,17 @@ public struct AudioRecordingSourceSheet: View {
     }
     
     private var systemAudioWarningInfo: PermissionWarningInfo {
+        let hasOpened = viewModel.hasOpenedSystemAudioSettings
         return PermissionWarningInfo(
             title: viewModel.t("record_permission_system_title"),
             description: viewModel.t("record_permission_system_desc"),
-            buttonTitle: viewModel.t("record_permission_request_btn"),
+            buttonTitle: hasOpened ? viewModel.t("record_relaunch_app") : viewModel.t("record_permission_open_settings"),
             action: {
-                viewModel.requestSystemAudioPermission()
+                if hasOpened {
+                    viewModel.relaunchApp()
+                } else {
+                    viewModel.openSystemAudioSettings()
+                }
             }
         )
     }
@@ -251,7 +256,11 @@ public struct AudioRecordingSourceSheet: View {
                         viewModel.openMicrophoneSettings()
                     }
                 } else {
-                    viewModel.requestSystemAudioPermission()
+                    if viewModel.hasOpenedSystemAudioSettings {
+                        viewModel.relaunchApp()
+                    } else {
+                        viewModel.requestSystemAudioPermission()
+                    }
                 }
                 return
             }
@@ -301,10 +310,16 @@ public struct AudioRecordingSourceSheet: View {
                     .padding(.horizontal, 8)
                 
                 if isMissingPermission {
+                    let btnText = (source == .systemAudio && viewModel.hasOpenedSystemAudioSettings)
+                        ? viewModel.t("record_relaunch_app")
+                        : viewModel.t("record_permission_request_btn")
+                    let btnIcon = (source == .systemAudio && viewModel.hasOpenedSystemAudioSettings)
+                        ? "arrow.clockwise"
+                        : "hand.raised.fill"
                     HStack(spacing: 4) {
-                        Text(viewModel.t("record_permission_request_btn"))
+                        Text(btnText)
                             .font(.system(size: 11, weight: .semibold))
-                        Image(systemName: "hand.raised.fill")
+                        Image(systemName: btnIcon)
                             .font(.system(size: 10))
                     }
                     .foregroundStyle(Color.Premium.champagneBronze)

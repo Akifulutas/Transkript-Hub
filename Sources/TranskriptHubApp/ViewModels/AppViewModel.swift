@@ -484,6 +484,7 @@ public final class AppViewModel: ObservableObject {
     // MARK: - Audio Recording Permissions
     @Published public var microphonePermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
     @Published public var systemAudioPermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
+    @Published public var hasOpenedSystemAudioSettings: Bool = false
     
     public var isMicrophonePermissionGranted: Bool {
         microphonePermissionStatus.isGranted
@@ -496,6 +497,17 @@ public final class AppViewModel: ObservableObject {
     public func checkAudioPermissions() {
         microphonePermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
         systemAudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
+        
+        // Deep asynchronous verification: If preflight check was false, check if ScreenCaptureKit actually succeeds
+        if systemAudioPermissionStatus != .authorized {
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if await AudioPermissionHelper.verifySystemAudioAccessAsync() {
+                    self.systemAudioPermissionStatus = .authorized
+                    self.objectWillChange.send()
+                }
+            }
+        }
     }
     
     public func requestMicrophonePermission() {
@@ -508,6 +520,7 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func requestSystemAudioPermission() {
+        hasOpenedSystemAudioSettings = true
         _ = AudioPermissionHelper.requestSystemAudioAccess()
         checkAudioPermissions()
         objectWillChange.send()
@@ -518,7 +531,12 @@ public final class AppViewModel: ObservableObject {
     }
     
     public func openSystemAudioSettings() {
+        hasOpenedSystemAudioSettings = true
         AudioPermissionHelper.openSystemAudioSettings()
+    }
+    
+    public func relaunchApp() {
+        AudioPermissionHelper.relaunchApp()
     }
     
     public var watchedDirectoryPath: String {

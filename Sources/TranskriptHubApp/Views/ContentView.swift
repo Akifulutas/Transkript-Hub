@@ -82,8 +82,11 @@ public struct ContentView: View {
                     set: { if !$0 { viewModel.dismissRecordingAlert() } }
                 )
             ) {
-                if viewModel.recordingAlertPermission != nil {
+                if let permission = viewModel.recordingAlertPermission {
                     Button(viewModel.t("watched_open_settings")) { viewModel.openRecordingPermissionSettings() }
+                    if permission == .screenAndSystemAudio {
+                        Button(viewModel.t("record_relaunch_app")) { viewModel.relaunchApp() }
+                    }
                     Button(viewModel.t("action_cancel"), role: .cancel) { viewModel.dismissRecordingAlert() }
                 } else {
                     Button(viewModel.t("action_ok"), role: .cancel) { viewModel.dismissRecordingAlert() }

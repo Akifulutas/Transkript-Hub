@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import AppKit
 import CoreGraphics
+import ScreenCaptureKit
 
 public enum AudioPermissionStatus: String, Sendable, Equatable {
     case authorized
@@ -90,5 +91,33 @@ public enum AudioPermissionHelper {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
+    }
+    
+    public static func verifySystemAudioAccessAsync() async -> Bool {
+        #if os(macOS)
+        if CGPreflightScreenCaptureAccess() { return true }
+        do {
+            _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            return true
+        } catch {
+            return false
+        }
+        #else
+        return true
+        #endif
+    }
+    
+    /// Cleanly relaunches the application so updated macOS TCC privacy permissions take effect immediately.
+    public static func relaunchApp() {
+        #if os(macOS)
+        let bundlePath = Bundle.main.bundlePath
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-n", bundlePath]
+        try? task.run()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            NSApplication.shared.terminate(nil)
+        }
+        #endif
     }
 }
