@@ -1199,6 +1199,9 @@ public final class AppViewModel: ObservableObject {
                 try await self.jobManager?.recoverState()
                 await self.loadHistoryFromDatabase()
                 await self.resolvePendingVideoTitles()
+                await MainActor.run {
+                    self.sortQueue(by: self.currentSortOrder)
+                }
             } catch {
                 self.errorMessage = "Veritabanı kurtarma hatası: \(error.localizedDescription)"
             }
@@ -1264,6 +1267,7 @@ public final class AppViewModel: ObservableObject {
             item.durationSec = duration
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
+                sortQueue(by: currentSortOrder)
             }
             return
         }
@@ -1339,6 +1343,8 @@ public final class AppViewModel: ObservableObject {
                     if let outPath = cached.outputPath {
                         self?.queueItems[idx].outputURL = URL(fileURLWithPath: outPath)
                     }
+                    self?.checkedQueueItemIDs.remove(video.videoID)
+                    self?.sortQueue(by: self?.currentSortOrder ?? .newestFirst)
                 }
             }
         }
@@ -1416,6 +1422,7 @@ public final class AppViewModel: ObservableObject {
             
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
+                sortQueue(by: currentSortOrder)
             }
             if autoProcess {
                 anyAddedForAuto = true
@@ -1439,6 +1446,8 @@ public final class AppViewModel: ObservableObject {
                         if let outPath = cached.outputPath {
                             self.queueItems[idx].outputURL = URL(fileURLWithPath: outPath)
                         }
+                        self.checkedQueueItemIDs.remove(itemId)
+                        self.sortQueue(by: self.currentSortOrder)
                     }
                 }
             }
@@ -2669,6 +2678,29 @@ public final class AppViewModel: ObservableObject {
         case title
         
         public var id: String { rawValue }
+    }
+    
+    public var sortedQueueItems: [QueueItem] {
+        queueItems.sorted { (item1, item2) -> Bool in
+            let comp1 = item1.state == .completed
+            let comp2 = item2.state == .completed
+            if comp1 != comp2 {
+                return !comp1
+            }
+            
+            switch currentSortOrder {
+            case .newestFirst:
+                let d1 = item1.fileModificationDate ?? item1.addedAt
+                let d2 = item2.fileModificationDate ?? item2.addedAt
+                return d1 > d2
+            case .oldestFirst:
+                let d1 = item1.fileModificationDate ?? item1.addedAt
+                let d2 = item2.fileModificationDate ?? item2.addedAt
+                return d1 < d2
+            case .title:
+                return item1.title.localizedCaseInsensitiveCompare(item2.title) == .orderedAscending
+            }
+        }
     }
     
     public func sortQueue(by order: QueueSortOrder = .newestFirst) {

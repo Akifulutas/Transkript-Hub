@@ -1098,9 +1098,10 @@ public struct UnifiedStudioHubView: View {
                 .liquidGlass(cornerRadius: 12, glowColor: isDropTargeted ? Color.accentColor : .white.opacity(0.3), material: .ultraThinMaterial)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(viewModel.queueItems) { item in
+                    ForEach(viewModel.sortedQueueItems) { item in
                         StudioQueueItemRow(viewModel: viewModel, item: item)
                     }
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.sortedQueueItems.map { "\($0.id)_\($0.state.rawValue)" })
                     
                     // Bottom Circular Clear Queue Button (Icon-only)
                     HStack {
