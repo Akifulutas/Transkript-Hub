@@ -175,6 +175,15 @@ public struct L10n {
             "record_source_system_desc": "Captures system audio playing on your Mac from meetings or videos.",
             "record_action_start": "Start",
             "sheet_recording_footer_info": "When stopped, the recording is automatically queued and transcribed with your chosen model.",
+            "record_permission_mic_title": "Microphone Access Required",
+            "record_permission_mic_desc": "Microphone permission is required to record live audio. Please grant access.",
+            "record_permission_system_title": "System Audio Access Required",
+            "record_permission_system_desc": "Screen & System Audio permission is required to capture Mac and meeting audio.",
+            "record_permission_both_title": "Audio Permissions Required",
+            "record_permission_both_desc": "Permissions are required to record microphone or system audio on macOS.",
+            "record_permission_request_btn": "Grant Permission",
+            "record_permission_open_settings": "Open System Settings",
+            "record_permission_needed_badge": "Permission Required",
             
             // Hub Header Cards
             "hub_card_model": "AI MODEL",
@@ -718,6 +727,15 @@ public struct L10n {
             "record_source_system_desc": "Mac'te çalan toplantı, video veya müzik gibi sistem seslerini kaydeder.",
             "record_action_start": "Başlat",
             "sheet_recording_footer_info": "Kayıt tamamlandığında ses dosyası otomatik olarak kuyruğa aktarılır ve seçili modelle transkribe edilir.",
+            "record_permission_mic_title": "Mikrofon İzni Gerekli",
+            "record_permission_mic_desc": "Canlı ses kaydı alabilmek için mikrofon erişimine izin verilmelidir.",
+            "record_permission_system_title": "Sistem Sesi İzni Gerekli",
+            "record_permission_system_desc": "Mac ve toplantı sesini kaydedebilmek için Ekran ve Sistem Sesi izni verilmelidir.",
+            "record_permission_both_title": "Ses Kaydı İzni Gerekli",
+            "record_permission_both_desc": "Mikrofon veya sistem sesi kaydetmek için macOS Sistem Ayarları'ndan izin verilmelidir.",
+            "record_permission_request_btn": "İzin İste",
+            "record_permission_open_settings": "Sistem Ayarlarını Aç",
+            "record_permission_needed_badge": "İzin Gerekiyor",
             
             // Hub Header Cards
             "hub_card_model": "YAPAY ZEKA MODELİ",
@@ -1261,6 +1279,15 @@ public struct L10n {
             "record_source_system_desc": "Erfasst interne Mac-Audioausgaben von Meetings oder Videos.",
             "record_action_start": "Starten",
             "sheet_recording_footer_info": "Nach Aufnahmeende wird das Audio automatisch zur Warteschlange hinzugefügt und mit dem gewählten Modell transkribiert.",
+            "record_permission_mic_title": "Mikrofonzugriff erforderlich",
+            "record_permission_mic_desc": "Für Live-Audioaufnahmen ist ein Mikrofonzugriff erforderlich.",
+            "record_permission_system_title": "Systemaudio-Zugriff erforderlich",
+            "record_permission_system_desc": "Für die Aufnahme von Mac- und Meeting-Audio ist die Berechtigung für Systemaudio erforderlich.",
+            "record_permission_both_title": "Audio-Berechtigungen erforderlich",
+            "record_permission_both_desc": "Für Mikrofon- oder Systemaudio-Aufnahmen sind Berechtigungen erforderlich.",
+            "record_permission_request_btn": "Berechtigung anfordern",
+            "record_permission_open_settings": "Systemeinstellungen öffnen",
+            "record_permission_needed_badge": "Berechtigung erforderlich",
             
             // Hub Header Cards
             "hub_card_model": "KI-MODELL",

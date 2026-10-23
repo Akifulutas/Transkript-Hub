@@ -152,6 +152,9 @@ public struct UnifiedStudioHubView: View {
         .coordinateSpace(name: "StudioTourCoordinateSpace")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
+        .onAppear {
+            viewModel.checkAudioPermissions()
+        }
     }
     
     private func executeRefresh() {
@@ -328,13 +331,14 @@ public struct UnifiedStudioHubView: View {
             .id(StudioTourStep.clipboardMonitoring.id)
             
             // Card 4: Live Audio Recording (Opens AudioRecordingSourceSheet)
+            let isAudioPermissionMissing = !viewModel.isMicrophonePermissionGranted || !viewModel.isSystemAudioPermissionGranted
             ZStack(alignment: .topTrailing) {
                 Button(action: {
                     viewModel.isRecordingSourceSheetPresented = true
                 }) {
                     StudioInteractiveCardView(
                         icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                        badgeColor: Color.Premium.crimsonVelvet,
+                        badgeColor: isAudioPermissionMissing ? Color.Premium.champagneBronze : Color.Premium.crimsonVelvet,
                         caption: viewModel.t("hub_card_recording"),
                         title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
                         showsChevron: true
@@ -343,26 +347,35 @@ public struct UnifiedStudioHubView: View {
                 .buttonStyle(.plain)
                 .hoverHelpTooltip(
                     title: viewModel.t("hub_tooltip_recording_title"),
-                    description: viewModel.t("hub_tooltip_recording_desc"),
+                    description: isAudioPermissionMissing ? viewModel.t("record_permission_both_desc") : viewModel.t("hub_tooltip_recording_desc"),
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                    status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                    statusColor: Color.Premium.crimsonVelvet,
+                    status: isAudioPermissionMissing ? viewModel.t("watched_fda_badge_needed") : (viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system")),
+                    statusColor: isAudioPermissionMissing ? Color.Premium.champagneBronze : Color.Premium.crimsonVelvet,
                     hint: viewModel.t("hub_tooltip_recording_hint"),
                     placement: .bottom
                 )
                 
-                // Card 4 'i' Info Button
-                Button(action: {
-                    isRecordingInfoPresented.toggle()
-                }) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isRecordingInfoPresented ? Color.Premium.crimsonVelvet : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
-                        .contentShape(Rectangle())
+                HStack(spacing: 4) {
+                    if isAudioPermissionMissing {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Color.Premium.champagneBronze)
+                            .help(viewModel.t("watched_fda_badge_needed"))
+                    }
+                    
+                    // Card 4 'i' Info Button
+                    Button(action: {
+                        isRecordingInfoPresented.toggle()
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 9.5, weight: .medium))
+                            .foregroundStyle(isRecordingInfoPresented ? Color.Premium.crimsonVelvet : Color.secondary.opacity(0.45))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .padding(.trailing, 8)
+                .padding(.top, 5)
                 .popover(isPresented: $isRecordingInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_recording_title"),
@@ -990,56 +1003,70 @@ public struct UnifiedStudioHubView: View {
                     .controlSize(.small)
                 }
                 
-                // Primary Action Button: "Transkripte Yolla" (veya "Seçilenleri Başlat (X)" / "İptal Et")
-                Button(action: {
-                    if viewModel.isProcessing {
-                        viewModel.cancelProcessing()
-                    } else {
-                        viewModel.requestStartQueue()
-                    }
-                }) {
+                // Primary Action Button: "Transkripte Yolla" (İşlenirken zarif durum kapsülü; tekil iptal progress kartında yer alır)
+                if viewModel.isProcessing {
                     HStack(spacing: 6) {
-                        if viewModel.isProcessing {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 11, weight: .bold))
-                            Text(viewModel.t("action_cancel_process"))
-                                .font(.system(size: 12, weight: .bold))
-                        } else {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(viewModel.t("hub_processing"))
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color.secondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color.primary.opacity(0.04))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+                    .hoverHelpTooltip(
+                        title: viewModel.t("hub_processing"),
+                        description: viewModel.t("status_transcribing"),
+                        icon: "hourglass",
+                        status: "%" + "\(Int(viewModel.progressFraction * 100))",
+                        statusColor: Color.accentColor,
+                        placement: .topTrailing
+                    )
+                    .studioTourTarget(.queueAndTranscribe)
+                    .id(StudioTourStep.queueAndTranscribe.id)
+                } else {
+                    Button(action: {
+                        viewModel.requestStartQueue()
+                    }) {
+                        HStack(spacing: 6) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 11, weight: .bold))
                             Text(transcribeButtonTitle)
                                 .font(.system(size: 12, weight: .bold))
                         }
-                    }
-                    .foregroundColor(viewModel.isProcessing ? Color.Premium.terracotta : (viewModel.canStartQueue ? .white : Color.secondary.opacity(0.45)))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(
-                        viewModel.isProcessing
-                            ? AnyShapeStyle(Color.Premium.terracotta.opacity(0.15))
-                            : (viewModel.canStartQueue
+                        .foregroundColor(viewModel.canStartQueue ? .white : Color.secondary.opacity(0.45))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            viewModel.canStartQueue
                                 ? AnyShapeStyle(LinearGradient(colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                : AnyShapeStyle(Color.primary.opacity(0.04)))
+                                : AnyShapeStyle(Color.primary.opacity(0.04))
+                        )
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
+                        )
+                        .shadow(color: viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canStartQueue)
+                    .hoverHelpTooltip(
+                        title: viewModel.t("action_transcribe_queue"),
+                        description: viewModel.canStartQueue ? viewModel.t("hub_tooltip_queue_btn_ready") : viewModel.t("hub_tooltip_queue_btn_disabled"),
+                        icon: viewModel.canStartQueue ? "sparkles" : "pause.circle",
+                        status: viewModel.canStartQueue ? "\(viewModel.queueItems.count)" : viewModel.t("hub_status_off"),
+                        statusColor: viewModel.canStartQueue ? .accentColor : .secondary,
+                        placement: .topTrailing
                     )
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(viewModel.isProcessing ? Color.Premium.terracotta.opacity(0.35) : (viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.4) : Color.primary.opacity(0.06)), lineWidth: 1)
-                    )
-                    .shadow(color: viewModel.isProcessing ? Color.Premium.terracotta.opacity(0.2) : (viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.35) : Color.clear), radius: 5, x: 0, y: 2)
-                    .contentShape(Capsule())
+                    .studioTourTarget(.queueAndTranscribe)
+                    .id(StudioTourStep.queueAndTranscribe.id)
                 }
-                .buttonStyle(.plain)
-                .disabled(!viewModel.canStartQueue && !viewModel.isProcessing)
-                .hoverHelpTooltip(
-                    title: viewModel.isProcessing ? viewModel.t("action_cancel_process") : viewModel.t("action_transcribe_queue"),
-                    description: viewModel.isProcessing ? viewModel.t("status_cancelled") : (viewModel.canStartQueue ? viewModel.t("hub_tooltip_queue_btn_ready") : viewModel.t("hub_tooltip_queue_btn_disabled")),
-                    icon: viewModel.isProcessing ? "xmark.circle" : (viewModel.canStartQueue ? "sparkles" : "pause.circle"),
-                    status: viewModel.canStartQueue ? "\(viewModel.queueItems.count)" : viewModel.t("hub_status_off"),
-                    statusColor: viewModel.isProcessing ? Color.Premium.terracotta : (viewModel.canStartQueue ? .accentColor : .secondary),
-                    placement: .topTrailing
-                )
-                .studioTourTarget(.queueAndTranscribe)
-                .id(StudioTourStep.queueAndTranscribe.id)
             }
             .padding(.horizontal, 4)
             
@@ -1353,20 +1380,6 @@ struct StudioQueueItemRow: View {
             // Status Badge & Inline Actions
             HStack(spacing: 6) {
                 stateBadge(for: item.state)
-                
-                if item.isInProgress {
-                    Button(action: {
-                        viewModel.cancelProcessing()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.Premium.terracotta)
-                            .padding(4)
-                            .background(Circle().fill(Color.Premium.terracotta.opacity(0.12)))
-                    }
-                    .buttonStyle(.plain)
-                    .help(viewModel.t("action_cancel_process"))
-                }
                 
                 if isCompleted {
                     // Quick Copy Transcript Content Button

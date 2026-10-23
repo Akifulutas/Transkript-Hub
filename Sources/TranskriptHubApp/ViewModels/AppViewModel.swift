@@ -481,6 +481,46 @@ public final class AppViewModel: ObservableObject {
         FullDiskAccessHelper.openSystemSettings()
     }
     
+    // MARK: - Audio Recording Permissions
+    @Published public var microphonePermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
+    @Published public var systemAudioPermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
+    
+    public var isMicrophonePermissionGranted: Bool {
+        microphonePermissionStatus.isGranted
+    }
+    
+    public var isSystemAudioPermissionGranted: Bool {
+        systemAudioPermissionStatus.isGranted
+    }
+    
+    public func checkAudioPermissions() {
+        microphonePermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
+        systemAudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
+    }
+    
+    public func requestMicrophonePermission() {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            _ = await AudioPermissionHelper.requestMicrophoneAccess()
+            self.checkAudioPermissions()
+            self.objectWillChange.send()
+        }
+    }
+    
+    public func requestSystemAudioPermission() {
+        _ = AudioPermissionHelper.requestSystemAudioAccess()
+        checkAudioPermissions()
+        objectWillChange.send()
+    }
+    
+    public func openMicrophoneSettings() {
+        AudioPermissionHelper.openMicrophoneSettings()
+    }
+    
+    public func openSystemAudioSettings() {
+        AudioPermissionHelper.openSystemAudioSettings()
+    }
+    
     public var watchedDirectoryPath: String {
         folderWatcher.watchedDirectory.path
     }
@@ -1173,6 +1213,7 @@ public final class AppViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 self.checkFullDiskAccess()
+                self.checkAudioPermissions()
                 if self.isFolderWatching {
                     self.folderWatcher.triggerImmediateScan()
                 }
