@@ -58,7 +58,8 @@ public actor WhisperCppEngine: TranscriptionEngine {
         _ audio: PreparedAudio,
         options: TranscriptionOptions,
         progress: (@Sendable (Double) -> Void)? = nil,
-        onSegment: (@Sendable (Segment) -> Void)? = nil
+        onSegment: (@Sendable (Segment) -> Void)? = nil,
+        cancellationToken: TranscriptionCancellationToken? = nil
     ) async throws -> TranscriptResult {
         let context = contextBox.pointer
         guard !audio.samples.isEmpty else {
@@ -78,16 +79,26 @@ public actor WhisperCppEngine: TranscriptionEngine {
         wparams.no_timestamps = false
         wparams.token_timestamps = options.tokenTimestamps
         
-        // Stream callback wrapper for progress and live segments
+        // Stream callback wrapper for progress, live segments and cancellation
         final class StreamCallbackBox: @unchecked Sendable {
             let progress: (@Sendable (Double) -> Void)?
             let onSegment: (@Sendable (Segment) -> Void)?
-            init(progress: (@Sendable (Double) -> Void)?, onSegment: (@Sendable (Segment) -> Void)?) {
+            let cancellationToken: TranscriptionCancellationToken?
+            init(
+                progress: (@Sendable (Double) -> Void)?,
+                onSegment: (@Sendable (Segment) -> Void)?,
+                cancellationToken: TranscriptionCancellationToken?
+            ) {
                 self.progress = progress
                 self.onSegment = onSegment
+                self.cancellationToken = cancellationToken
             }
         }
-        let streamBox = StreamCallbackBox(progress: progress, onSegment: onSegment)
+        let streamBox = StreamCallbackBox(
+            progress: progress,
+            onSegment: onSegment,
+            cancellationToken: cancellationToken
+        )
         let retainedBox = Unmanaged.passRetained(streamBox)
         defer { retainedBox.release() }
         
@@ -98,6 +109,23 @@ public actor WhisperCppEngine: TranscriptionEngine {
             box.progress?(ratio)
         }
         wparams.progress_callback_user_data = retainedBox.toOpaque()
+        
+        wparams.abort_callback = { userData in
+            guard let ptr = userData else { return false }
+            let box = Unmanaged<StreamCallbackBox>.fromOpaque(ptr).takeUnretainedValue()
+            return box.cancellationToken?.isCancelled ?? false
+        }
+        wparams.abort_callback_user_data = retainedBox.toOpaque()
+        
+        wparams.encoder_begin_callback = { ctx, state, userData in
+            guard let ptr = userData else { return true }
+            let box = Unmanaged<StreamCallbackBox>.fromOpaque(ptr).takeUnretainedValue()
+            if box.cancellationToken?.isCancelled == true {
+                return false
+            }
+            return true
+        }
+        wparams.encoder_begin_callback_user_data = retainedBox.toOpaque()
         
         if onSegment != nil {
             wparams.new_segment_callback = { ctx, state, n_new, userData in
@@ -146,6 +174,10 @@ public actor WhisperCppEngine: TranscriptionEngine {
         let samples = audio.samples
         let result = samples.withUnsafeBufferPointer { bufferPtr -> Int32 in
             whisper_full(context, wparams, bufferPtr.baseAddress, Int32(samples.count))
+        }
+        
+        if cancellationToken?.isCancelled == true {
+            throw CancellationError()
         }
         
         guard result == 0 else {

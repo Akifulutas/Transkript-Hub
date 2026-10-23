@@ -1685,6 +1685,9 @@ public final class AppViewModel: ObservableObject {
     // MARK: - Undo / Confirmation Pattern (8-State Matrix)
     public func clearQueueWithUndo() {
         guard !queueItems.isEmpty else { return }
+        if isProcessing {
+            cancelProcessing()
+        }
         undoBackupItems = queueItems
         let count = queueItems.count
         
@@ -1826,6 +1829,36 @@ public final class AppViewModel: ObservableObject {
     
     // MARK: - Whisper Engine Background Cache
     private var cachedWhisperEngine: (modelPath: String, engine: WhisperCppEngine)? = nil
+    private var currentProcessingTask: Task<Void, Never>? = nil
+    private var activeCancellationToken: TranscriptionCancellationToken? = nil
+    private var isCancelRequested: Bool = false
+    
+    // MARK: - Queue Processing Cancellation
+    public func cancelProcessing() {
+        guard isProcessing else { return }
+        isCancelRequested = true
+        activeCancellationToken?.cancel()
+        currentProcessingTask?.cancel()
+        
+        // Revert items in progress (.transcribing / .fetching) back to .queued so nothing is lost
+        for i in queueItems.indices {
+            if queueItems[i].state == .transcribing || queueItems[i].state == .fetching {
+                queueItems[i].state = .queued
+                queueItems[i].progress = 0.0
+                queueItems[i].autoProcess = false
+                queueItems[i].transcript = nil
+                queueItems[i].errorMessage = nil
+            } else if queueItems[i].state == .queued {
+                queueItems[i].autoProcess = false
+            }
+        }
+        
+        isProcessing = false
+        progressFraction = 0.0
+        currentOperation = ""
+        statusMessage = t("status_cancelled")
+        objectWillChange.send()
+    }
     
     private func getOrInitializeWhisperEngine(for modelURL: URL) async throws -> WhisperCppEngine {
         let path = modelURL.path
@@ -1847,6 +1880,9 @@ public final class AppViewModel: ObservableObject {
         guard queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
         
         isProcessing = true
+        isCancelRequested = false
+        let cancelToken = TranscriptionCancellationToken()
+        self.activeCancellationToken = cancelToken
         progressFraction = 0.05
         statusMessage = "İşlem başlatılıyor..."
         errorMessage = nil
@@ -1854,7 +1890,7 @@ public final class AppViewModel: ObservableObject {
         let model = selectedModel
         let lang = selectedLanguage == "auto" ? nil : selectedLanguage
         
-        Task { [weak self] in
+        self.currentProcessingTask = Task { [weak self] in
             guard let self = self else { return }
             do {
                 // 1. Ensure Whisper Model is available
@@ -1882,6 +1918,9 @@ public final class AppViewModel: ObservableObject {
                 
                 var processedCount = 0
                 while let item = self.queueItems.first(where: { $0.state == .queued && $0.autoProcess }) {
+                    if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                        break
+                    }
                     processedCount += 1
                     let totalEligible = max(processedCount, self.queueItems.filter { $0.autoProcess || $0.state == .completed }.count)
                     
@@ -1963,6 +2002,16 @@ public final class AppViewModel: ObservableObject {
                                 continue
                             }
                             
+                            if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                                current.state = .queued
+                                current.autoProcess = false
+                                current.progress = 0.0
+                                current.transcript = nil
+                                current.errorMessage = nil
+                                self.updateItem(current)
+                                break
+                            }
+                            
                             current.state = .transcribing
                             current.transcript = ""
                             self.updateItem(current)
@@ -1979,17 +2028,21 @@ public final class AppViewModel: ObservableObject {
                                 options: TranscriptionOptions(language: lang),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
-                                        self?.progressFraction = p
-                                        self?.updateItemProgress(id: itemId, progress: p)
+                                        guard let self = self, !self.isCancelRequested else { return }
+                                        self.progressFraction = p
+                                        self.updateItemProgress(id: itemId, progress: p)
                                     }
                                 },
                                 onSegment: { [weak self] seg in
+                                    guard !cancelToken.isCancelled else { return }
                                     let currentSegments = collector.append(seg)
                                     let liveText = postProcessor.process(segments: currentSegments)
-                                    Task { @MainActor in
-                                        self?.updateItemLiveTranscript(id: itemId, transcript: liveText)
+                                    Task { @MainActor [weak self] in
+                                        guard let self = self, !self.isCancelRequested else { return }
+                                        self.updateItemLiveTranscript(id: itemId, transcript: liveText)
                                     }
-                                }
+                                },
+                                cancellationToken: cancelToken
                             )
                             let formatted = postProcessor.process(segments: result.segments)
                             
@@ -2042,7 +2095,25 @@ public final class AppViewModel: ObservableObject {
                                 transcriptText: formatted
                             )
                             
+                        } catch is CancellationError {
+                            Log.info("YouTube transcription cancelled.")
+                            current.state = .queued
+                            current.autoProcess = false
+                            current.progress = 0.0
+                            current.transcript = nil
+                            current.errorMessage = nil
+                            self.updateItem(current)
+                            break
                         } catch {
+                            if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                                current.state = .queued
+                                current.autoProcess = false
+                                current.progress = 0.0
+                                current.transcript = nil
+                                current.errorMessage = nil
+                                self.updateItem(current)
+                                break
+                            }
                             current.state = .failed
                             current.errorMessage = error.localizedDescription
                         }
@@ -2083,6 +2154,16 @@ public final class AppViewModel: ObservableObject {
                                 continue
                             }
                             
+                            if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                                current.state = .queued
+                                current.autoProcess = false
+                                current.progress = 0.0
+                                current.transcript = nil
+                                current.errorMessage = nil
+                                self.updateItem(current)
+                                break
+                            }
+                            
                             current.state = .transcribing
                             current.transcript = ""
                             self.updateItem(current)
@@ -2098,17 +2179,21 @@ public final class AppViewModel: ObservableObject {
                                 options: TranscriptionOptions(language: lang),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
-                                        self?.progressFraction = p
-                                        self?.updateItemProgress(id: itemId, progress: p)
+                                        guard let self = self, !self.isCancelRequested else { return }
+                                        self.progressFraction = p
+                                        self.updateItemProgress(id: itemId, progress: p)
                                     }
                                 },
                                 onSegment: { [weak self] seg in
+                                    guard !cancelToken.isCancelled else { return }
                                     let currentSegments = collector.append(seg)
                                     let liveText = postProcessor.process(segments: currentSegments)
-                                    Task { @MainActor in
-                                        self?.updateItemLiveTranscript(id: itemId, transcript: liveText)
+                                    Task { @MainActor [weak self] in
+                                        guard let self = self, !self.isCancelRequested else { return }
+                                        self.updateItemLiveTranscript(id: itemId, transcript: liveText)
                                     }
-                                }
+                                },
+                                cancellationToken: cancelToken
                             )
                             let formatted = postProcessor.process(segments: result.segments)
                             
@@ -2152,7 +2237,25 @@ public final class AppViewModel: ObservableObject {
                                 transcriptText: formatted
                             )
                             
+                        } catch is CancellationError {
+                            Log.info("Audio transcription cancelled.")
+                            current.state = .queued
+                            current.autoProcess = false
+                            current.progress = 0.0
+                            current.transcript = nil
+                            current.errorMessage = nil
+                            self.updateItem(current)
+                            break
                         } catch {
+                            if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                                current.state = .queued
+                                current.autoProcess = false
+                                current.progress = 0.0
+                                current.transcript = nil
+                                current.errorMessage = nil
+                                self.updateItem(current)
+                                break
+                            }
                             current.state = .failed
                             current.errorMessage = error.localizedDescription
                         }
@@ -2164,47 +2267,62 @@ public final class AppViewModel: ObservableObject {
                 
                 // Combined session file is ONLY for multi-video YouTube batches if explicitly requested.
                 // Audio files / Sesli Notlar ALWAYS produce single individual .txt files and NEVER create a Toplu_Oturum file.
-                let completedYouTube = self.queueItems.filter { $0.state == .completed && $0.isYouTube && ($0.transcript != nil) }
-                if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && completedYouTube.count > 1 {
-                    let combinedText = completedYouTube.compactMap { item -> String? in
-                        guard let t = item.transcript, !t.isEmpty else { return nil }
-                        return "=== \(item.title) ===\n\n\(t)"
-                    }.joined(separator: "\n\n" + String(repeating: "-", count: 40) + "\n\n")
-                    
-                    if !combinedText.isEmpty {
-                        let formatter = DateFormatter()
-                        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
-                        let dateStr = formatter.string(from: Date())
-                        let combinedName = "Toplu_Oturum_\(dateStr)"
+                if !self.isCancelRequested && !Task.isCancelled {
+                    let completedYouTube = self.queueItems.filter { $0.state == .completed && $0.isYouTube && ($0.transcript != nil) }
+                    if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && completedYouTube.count > 1 {
+                        let combinedText = completedYouTube.compactMap { item -> String? in
+                            guard let t = item.transcript, !t.isEmpty else { return nil }
+                            return "=== \(item.title) ===\n\n\(t)"
+                        }.joined(separator: "\n\n" + String(repeating: "-", count: 40) + "\n\n")
                         
-                        let targetURL = self.outputWriter.resolveUniqueURL(
-                            forBaseName: combinedName,
-                            in: self.outputWriter.defaultOutputDirectory,
-                            allowOverwrite: true,
-                            matchingContent: combinedText
-                        )
-                        try? self.outputWriter.write(content: combinedText, to: targetURL)
-                        self.saveToHistory(
-                            title: "\(combinedName) (\(completedYouTube.count) Video)",
-                            kind: "combined",
-                            outputPath: targetURL.path,
-                            snippet: String(combinedText.prefix(200))
-                        )
+                        if !combinedText.isEmpty {
+                            let formatter = DateFormatter()
+                            formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+                            let dateStr = formatter.string(from: Date())
+                            let combinedName = "Toplu_Oturum_\(dateStr)"
+                            
+                            let targetURL = self.outputWriter.resolveUniqueURL(
+                                forBaseName: combinedName,
+                                in: self.outputWriter.defaultOutputDirectory,
+                                allowOverwrite: true,
+                                matchingContent: combinedText
+                            )
+                            try? self.outputWriter.write(content: combinedText, to: targetURL)
+                            self.saveToHistory(
+                                title: "\(combinedName) (\(completedYouTube.count) Video)",
+                                kind: "combined",
+                                outputPath: targetURL.path,
+                                snippet: String(combinedText.prefix(200))
+                            )
+                        }
                     }
+                    
+                    self.statusMessage = "✅ Tüm işlemler tamamlandı."
+                    self.currentOperation = ""
+                    self.progressFraction = 1.0
+                } else {
+                    self.statusMessage = self.t("status_cancelled")
+                    self.currentOperation = ""
+                    self.progressFraction = 0.0
                 }
                 
-                self.statusMessage = "✅ Tüm işlemler tamamlandı."
-                self.currentOperation = ""
-                self.progressFraction = 1.0
-                
             } catch {
-                self.errorMessage = "İşlem hatası: \(error.localizedDescription)"
-                self.statusMessage = "İşlem tamamlanamadı."
+                if self.isCancelRequested || Task.isCancelled {
+                    self.statusMessage = self.t("status_cancelled")
+                    self.currentOperation = ""
+                    self.progressFraction = 0.0
+                } else {
+                    self.errorMessage = "İşlem hatası: \(error.localizedDescription)"
+                    self.statusMessage = "İşlem tamamlanamadı."
+                }
             }
             
             self.isProcessing = false
-            // If new auto-processable items arrived while finishing up, process them now
-            if self.queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) {
+            self.activeCancellationToken = nil
+            self.currentProcessingTask = nil
+            
+            // If cancellation occurred, do NOT restart. If new auto-processable items arrived normally, process them.
+            if !self.isCancelRequested && self.queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) {
                 self.runQueueProcessor()
             }
         }

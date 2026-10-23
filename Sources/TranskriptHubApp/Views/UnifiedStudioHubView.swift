@@ -990,15 +990,19 @@ public struct UnifiedStudioHubView: View {
                     .controlSize(.small)
                 }
                 
-                // Primary Action Button: "Transkripte Yolla" (veya "Seçilenleri Başlat (X)")
+                // Primary Action Button: "Transkripte Yolla" (veya "Seçilenleri Başlat (X)" / "İptal Et")
                 Button(action: {
-                    viewModel.requestStartQueue()
+                    if viewModel.isProcessing {
+                        viewModel.cancelProcessing()
+                    } else {
+                        viewModel.requestStartQueue()
+                    }
                 }) {
                     HStack(spacing: 6) {
                         if viewModel.isProcessing {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text(viewModel.t("hub_processing"))
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(viewModel.t("action_cancel_process"))
                                 .font(.system(size: 12, weight: .bold))
                         } else {
                             Image(systemName: "sparkles")
@@ -1007,29 +1011,31 @@ public struct UnifiedStudioHubView: View {
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
-                    .foregroundColor(viewModel.canStartQueue ? .white : Color.secondary.opacity(0.45))
+                    .foregroundColor(viewModel.isProcessing ? Color.Premium.terracotta : (viewModel.canStartQueue ? .white : Color.secondary.opacity(0.45)))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
                     .background(
-                        viewModel.canStartQueue
-                            ? AnyShapeStyle(LinearGradient(colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            : AnyShapeStyle(Color.primary.opacity(0.04))
+                        viewModel.isProcessing
+                            ? AnyShapeStyle(Color.Premium.terracotta.opacity(0.15))
+                            : (viewModel.canStartQueue
+                                ? AnyShapeStyle(LinearGradient(colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                : AnyShapeStyle(Color.primary.opacity(0.04)))
                     )
                     .clipShape(Capsule())
                     .overlay(
-                        Capsule().stroke(viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
+                        Capsule().stroke(viewModel.isProcessing ? Color.Premium.terracotta.opacity(0.35) : (viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.4) : Color.primary.opacity(0.06)), lineWidth: 1)
                     )
-                    .shadow(color: viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
+                    .shadow(color: viewModel.isProcessing ? Color.Premium.terracotta.opacity(0.2) : (viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.35) : Color.clear), radius: 5, x: 0, y: 2)
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(!viewModel.canStartQueue)
+                .disabled(!viewModel.canStartQueue && !viewModel.isProcessing)
                 .hoverHelpTooltip(
-                    title: viewModel.t("action_transcribe_queue"),
-                    description: viewModel.canStartQueue ? viewModel.t("hub_tooltip_queue_btn_ready") : viewModel.t("hub_tooltip_queue_btn_disabled"),
-                    icon: viewModel.canStartQueue ? "sparkles" : "pause.circle",
+                    title: viewModel.isProcessing ? viewModel.t("action_cancel_process") : viewModel.t("action_transcribe_queue"),
+                    description: viewModel.isProcessing ? viewModel.t("status_cancelled") : (viewModel.canStartQueue ? viewModel.t("hub_tooltip_queue_btn_ready") : viewModel.t("hub_tooltip_queue_btn_disabled")),
+                    icon: viewModel.isProcessing ? "xmark.circle" : (viewModel.canStartQueue ? "sparkles" : "pause.circle"),
                     status: viewModel.canStartQueue ? "\(viewModel.queueItems.count)" : viewModel.t("hub_status_off"),
-                    statusColor: viewModel.canStartQueue ? .accentColor : .secondary,
+                    statusColor: viewModel.isProcessing ? Color.Premium.terracotta : (viewModel.canStartQueue ? .accentColor : .secondary),
                     placement: .topTrailing
                 )
                 .studioTourTarget(.queueAndTranscribe)
@@ -1040,7 +1046,7 @@ public struct UnifiedStudioHubView: View {
             // Live Processing Progress Card
             if viewModel.isProcessing {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Text(viewModel.currentOperation.isEmpty ? viewModel.t("status_transcribing") : viewModel.currentOperation)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Color.primary)
@@ -1048,6 +1054,26 @@ public struct UnifiedStudioHubView: View {
                         Text("%\(Int(viewModel.progressFraction * 100))")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.accentColor)
+                        
+                        Button(action: {
+                            viewModel.cancelProcessing()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 8.5, weight: .bold))
+                                Text(viewModel.t("action_cancel_process"))
+                                    .font(.system(size: 10.5, weight: .semibold))
+                            }
+                            .foregroundStyle(Color.Premium.terracotta)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.Premium.terracotta.opacity(0.12)))
+                            .overlay(
+                                Capsule().stroke(Color.Premium.terracotta.opacity(0.25), lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help(viewModel.t("action_cancel_process"))
                     }
                     ProgressView(value: viewModel.progressFraction)
                         .progressViewStyle(.linear)
@@ -1326,6 +1352,20 @@ struct StudioQueueItemRow: View {
             // Status Badge & Inline Actions
             HStack(spacing: 6) {
                 stateBadge(for: item.state)
+                
+                if item.isInProgress {
+                    Button(action: {
+                        viewModel.cancelProcessing()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.Premium.terracotta)
+                            .padding(4)
+                            .background(Circle().fill(Color.Premium.terracotta.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .help(viewModel.t("action_cancel_process"))
+                }
                 
                 if isCompleted {
                     // Quick Copy Transcript Content Button
