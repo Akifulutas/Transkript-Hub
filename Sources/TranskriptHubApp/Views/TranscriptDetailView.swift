@@ -791,28 +791,16 @@ public struct TranscriptDetailView: View {
                         formatChip("iCloud")
                     }
                     
-                    // Quick Action Buttons
-                    HStack(spacing: 12) {
-                        Button(action: { viewModel.addFromClipboard() }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "doc.on.clipboard")
-                                Text(viewModel.t("hub_paste_clipboard_action"))
-                            }
-                            .font(.system(size: 12, weight: .semibold))
+                    // Quick Action Button
+                    Button(action: { selectLocalAudioFiles() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "waveform")
+                            Text(viewModel.t("hub_choose_audio_file"))
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
-                        
-                        Button(action: { selectLocalAudioFiles() }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "waveform")
-                                Text(viewModel.t("hub_choose_audio_file"))
-                            }
-                            .font(.system(size: 12, weight: .medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
+                        .font(.system(size: 12, weight: .semibold))
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
                 }
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
