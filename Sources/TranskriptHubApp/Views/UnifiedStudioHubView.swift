@@ -384,7 +384,7 @@ public struct UnifiedStudioHubView: View {
                     let activeCount = [
                         viewModel.folderWatcher.watchiCloudDrive,
                         viewModel.folderWatcher.watchVoiceMemos,
-                        viewModel.folderWatcher.watchCustomFolder
+                        viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil
                     ].filter { $0 }.count
                     StudioInteractiveCardView(
                         icon: "folder.fill.badge.gearshape",

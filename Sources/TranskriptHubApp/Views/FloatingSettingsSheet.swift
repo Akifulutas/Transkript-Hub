@@ -674,8 +674,21 @@ public struct FloatingSettingsSheet: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(Color.Premium.cashmereViolet)
                             Spacer()
-                            Toggle("", isOn: $viewModel.folderWatcher.watchCustomFolder)
-                                .toggleStyle(.switch)
+                            Toggle("", isOn: Binding(
+                                get: { viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil },
+                                set: { newValue in
+                                    if newValue {
+                                        if viewModel.folderWatcher.customFolderURL != nil {
+                                            viewModel.folderWatcher.watchCustomFolder = true
+                                        } else {
+                                            viewModel.selectCustomWatchedFolder()
+                                        }
+                                    } else {
+                                        viewModel.folderWatcher.watchCustomFolder = false
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
                         }
                         HStack {
                             if let customURL = viewModel.folderWatcher.customFolderURL {

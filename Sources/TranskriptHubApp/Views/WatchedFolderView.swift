@@ -384,8 +384,21 @@ struct WatchedFolderView: View {
                             
                             Spacer()
                             
-                            Toggle("", isOn: $viewModel.folderWatcher.watchCustomFolder)
-                                .toggleStyle(.switch)
+                            Toggle("", isOn: Binding(
+                                get: { viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil },
+                                set: { newValue in
+                                    if newValue {
+                                        if viewModel.folderWatcher.customFolderURL != nil {
+                                            viewModel.folderWatcher.watchCustomFolder = true
+                                        } else {
+                                            viewModel.selectCustomWatchedFolder()
+                                        }
+                                    } else {
+                                        viewModel.folderWatcher.watchCustomFolder = false
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
                         }
                         
                         Divider()

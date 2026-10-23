@@ -509,7 +509,7 @@ public final class AppViewModel: ObservableObject {
     
     public func selectCustomWatchedFolder() {
         let panel = NSOpenPanel()
-        panel.canChooseFiles = false
+        panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
@@ -523,7 +523,14 @@ public final class AppViewModel: ObservableObject {
         }
         
         if panel.runModal() == .OK, let selectedURL = panel.url {
-            folderWatcher.customFolderURL = selectedURL
+            var isDir: ObjCBool = false
+            let folderURL: URL
+            if FileManager.default.fileExists(atPath: selectedURL.path, isDirectory: &isDir), isDir.boolValue {
+                folderURL = selectedURL
+            } else {
+                folderURL = selectedURL.deletingLastPathComponent()
+            }
+            folderWatcher.customFolderURL = folderURL
             folderWatcher.watchCustomFolder = true
             if !isFolderWatching {
                 isFolderWatching = true
@@ -538,6 +545,8 @@ public final class AppViewModel: ObservableObject {
     public func resetCustomWatchedFolder() {
         folderWatcher.customFolderURL = nil
         folderWatcher.watchCustomFolder = false
+        UserDefaults.standard.removeObject(forKey: "FolderWatcher.customFolderPath")
+        UserDefaults.standard.set(false, forKey: "FolderWatcher.watchCustomFolder")
         objectWillChange.send()
     }
     

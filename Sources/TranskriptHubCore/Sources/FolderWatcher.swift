@@ -41,6 +41,11 @@ public final class FolderWatcher: ObservableObject {
     
     @Published public var watchCustomFolder: Bool {
         didSet {
+            // Cannot watch custom folder if no valid custom folder is configured
+            if watchCustomFolder && customFolderURL == nil {
+                watchCustomFolder = false
+                return
+            }
             UserDefaults.standard.set(watchCustomFolder, forKey: "FolderWatcher.watchCustomFolder")
             if watchCustomFolder, let url = customFolderURL {
                 resetProcessedPaths(under: url)
@@ -54,6 +59,13 @@ public final class FolderWatcher: ObservableObject {
             UserDefaults.standard.set(customFolderURL?.path, forKey: "FolderWatcher.customFolderPath")
             if let url = customFolderURL {
                 resetProcessedPaths(under: url)
+                if !watchCustomFolder {
+                    watchCustomFolder = true
+                }
+            } else {
+                if watchCustomFolder {
+                    watchCustomFolder = false
+                }
             }
             triggerImmediateScan()
         }
@@ -187,13 +199,20 @@ public final class FolderWatcher: ObservableObject {
         self.watchiCloudDrive = ud.object(forKey: "FolderWatcher.watchiCloudDrive") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudDrive")
         self.watchiCloudRoot = ud.object(forKey: "FolderWatcher.watchiCloudRoot") == nil ? true : ud.bool(forKey: "FolderWatcher.watchiCloudRoot")
         self.watchVoiceMemos = ud.object(forKey: "FolderWatcher.watchVoiceMemos") == nil ? true : ud.bool(forKey: "FolderWatcher.watchVoiceMemos")
-        self.watchCustomFolder = ud.bool(forKey: "FolderWatcher.watchCustomFolder")
         self.autoTranscribe = ud.object(forKey: "FolderWatcher.autoTranscribe") == nil ? true : ud.bool(forKey: "FolderWatcher.autoTranscribe")
-        
         if let customPath = ud.string(forKey: "FolderWatcher.customFolderPath"), !customPath.isEmpty {
-            self.customFolderURL = URL(fileURLWithPath: customPath, isDirectory: true)
+            let url = URL(fileURLWithPath: customPath, isDirectory: true)
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                self.customFolderURL = url
+                self.watchCustomFolder = ud.bool(forKey: "FolderWatcher.watchCustomFolder")
+            } else {
+                self.customFolderURL = nil
+                self.watchCustomFolder = false
+            }
         } else {
             self.customFolderURL = nil
+            self.watchCustomFolder = false
         }
         
         // Keep processedPaths in-memory per session so untranscribed files from previous runs are not skipped;
