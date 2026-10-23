@@ -166,6 +166,19 @@ public final class AppViewModel: ObservableObject {
     @Published public var updateCheckStatusText: String = ""
     @Published public var autoCheckUpdates: Bool = true
     
+    // Dedicated Unified Update Dialog (Menu Check)
+    @Published public var isUnifiedUpdatePresented: Bool = false
+    @Published public var isCheckingUnifiedUpdates: Bool = false
+    @Published public var unifiedAppUpdate: AppUpdateInfo? = nil
+    @Published public var unifiedCandidateModel: WhisperModelSpec? = nil
+    @Published public var unifiedIsUpToDate: Bool = false
+    @Published public var unifiedStatusMessage: String = ""
+    @Published public var isDownloadingAppUpdate: Bool = false
+    @Published public var appUpdateDownloadFraction: Double = 0.0
+    @Published public var appUpdateDownloadStatus: String = ""
+    @Published public var unifiedModelDownloadSuccessName: String? = nil
+    private var appUpdateDownloadTask: Task<Void, Never>? = nil
+    
     // Model Catalog Search & Online Repo
     @Published public var modelSearchQuery: String = ""
     @Published public var onlineModelStatusText: String = ""
@@ -2439,6 +2452,272 @@ public final class AppViewModel: ObservableObject {
         let urlString = updateInfo?.downloadURL ?? UpdateChecker.defaultDMGDownloadURL
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
+        }
+    }
+    
+    // MARK: - Direct Unified Update Check (Menu Trigger)
+    public func initiateUnifiedUpdateCheck() {
+        // Ensure settings sheet is NOT opened
+        isSettingsPresented = false
+        
+        // Open the dedicated unified update modal
+        isUnifiedUpdatePresented = true
+        isCheckingUnifiedUpdates = true
+        unifiedAppUpdate = nil
+        unifiedCandidateModel = nil
+        unifiedIsUpToDate = false
+        unifiedModelDownloadSuccessName = nil
+        isDownloadingAppUpdate = false
+        appUpdateDownloadFraction = 0.0
+        appUpdateDownloadStatus = ""
+        unifiedStatusMessage = t("update_checking_desc")
+        
+        bringMainWindowToFront()
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            // 1. Check GitHub for App Updates
+            var appInfo: AppUpdateInfo? = nil
+            do {
+                appInfo = try await self.updateChecker.checkForUpdates()
+            } catch {
+                // Network failure or offline
+            }
+            
+            // 2. Check for AI Models (Catalog & Download status)
+            let candidateModel = self.findCandidateNewModel()
+            _ = try? await WhisperModelCatalog.checkOnlineModelRepository()
+            
+            await MainActor.run {
+                self.isCheckingUnifiedUpdates = false
+                let isAppNewer = appInfo?.isNewerThanCurrent == true
+                
+                if isAppNewer {
+                    self.unifiedAppUpdate = appInfo
+                }
+                
+                if let model = candidateModel {
+                    self.unifiedCandidateModel = model
+                }
+                
+                if !isAppNewer && candidateModel == nil {
+                    self.unifiedIsUpToDate = true
+                    self.unifiedStatusMessage = String(format: self.t("update_uptodate_desc"), UpdateChecker.currentVersion)
+                }
+            }
+        }
+    }
+    
+    public func findCandidateNewModel() -> WhisperModelSpec? {
+        let uninstalled = WhisperModelCatalog.availableModels.filter { !modelManager.isModelDownloaded($0.model) }
+        guard !uninstalled.isEmpty else { return nil }
+        
+        // Prefer Apple Silicon-optimized / Turbo models first
+        if let turboQ5 = uninstalled.first(where: { $0.model == .largeV3TurboQ5 }) {
+            return turboQ5
+        }
+        if let turbo = uninstalled.first(where: { $0.model == .largeV3Turbo }) {
+            return turbo
+        }
+        return uninstalled.first
+    }
+    
+    public func downloadModelInUpdateDialog(_ model: WhisperModel) {
+        guard downloadingModel == nil else { return }
+        downloadingModel = model
+        modelDownloadFraction = 0.0
+        modelDownloadStatusText = "Bağlanılıyor..."
+        
+        modelDownloadTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                _ = try await self.modelManager.downloadModelWithDetails(model) { [weak self] frac, written, total in
+                    Task { @MainActor [weak self] in
+                        guard let self = self else { return }
+                        self.modelDownloadFraction = frac
+                        let writtenMB = Double(written) / (1024 * 1024)
+                        let totalMB = Double(total) / (1024 * 1024)
+                        let pct = Int(frac * 100)
+                        if totalMB > 0 {
+                            self.modelDownloadStatusText = String(format: "%%%d • %.1f MB / %.1f MB", pct, writtenMB, totalMB)
+                        } else {
+                            self.modelDownloadStatusText = String(format: "%.1f MB indirildi", writtenMB)
+                        }
+                    }
+                }
+                await MainActor.run {
+                    let modelName = model.displayName
+                    self.downloadingModel = nil
+                    self.modelDownloadFraction = 1.0
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.unifiedCandidateModel = nil
+                    self.unifiedModelDownloadSuccessName = modelName
+                    self.objectWillChange.send()
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.downloadingModel = nil
+                    self.modelDownloadFraction = 0.0
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.objectWillChange.send()
+                }
+            } catch {
+                await MainActor.run {
+                    self.downloadingModel = nil
+                    self.modelDownloadStatusText = ""
+                    self.modelDownloadTask = nil
+                    self.errorMessage = "Model indirme hatası: \(error.localizedDescription)"
+                    self.objectWillChange.send()
+                }
+            }
+        }
+    }
+    
+    public func downloadAppUpdateAndRelaunch() {
+        guard let urlString = unifiedAppUpdate?.downloadURL ?? updateInfo?.downloadURL ?? Optional(UpdateChecker.defaultDMGDownloadURL),
+              let url = URL(string: urlString) else { return }
+        
+        self.isDownloadingAppUpdate = true
+        self.appUpdateDownloadFraction = 0.0
+        self.appUpdateDownloadStatus = "Bağlanılıyor..."
+        
+        self.appUpdateDownloadTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let tempDMG = FileManager.default.temporaryDirectory.appendingPathComponent("TranskriptHub-Update-\(UUID().uuidString).dmg")
+                
+                var request = URLRequest(url: url)
+                request.setValue("TranskriptHub-App/\(UpdateChecker.currentVersion)", forHTTPHeaderField: "User-Agent")
+                
+                let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+                let expectedLength = response.expectedContentLength
+                
+                if FileManager.default.fileExists(atPath: tempDMG.path) {
+                    try? FileManager.default.removeItem(at: tempDMG)
+                }
+                
+                FileManager.default.createFile(atPath: tempDMG.path, contents: nil)
+                guard let fileHandle = try? FileHandle(forWritingTo: tempDMG) else {
+                    throw NSError(domain: "TranskriptHub", code: -1, userInfo: [NSLocalizedDescriptionKey: "Geçici dosya oluşturulamadı."])
+                }
+                
+                var written: Int64 = 0
+                var buffer = Data()
+                buffer.reserveCapacity(64 * 1024)
+                
+                for try await byte in asyncBytes {
+                    try Task.checkCancellation()
+                    buffer.append(byte)
+                    written += 1
+                    
+                    if buffer.count >= 64 * 1024 {
+                        fileHandle.write(buffer)
+                        buffer.removeAll(keepingCapacity: true)
+                        
+                        let frac = expectedLength > 0 ? Double(written) / Double(expectedLength) : 0.0
+                        let currentWritten = written
+                        await MainActor.run {
+                            self.appUpdateDownloadFraction = frac
+                            let mbWritten = Double(currentWritten) / (1024 * 1024)
+                            let mbTotal = Double(expectedLength) / (1024 * 1024)
+                            if mbTotal > 0 {
+                                self.appUpdateDownloadStatus = String(format: "%%%d • %.1f MB / %.1f MB", Int(frac * 100), mbWritten, mbTotal)
+                            } else {
+                                self.appUpdateDownloadStatus = String(format: "%.1f MB", mbWritten)
+                            }
+                        }
+                    }
+                }
+                
+                if !buffer.isEmpty {
+                    fileHandle.write(buffer)
+                }
+                try fileHandle.close()
+                
+                await MainActor.run {
+                    self.appUpdateDownloadFraction = 1.0
+                    self.appUpdateDownloadStatus = self.t("update_installing_relaunching")
+                }
+                
+                try await Task.sleep(nanoseconds: 700_000_000)
+                
+                await MainActor.run {
+                    self.applyUpdateAndRelaunch(dmgURL: tempDMG)
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.isDownloadingAppUpdate = false
+                    self.appUpdateDownloadFraction = 0.0
+                    self.appUpdateDownloadStatus = ""
+                }
+            } catch {
+                await MainActor.run {
+                    self.isDownloadingAppUpdate = false
+                    self.appUpdateDownloadFraction = 0.0
+                    self.appUpdateDownloadStatus = "İndirme hatası: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    public func cancelAppUpdateDownload() {
+        appUpdateDownloadTask?.cancel()
+        appUpdateDownloadTask = nil
+        isDownloadingAppUpdate = false
+        appUpdateDownloadFraction = 0.0
+        appUpdateDownloadStatus = ""
+    }
+    
+    public func applyUpdateAndRelaunch(dmgURL: URL) {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let appBundleURL = Bundle.main.bundleURL
+        let targetAppPath: String
+        if appBundleURL.path.contains("/Applications/") {
+            targetAppPath = appBundleURL.path
+        } else {
+            targetAppPath = "/Applications/TranskriptHub.app"
+        }
+        
+        let script = """
+        PID=\(currentPID)
+        DMG="\(dmgURL.path)"
+        DEST="\(targetAppPath)"
+        MNT=$(mktemp -d /tmp/th_update.XXXXXX)
+        
+        hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MNT" -quiet
+        
+        if [ -d "$MNT/TranskriptHub.app" ]; then
+            while kill -0 $PID 2>/dev/null; do
+                sleep 0.2
+            done
+            rm -rf "$DEST"
+            cp -R "$MNT/TranskriptHub.app" "$DEST"
+            xattr -cr "$DEST" || true
+            hdiutil detach "$MNT" -quiet || true
+            rm -rf "$MNT"
+            rm -f "$DMG"
+            open "$DEST"
+        else
+            hdiutil detach "$MNT" -quiet || true
+            rm -rf "$MNT"
+            open "$DMG"
+        fi
+        """
+        
+        let tempScriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("update_and_relaunch.sh")
+        try? script.write(to: tempScriptURL, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptURL.path)
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [tempScriptURL.path]
+        try? process.run()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NSApplication.shared.terminate(nil)
         }
     }
     

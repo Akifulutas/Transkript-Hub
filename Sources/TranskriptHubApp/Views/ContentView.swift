@@ -92,6 +92,9 @@ public struct ContentView: View {
             .sheet(isPresented: $viewModel.isOnboardingPresented) {
                 AppOnboardingView(viewModel: viewModel)
             }
+            .sheet(isPresented: $viewModel.isUnifiedUpdatePresented) {
+                UnifiedUpdateModalView(viewModel: viewModel)
+            }
             .alert(
                 viewModel.t("voice_memos_import_title"),
                 isPresented: $viewModel.isVoiceMemosPromptPresented

@@ -22,10 +22,7 @@ struct TranskriptHubApp: App {
                 .keyboardShortcut(",", modifiers: .command)
                 
                 Button(viewModel.t("menu_check_for_updates")) {
-                    viewModel.selectedSettingsTab = .updates
-                    viewModel.openSettings()
-                    viewModel.checkForUpdates()
-                    viewModel.bringMainWindowToFront()
+                    viewModel.initiateUnifiedUpdateCheck()
                 }
             }
             
