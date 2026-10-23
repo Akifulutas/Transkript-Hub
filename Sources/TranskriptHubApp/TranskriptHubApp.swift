@@ -113,7 +113,10 @@ struct TranskriptHubApp: App {
             }
         }
         
-        MenuBarExtra("Transkript Hub", systemImage: "waveform.badge.magnifyingglass") {
+        MenuBarExtra(
+            "Transkript Hub",
+            systemImage: viewModel.pendingBatchIngestion != nil ? "play.rectangle.on.rectangle.fill" : "waveform.badge.magnifyingglass"
+        ) {
             MenuBarMiniWindow(viewModel: viewModel)
         }
         .menuBarExtraStyle(.window)

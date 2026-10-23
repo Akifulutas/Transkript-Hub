@@ -43,8 +43,13 @@ public struct ContentView: View {
             .toolbar {
                 mainToolbar
             }
-            .sheet(item: $viewModel.pendingBatchIngestion) { pending in
-                PlaylistIngestionSheet(viewModel: viewModel, pending: pending)
+            .sheet(isPresented: Binding(
+                get: { viewModel.showMainWindowPlaylistSheet && viewModel.pendingBatchIngestion != nil },
+                set: { if !$0 { viewModel.cancelBatchIngestion() } }
+            )) {
+                if let pending = viewModel.pendingBatchIngestion {
+                    PlaylistIngestionSheet(viewModel: viewModel, pending: pending)
+                }
             }
             .sheet(isPresented: $viewModel.isSaveModePromptPresented) {
                 SessionSaveModeSheet(

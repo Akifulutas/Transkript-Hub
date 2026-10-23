@@ -218,6 +218,7 @@ public final class AppViewModel: ObservableObject {
     
     // Playlist & Channel Batch Ingestion State
     @Published public var pendingBatchIngestion: PendingBatchIngestion? = nil
+    @Published public var showMainWindowPlaylistSheet: Bool = false
     @Published public var isResolvingBatch: Bool = false
     @Published public var batchResolutionError: String? = nil
     
@@ -1506,8 +1507,14 @@ public final class AppViewModel: ObservableObject {
     }
     
     // MARK: - Batch Ingestion (Playlist & Channel)
-    public func presentBatchIngestion(for linkType: YouTubeLinkType) {
-        NSApp.activate(ignoringOtherApps: true)
+    public func presentBatchIngestion(for linkType: YouTubeLinkType, fromMainWindow: Bool = false) {
+        if fromMainWindow {
+            self.showMainWindowPlaylistSheet = true
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            self.showMainWindowPlaylistSheet = false
+        }
+        
         switch linkType {
         case .singleVideo(let video):
             addYouTubeVideo(video)
@@ -1536,6 +1543,7 @@ public final class AppViewModel: ObservableObject {
     
     public func cancelBatchIngestion() {
         pendingBatchIngestion = nil
+        showMainWindowPlaylistSheet = false
         isResolvingBatch = false
         batchResolutionError = nil
     }
@@ -1548,6 +1556,7 @@ public final class AppViewModel: ObservableObject {
             let video = ParsedYouTubeVideo(videoID: videoID)
             addYouTubeVideo(video)
             pendingBatchIngestion = nil
+            showMainWindowPlaylistSheet = false
             return
         }
         
@@ -1599,6 +1608,7 @@ public final class AppViewModel: ObservableObject {
                 }
                 statusMessage = "\(entries.count) video kuyruğa eklendi."
                 pendingBatchIngestion = nil
+                showMainWindowPlaylistSheet = false
                 isResolvingBatch = false
             }
         } catch {

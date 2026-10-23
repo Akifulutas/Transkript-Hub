@@ -40,6 +40,182 @@ struct MenuBarMiniWindow: View {
             
             Divider()
             
+            // Middle Content: Playlist Ingestion Prompt OR Default Controls
+            if let pending = viewModel.pendingBatchIngestion {
+                menuBarPlaylistPromptView(pending: pending)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.96)),
+                        removal: .opacity.combined(with: .scale(scale: 0.96))
+                    ))
+            } else {
+                defaultControlsView
+                    .transition(.opacity)
+            }
+            
+            Divider()
+            
+            // Bottom Controls
+            HStack {
+                Button(viewModel.t("menu_open_main")) {
+                    viewModel.bringMainWindowToFront()
+                }
+                .font(.system(size: 11, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+                
+                Spacer()
+                
+                Button(viewModel.t("section_settings")) {
+                    viewModel.openSettings()
+                }
+                .font(.system(size: 11, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Button(viewModel.t("menu_quit")) {
+                    NSApp.terminate(nil)
+                }
+                .font(.system(size: 11))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(width: 320)
+        .background(Color(NSColor.windowBackgroundColor))
+        .animation(.spring(response: 0.32, dampingFraction: 0.8), value: viewModel.pendingBatchIngestion != nil)
+    }
+    
+    // MARK: - Playlist / Batch Ingestion Prompt (Replaces default controls)
+    private func menuBarPlaylistPromptView(pending: PendingBatchIngestion) -> some View {
+        VStack(spacing: 10) {
+            // Header Badge
+            HStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(Color.Premium.crimsonVelvet.opacity(0.18))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: "play.rectangle.on.rectangle.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.Premium.crimsonVelvet)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pending.title)
+                        .font(.system(size: 11.5, weight: .bold))
+                        .foregroundStyle(Color.primary)
+                    Text(pending.subtitle)
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(Color.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.cancelBatchIngestion()
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            // Short, clear question
+            Text(viewModel.t("menu_playlist_question"))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.primary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 4)
+            
+            if viewModel.isResolvingBatch {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(viewModel.t("menu_playlist_resolving"))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Color.secondary)
+                }
+                .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 6) {
+                    // Option 1: Playlist'in Tamamını Ekle
+                    Button(action: {
+                        Task { await viewModel.resolveAndIngestBatch(selection: .all) }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.stack.3d.up.fill")
+                                .font(.system(size: 10.5, weight: .bold))
+                            Text(viewModel.t("menu_playlist_add_all"))
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .tint(Color.Premium.crimsonVelvet)
+                    
+                    // Options: İlk 5 Video / Yalnızca Bu Video
+                    HStack(spacing: 6) {
+                        Button(action: {
+                            Task { await viewModel.resolveAndIngestBatch(selection: .latest5) }
+                        }) {
+                            Text(viewModel.t("menu_playlist_add_latest_5"))
+                                .font(.system(size: 10, weight: .medium))
+                                .frame(maxWidth: .infinity)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        
+                        if pending.singleVideoID != nil {
+                            Button(action: {
+                                Task { await viewModel.resolveAndIngestBatch(selection: .singleVideoOnly) }
+                            }) {
+                                Text(viewModel.t("menu_playlist_add_single"))
+                                    .font(.system(size: 10, weight: .medium))
+                                    .frame(maxWidth: .infinity)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    
+                    // Cancel
+                    Button(viewModel.t("action_cancel")) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            viewModel.cancelBatchIngestion()
+                        }
+                    }
+                    .font(.system(size: 10))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.secondary)
+                    .padding(.top, 2)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.035))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Default Controls (When no playlist prompt is active)
+    private var defaultControlsView: some View {
+        VStack(spacing: 12) {
             // Actionable Status Card
             VStack(alignment: .leading, spacing: 4) {
                 Text(viewModel.actionableSummary)
@@ -137,40 +313,7 @@ struct MenuBarMiniWindow: View {
                     .controlSize(.small)
                 }
             }
-            
-            Divider()
-            
-            // Bottom Controls
-            HStack {
-                Button(viewModel.t("menu_open_main")) {
-                    viewModel.bringMainWindowToFront()
-                }
-                .font(.system(size: 11, weight: .medium))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                
-                Spacer()
-                
-                Button(viewModel.t("section_settings")) {
-                    viewModel.openSettings()
-                }
-                .font(.system(size: 11, weight: .medium))
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                Button(viewModel.t("menu_quit")) {
-                    NSApp.terminate(nil)
-                }
-                .font(.system(size: 11))
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-            }
         }
-        .padding(14)
-        .frame(width: 320)
-        .background(Color(NSColor.windowBackgroundColor))
     }
     
     private func submitQuickText() {
