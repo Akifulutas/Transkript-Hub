@@ -240,44 +240,46 @@ public struct ContentView: View {
             }
         }
         
-        ToolbarItemGroup(placement: .automatic) {
-            // Add Media Button (YouTube link, Paste Clipboard, Choose Audio File)
-            Button(action: {
-                isAddMediaPresented.toggle()
-            }) {
-                HStack(spacing: 5) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 11.5, weight: .semibold))
-                    Text(viewModel.t("toolbar_add_media"))
-                        .font(.system(size: 11.5, weight: .semibold))
-                }
-                .foregroundStyle(Color.accentColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .liquidGlassCapsule(glowColor: Color.accentColor.opacity(0.35), material: .ultraThinMaterial)
-            }
-            .buttonStyle(.plain)
-            .help(viewModel.t("toolbar_add_media_help"))
-            .popover(isPresented: $isAddMediaPresented, arrowEdge: .bottom) {
-                AddMediaPopoverView(
-                    viewModel: viewModel,
-                    isPresented: $isAddMediaPresented
-                )
-            }
-            
-            // Settings Floating Modal Button
-            Button(action: {
-                viewModel.openSettings()
-            }) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.secondary)
+        ToolbarItem(placement: .primaryAction) {
+            HStack(spacing: 8) {
+                // Add Media Button (YouTube link, Paste Clipboard, Choose Audio File)
+                Button(action: {
+                    isAddMediaPresented.toggle()
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 11.5, weight: .semibold))
+                        Text(viewModel.t("toolbar_add_media"))
+                            .font(.system(size: 11.5, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+                    .liquidGlassCapsule(glowColor: Color.accentColor.opacity(0.35), material: .ultraThinMaterial)
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.t("toolbar_add_media_help"))
+                .popover(isPresented: $isAddMediaPresented, arrowEdge: .bottom) {
+                    AddMediaPopoverView(
+                        viewModel: viewModel,
+                        isPresented: $isAddMediaPresented
+                    )
+                }
+                
+                // Settings Floating Modal Button
+                Button(action: {
+                    viewModel.openSettings()
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .liquidGlassCapsule(glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
+                }
+                .buttonStyle(.plain)
+                .help("\(viewModel.t("section_settings")) (⌘,)")
             }
-            .buttonStyle(.plain)
-            .help("\(viewModel.t("section_settings")) (⌘,)")
         }
     }
     
