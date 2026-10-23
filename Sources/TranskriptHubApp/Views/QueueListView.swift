@@ -236,6 +236,7 @@ struct QueueListView: View {
             isSelected: viewModel.selectedItemID == item.id,
             statusTitle: viewModel.localizedState(item.state),
             onRemove: { viewModel.removeItem(id: item.id) },
+            onCopyTranscript: { viewModel.copyTranscriptContent(for: item) },
             onOpenFinder: { viewModel.openItemOutputInFinder(item) }
         )
         .contextMenu { rowContextMenu(item: item) }
@@ -324,8 +325,10 @@ struct StandardQueueRow: View {
     let isSelected: Bool
     var statusTitle: String? = nil
     var onRemove: (() -> Void)? = nil
+    var onCopyTranscript: (() -> Void)? = nil
     var onOpenFinder: (() -> Void)? = nil
     @State private var isHovered: Bool = false
+    @State private var isCopied: Bool = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -374,6 +377,36 @@ struct StandardQueueRow: View {
                 .buttonStyle(.plain)
                 .help(L10n.tr("action_remove_item"))
                 .transition(.opacity)
+            }
+            
+            // Quick Copy Transcript for completed items
+            if item.state == .completed {
+                Button(action: {
+                    onCopyTranscript?()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isCopied = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isCopied = false
+                        }
+                    }
+                }) {
+                    Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(isCopied ? Color.Premium.emeraldMineral : .accentColor)
+                        .padding(5)
+                        .background(Circle().fill(isCopied ? Color.Premium.emeraldMineral.opacity(0.20) : Color.accentColor.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                .hoverHelpTooltip(
+                    title: L10n.tr("action_copy_transcript"),
+                    description: L10n.tr("hub_tooltip_copy_transcript_desc"),
+                    icon: isCopied ? "checkmark" : "doc.on.doc",
+                    statusColor: isCopied ? Color.Premium.emeraldMineral : .accentColor,
+                    placement: .topTrailing,
+                    width: 220
+                )
             }
             
             // Quick Open in Finder for completed items

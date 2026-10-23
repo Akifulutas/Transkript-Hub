@@ -1013,7 +1013,7 @@ public struct UnifiedStudioHubView: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.queueItems) { item in
-                        queueItemRow(item: item)
+                        StudioQueueItemRow(viewModel: viewModel, item: item)
                     }
                     
                     // Bottom Circular Clear Queue Button (Icon-only)
@@ -1040,156 +1040,7 @@ public struct UnifiedStudioHubView: View {
         }
     }
     
-    // MARK: - Queue Item Row
-    private func queueItemRow(item: QueueItem) -> some View {
-        Button(action: {
-            viewModel.selectedItemID = item.id
-        }) {
-            HStack(spacing: 12) {
-                // Media Type Icon / Thumbnail
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
-                        .frame(width: 48, height: 36)
-                    
-                    if let thumbURL = item.thumbnailURL {
-                        AsyncImage(url: thumbURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 48, height: 36)
-                                    .clipped()
-                            case .failure:
-                                Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
-                            case .empty:
-                                ProgressView()
-                                    .controlSize(.mini)
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
-                        .frame(width: 48, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    } else {
-                        Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
-                            .font(.system(size: 16))
-                            .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
-                    }
-                }
-                .frame(width: 48, height: 36)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-                
-                // Title and Subtitle
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.title)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.primary)
-                        .lineLimit(1)
-                    
-                    HStack(spacing: 6) {
-                        Text(item.subtitle)
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.secondary)
-                        
-                        if let dur = item.durationSec {
-                            Text("• \(AudioPlayerController.formatTime(dur))")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Color.secondary)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                // Status Badge & Inline Actions
-                HStack(spacing: 6) {
-                    stateBadge(for: item.state)
-                    
-                    if item.state == .completed {
-                        Button(action: {
-                            viewModel.openItemOutputInFinder(item)
-                        }) {
-                            Image(systemName: "folder")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                                .padding(5)
-                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(viewModel.t("action_open_finder"))
-                        .hoverHelpTooltip(
-                            title: viewModel.t("hub_tooltip_finder_title"),
-                            description: viewModel.t("hub_tooltip_finder_desc"),
-                            icon: "folder",
-                            statusColor: .accentColor,
-                            placement: .topTrailing,
-                            width: 220
-                        )
-                    }
-                    
-                    Button(action: {
-                        viewModel.removeItem(id: item.id)
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.secondary.opacity(0.7))
-                            .padding(4)
-                    }
-                    .buttonStyle(.plain)
-                    .help(viewModel.t("action_remove_item"))
-                    .accessibilityLabel(viewModel.t("action_remove_item"))
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .liquidGlass(cornerRadius: 12, glowColor: .white.opacity(0.3), material: .ultraThinMaterial)
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Helper Views & Actions
-    
-    private func stateBadge(for state: QueueItemState) -> some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(badgeColor(for: state))
-                .frame(width: 6, height: 6)
-            Text(localizedState(for: state))
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(badgeColor(for: state))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
-    }
-    
-    private func localizedState(for state: QueueItemState) -> String {
-        switch state {
-        case .queued: return viewModel.t("status_queued")
-        case .fetching: return viewModel.t("status_fetching")
-        case .transcribing: return viewModel.t("status_transcribing")
-        case .completed: return viewModel.t("status_completed")
-        case .failed: return viewModel.t("status_failed")
-        }
-    }
-    
-    private func badgeColor(for state: QueueItemState) -> Color {
-        switch state {
-        case .queued: return .secondary
-        case .fetching: return Color.Premium.slateAzure
-        case .transcribing: return Color.Premium.cashmereViolet
-        case .completed: return Color.Premium.emeraldMineral
-        case .failed: return Color.Premium.terracotta
-        }
-    }
-    
+    // MARK: - Local Audio Selection Helper
     private func selectLocalAudioFiles() {
         viewModel.promptForLocalAudioFiles()
     }
@@ -1295,6 +1146,269 @@ public struct UnifiedStudioHubView: View {
         case "en": return viewModel.t("hub_lang_en")
         case "de": return viewModel.t("hub_lang_de")
         default: return code.uppercased()
+        }
+    }
+}
+
+// MARK: - Studio Queue Item Row (High-End Dynamic Liquid Glass Visual Hierarchy)
+struct StudioQueueItemRow: View {
+    @ObservedObject var viewModel: AppViewModel
+    let item: QueueItem
+    @State private var isCopied: Bool = false
+    @State private var isHovered: Bool = false
+    
+    var isCompleted: Bool {
+        item.state == .completed
+    }
+    
+    var body: some View {
+        Button(action: {
+            viewModel.selectedItemID = item.id
+        }) {
+            HStack(spacing: 12) {
+                // Media Type Icon / Thumbnail
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
+                        .frame(width: 48, height: 36)
+                    
+                    if let thumbURL = item.thumbnailURL {
+                        AsyncImage(url: thumbURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 48, height: 36)
+                                    .clipped()
+                            case .failure:
+                                Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
+                            case .empty:
+                                ProgressView()
+                                    .controlSize(.mini)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .frame(width: 48, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
+                            .font(.system(size: 16))
+                            .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
+                    }
+                }
+                .frame(width: 48, height: 36)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
+                
+                // Title and Subtitle
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                    
+                    HStack(spacing: 6) {
+                        Text(item.subtitle)
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.secondary)
+                        
+                        if let dur = item.durationSec {
+                            Text("• \(AudioPlayerController.formatTime(dur))")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Status Badge & Inline Actions
+                HStack(spacing: 6) {
+                    stateBadge(for: item.state)
+                    
+                    if isCompleted {
+                        // Quick Copy Transcript Content Button
+                        Button(action: {
+                            copyTranscriptContent()
+                        }) {
+                            Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(isCopied ? Color.Premium.emeraldMineral : Color.accentColor)
+                                .padding(5)
+                                .background(
+                                    Circle()
+                                        .fill(isCopied ? Color.Premium.emeraldMineral.opacity(0.20) : Color.accentColor.opacity(0.12))
+                                )
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("action_copy_transcript"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("action_copy_transcript"),
+                            description: viewModel.t("hub_tooltip_copy_transcript_desc"),
+                            icon: isCopied ? "checkmark" : "doc.on.doc",
+                            statusColor: isCopied ? Color.Premium.emeraldMineral : .accentColor,
+                            placement: .topTrailing,
+                            width: 220
+                        )
+                        
+                        // Show in Finder Button
+                        Button(action: {
+                            viewModel.openItemOutputInFinder(item)
+                        }) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(5)
+                                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(viewModel.t("action_open_finder"))
+                        .hoverHelpTooltip(
+                            title: viewModel.t("hub_tooltip_finder_title"),
+                            description: viewModel.t("hub_tooltip_finder_desc"),
+                            icon: "folder",
+                            statusColor: .accentColor,
+                            placement: .topTrailing,
+                            width: 220
+                        )
+                    }
+                    
+                    Button(action: {
+                        viewModel.removeItem(id: item.id)
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.secondary.opacity(0.7))
+                            .padding(4)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(viewModel.t("action_remove_item"))
+                    .accessibilityLabel(viewModel.t("action_remove_item"))
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(rowBackground)
+            .overlay(rowBorder)
+            .shadow(
+                color: isCompleted ? Color.Premium.emeraldMineral.opacity(0.12) : Color.black.opacity(0.04),
+                radius: isCompleted ? 8 : 6,
+                x: 0,
+                y: isCompleted ? 3 : 2
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    // MARK: - Row Background (Tamamlananlar: Saydam Yeşil | Diğerleri: Blurlu, Renksiz)
+    @ViewBuilder
+    private var rowBackground: some View {
+        if isCompleted {
+            // Tamamlananlar: Sağdan sola arka planın tamamı hafif, opak olmayan zümrüt yeşilliğe sahip
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.22 : 0.16), location: 0.0),
+                                .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.14 : 0.09), location: 0.5),
+                                .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.20 : 0.15), location: 1.0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            }
+        } else {
+            // Diğerleri / Yapılacak olanlar: Daha blurlu, renksiz, nötr buzlu cam
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.thinMaterial)
+                .opacity(isHovered ? 0.95 : 0.85)
+        }
+    }
+    
+    // MARK: - Row Border
+    private var rowBorder: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    stops: isCompleted ? [
+                        .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.55 : 0.40), location: 0.0),
+                        .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.30 : 0.20), location: 0.5),
+                        .init(color: Color.Premium.emeraldMineral.opacity(isHovered ? 0.45 : 0.30), location: 1.0)
+                    ] : [
+                        .init(color: Color.white.opacity(isHovered ? 0.22 : 0.14), location: 0.0),
+                        .init(color: Color.white.opacity(isHovered ? 0.08 : 0.04), location: 0.6),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: isCompleted ? 1.0 : 0.75
+            )
+            .allowsHitTesting(false)
+    }
+    
+    private func copyTranscriptContent() {
+        viewModel.copyTranscriptContent(for: item)
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            isCopied = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isCopied = false
+            }
+        }
+    }
+    
+    private func stateBadge(for state: QueueItemState) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(badgeColor(for: state))
+                .frame(width: 6, height: 6)
+            Text(localizedState(for: state))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(badgeColor(for: state))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(badgeColor(for: state).opacity(0.14)))
+    }
+    
+    private func localizedState(for state: QueueItemState) -> String {
+        switch state {
+        case .queued: return viewModel.t("status_queued")
+        case .fetching: return viewModel.t("status_fetching")
+        case .transcribing: return viewModel.t("status_transcribing")
+        case .completed: return viewModel.t("status_completed")
+        case .failed: return viewModel.t("status_failed")
+        }
+    }
+    
+    private func badgeColor(for state: QueueItemState) -> Color {
+        switch state {
+        case .queued: return .secondary
+        case .fetching: return Color.Premium.slateAzure
+        case .transcribing: return Color.Premium.cashmereViolet
+        case .completed: return Color.Premium.emeraldMineral
+        case .failed: return Color.Premium.terracotta
         }
     }
 }

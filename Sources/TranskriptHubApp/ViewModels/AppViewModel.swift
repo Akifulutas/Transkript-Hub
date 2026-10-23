@@ -2190,6 +2190,23 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
+    public func copyTranscriptContent(for item: QueueItem) {
+        var textToCopy: String? = item.transcript
+        if textToCopy == nil || textToCopy?.isEmpty == true {
+            if let outURL = item.outputURL, let fileText = try? String(contentsOf: outURL, encoding: .utf8), !fileText.isEmpty {
+                textToCopy = fileText
+            } else {
+                let candidate = outputDirectoryURL.appendingPathComponent("\(item.title).txt")
+                if let fileText = try? String(contentsOf: candidate, encoding: .utf8), !fileText.isEmpty {
+                    textToCopy = fileText
+                }
+            }
+        }
+        
+        guard let text = textToCopy, !text.isEmpty else { return }
+        copyTranscript(text: text)
+    }
+    
     public func copySelectedTranscript() {
         if let currentText = selectedItem?.transcript ?? selectedHistoryItem?.snippet {
             copyTranscript(text: currentText)
