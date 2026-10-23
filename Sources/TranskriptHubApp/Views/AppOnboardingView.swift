@@ -137,7 +137,7 @@ public struct AppOnboardingView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color.accentColor.opacity(0.25), Color.purple.opacity(0.15)],
+                            colors: [Color.Premium.sapphirePro.opacity(0.22), Color.Premium.sapphireProDeep.opacity(0.12)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -148,7 +148,7 @@ public struct AppOnboardingView: View {
                     .font(.system(size: 38, weight: .bold))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.accentColor, Color.purple],
+                            colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -178,25 +178,25 @@ public struct AppOnboardingView: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 12) {
                 bentoCard(
                     icon: "lock.shield.fill",
-                    color: .green,
+                    color: Color.Premium.emeraldMineral,
                     title: viewModel.t("onboarding_welcome_card1_title"),
                     desc: viewModel.t("onboarding_welcome_card1_desc")
                 )
                 bentoCard(
                     icon: "doc.on.clipboard.fill",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_welcome_card2_title"),
                     desc: viewModel.t("onboarding_welcome_card2_desc")
                 )
                 bentoCard(
                     icon: "folder.fill.badge.gearshape",
-                    color: .orange,
+                    color: Color.Premium.champagneBronze,
                     title: viewModel.t("onboarding_welcome_card3_title"),
                     desc: viewModel.t("onboarding_welcome_card3_desc")
                 )
                 bentoCard(
                     icon: "mic.fill",
-                    color: .red,
+                    color: Color.Premium.crimsonVelvet,
                     title: viewModel.t("onboarding_welcome_card4_title"),
                     desc: viewModel.t("onboarding_welcome_card4_desc")
                 )
@@ -212,26 +212,26 @@ public struct AppOnboardingView: View {
     private var localAIStepView: some View {
         stepTemplate(
             badge: viewModel.t("onboarding_step1_badge"),
-            badgeColor: .purple,
+            badgeColor: Color.Premium.champagneBronze,
             title: viewModel.t("onboarding_step1_title"),
             subtitle: viewModel.t("onboarding_step1_sub")
         ) {
             VStack(spacing: 12) {
                 featureHighlightCard(
                     icon: "cpu.fill",
-                    color: .purple,
+                    color: Color.Premium.champagneBronze,
                     title: viewModel.t("onboarding_step1_card1_title"),
                     desc: viewModel.t("onboarding_step1_card1_desc")
                 )
                 featureHighlightCard(
                     icon: "globe",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_step1_card2_title"),
                     desc: viewModel.t("onboarding_step1_card2_desc")
                 )
                 featureHighlightCard(
                     icon: "airplane",
-                    color: .green,
+                    color: Color.Premium.emeraldMineral,
                     title: viewModel.t("onboarding_step1_card3_title"),
                     desc: viewModel.t("onboarding_step1_card3_desc")
                 )
@@ -243,26 +243,26 @@ public struct AppOnboardingView: View {
     private var clipboardQueueStepView: some View {
         stepTemplate(
             badge: viewModel.t("onboarding_step2_badge"),
-            badgeColor: .blue,
+            badgeColor: Color.Premium.slateAzure,
             title: viewModel.t("onboarding_step2_title"),
             subtitle: viewModel.t("onboarding_step2_sub")
         ) {
             VStack(spacing: 12) {
                 featureHighlightCard(
                     icon: "doc.on.clipboard.fill",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_step2_card1_title"),
                     desc: viewModel.t("onboarding_step2_card1_desc")
                 )
                 featureHighlightCard(
                     icon: "arrow.down.doc.fill",
-                    color: .teal,
+                    color: Color.Premium.obsidianTeal,
                     title: viewModel.t("onboarding_step2_card2_title"),
                     desc: viewModel.t("onboarding_step2_card2_desc")
                 )
                 featureHighlightCard(
                     icon: "arrow.up.arrow.down",
-                    color: .indigo,
+                    color: Color.Premium.cashmereViolet,
                     title: viewModel.t("onboarding_step2_card3_title"),
                     desc: viewModel.t("onboarding_step2_card3_desc")
                 )
@@ -274,26 +274,26 @@ public struct AppOnboardingView: View {
     private var watchedFoldersStepView: some View {
         stepTemplate(
             badge: viewModel.t("onboarding_step3_badge"),
-            badgeColor: .teal,
+            badgeColor: Color.Premium.obsidianTeal,
             title: viewModel.t("onboarding_step3_title"),
             subtitle: viewModel.t("onboarding_step3_sub")
         ) {
             VStack(spacing: 12) {
                 featureHighlightCard(
                     icon: "waveform.circle.fill",
-                    color: .red,
+                    color: Color.Premium.crimsonVelvet,
                     title: viewModel.t("onboarding_step3_card1_title"),
                     desc: viewModel.t("onboarding_step3_card1_desc")
                 )
                 featureHighlightCard(
                     icon: "icloud.fill",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_step3_card2_title"),
                     desc: viewModel.t("onboarding_step3_card2_desc")
                 )
                 featureHighlightCard(
                     icon: "bolt.badge.automatic.fill",
-                    color: .orange,
+                    color: Color.Premium.champagneBronze,
                     title: viewModel.t("onboarding_step3_card3_title"),
                     desc: viewModel.t("onboarding_step3_card3_desc")
                 )
@@ -305,26 +305,26 @@ public struct AppOnboardingView: View {
     private var liveRecordingStepView: some View {
         stepTemplate(
             badge: viewModel.t("onboarding_step4_badge"),
-            badgeColor: .red,
+            badgeColor: Color.Premium.crimsonVelvet,
             title: viewModel.t("onboarding_step4_title"),
             subtitle: viewModel.t("onboarding_step4_sub")
         ) {
             VStack(spacing: 12) {
                 featureHighlightCard(
                     icon: "mic.fill",
-                    color: .red,
+                    color: Color.Premium.crimsonVelvet,
                     title: viewModel.t("onboarding_step4_card1_title"),
                     desc: viewModel.t("onboarding_step4_card1_desc")
                 )
                 featureHighlightCard(
                     icon: "display",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_step4_card2_title"),
                     desc: viewModel.t("onboarding_step4_card2_desc")
                 )
                 featureHighlightCard(
                     icon: "sparkles",
-                    color: .purple,
+                    color: Color.Premium.cashmereViolet,
                     title: viewModel.t("onboarding_step4_card3_title"),
                     desc: viewModel.t("onboarding_step4_card3_desc")
                 )
@@ -336,26 +336,26 @@ public struct AppOnboardingView: View {
     private var karaokeExportStepView: some View {
         stepTemplate(
             badge: viewModel.t("onboarding_step5_badge"),
-            badgeColor: .pink,
+            badgeColor: Color.Premium.cashmereViolet,
             title: viewModel.t("onboarding_step5_title"),
             subtitle: viewModel.t("onboarding_step5_sub")
         ) {
             VStack(spacing: 12) {
                 featureHighlightCard(
                     icon: "play.circle.fill",
-                    color: .green,
+                    color: Color.Premium.emeraldMineral,
                     title: viewModel.t("onboarding_step5_card1_title"),
                     desc: viewModel.t("onboarding_step5_card1_desc")
                 )
                 featureHighlightCard(
                     icon: "person.2.fill",
-                    color: .purple,
+                    color: Color.Premium.cashmereViolet,
                     title: viewModel.t("onboarding_step5_card2_title"),
                     desc: viewModel.t("onboarding_step5_card2_desc")
                 )
                 featureHighlightCard(
                     icon: "folder.fill",
-                    color: .blue,
+                    color: Color.Premium.slateAzure,
                     title: viewModel.t("onboarding_step5_card3_title"),
                     desc: viewModel.t("onboarding_step5_card3_desc")
                 )
@@ -541,7 +541,7 @@ public struct AppOnboardingView: View {
                 .padding(.vertical, 8)
                 .background(
                     LinearGradient(
-                        colors: currentStep == .karaokeExport ? [Color.accentColor, Color.purple] : [Color.accentColor, Color.accentColor.opacity(0.85)],
+                        colors: currentStep == .karaokeExport ? [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep] : [Color.accentColor, Color.accentColor.opacity(0.85)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )

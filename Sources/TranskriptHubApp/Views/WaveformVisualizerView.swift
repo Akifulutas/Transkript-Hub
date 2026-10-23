@@ -70,11 +70,11 @@ public struct WaveformVisualizerView: View {
                             }
                         }
                         
-                        // Fill played region with vibrant Apple accent gradient
+                        // Fill played region with refined high-end accent gradient
                         context.fill(
                             playedPath,
                             with: .linearGradient(
-                                Gradient(colors: [Color.accentColor, Color.purple]),
+                                Gradient(colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep]),
                                 startPoint: CGPoint(x: 0, y: 0),
                                 endPoint: CGPoint(x: max(playheadX, 10), y: size.height)
                             )

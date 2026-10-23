@@ -17,7 +17,7 @@ struct SidebarView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.orange)
+                                .background(Color.Premium.terracotta)
                                 .clipShape(Capsule())
                         } else if !viewModel.queueItems.isEmpty {
                             Text("\(viewModel.queueItems.count)")
@@ -51,11 +51,11 @@ struct SidebarView: View {
                         Spacer()
                         ZStack {
                             Circle()
-                                .fill(viewModel.isFolderWatching ? Color.green : Color.gray.opacity(0.4))
+                                .fill(viewModel.isFolderWatching ? Color.Premium.emeraldMineral : Color.gray.opacity(0.4))
                                 .frame(width: 8, height: 8)
                             if viewModel.isFolderWatching {
                                 Circle()
-                                    .stroke(Color.green.opacity(0.4), lineWidth: 2)
+                                    .stroke(Color.Premium.emeraldMineral.opacity(0.4), lineWidth: 2)
                                     .frame(width: 14, height: 14)
                             }
                         }
@@ -73,7 +73,7 @@ struct SidebarView: View {
             // Live Status Capsule at Sidebar Bottom
             HStack(spacing: 6) {
                 Circle()
-                    .fill(viewModel.isProcessing ? Color.purple : (viewModel.isFolderWatching ? Color.green : Color.gray))
+                    .fill(viewModel.isProcessing ? Color.Premium.cashmereViolet : (viewModel.isFolderWatching ? Color.Premium.emeraldMineral : Color.gray))
                     .frame(width: 6, height: 6)
                 
                 Text(viewModel.isProcessing ? viewModel.t("sidebar_processing") : (viewModel.isFolderWatching ? viewModel.t("sidebar_listening") : viewModel.t("status_ready")))

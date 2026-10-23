@@ -52,7 +52,7 @@ public struct PlaylistIngestionSheet: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: isChannel ? [.purple.opacity(0.4), .blue.opacity(0.25)] : [.red.opacity(0.4), .orange.opacity(0.25)],
+                                colors: isChannel ? [Color.Premium.cashmereViolet.opacity(0.35), Color.Premium.slateAzure.opacity(0.2)] : [Color.Premium.crimsonVelvet.opacity(0.35), Color.Premium.champagneBronze.opacity(0.2)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -61,7 +61,7 @@ public struct PlaylistIngestionSheet: View {
                     
                     Image(systemName: isChannel ? "play.tv.fill" : "music.note.list")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(isChannel ? .purple : .red)
+                        .foregroundColor(isChannel ? Color.Premium.cashmereViolet : Color.Premium.crimsonVelvet)
                 }
                 
                 VStack(alignment: .leading, spacing: 3) {
@@ -74,8 +74,8 @@ public struct PlaylistIngestionSheet: View {
                             .font(.system(size: 9, weight: .heavy))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(isChannel ? Color.purple.opacity(0.2) : Color.red.opacity(0.2))
-                            .foregroundColor(isChannel ? .purple : .red)
+                            .background(isChannel ? Color.Premium.cashmereViolet.opacity(0.18) : Color.Premium.crimsonVelvet.opacity(0.18))
+                            .foregroundColor(isChannel ? Color.Premium.cashmereViolet : Color.Premium.crimsonVelvet)
                             .clipShape(Capsule())
                     }
                     
@@ -226,15 +226,15 @@ public struct PlaylistIngestionSheet: View {
             if let errorMsg = viewModel.batchResolutionError {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
+                        .foregroundColor(Color.Premium.crimsonVelvet)
                     Text(errorMsg)
                         .font(.system(size: 11))
-                        .foregroundColor(.red)
+                        .foregroundColor(Color.Premium.crimsonVelvet)
                         .lineLimit(3)
                     Spacer()
                 }
                 .padding(10)
-                .background(Color.red.opacity(0.1))
+                .background(Color.Premium.crimsonVelvet.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
@@ -336,8 +336,8 @@ public struct PlaylistIngestionSheet: View {
                             .font(.system(size: 9, weight: .bold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .background(Color.green.opacity(0.2))
-                            .foregroundColor(.green)
+                            .background(Color.Premium.emeraldMineral.opacity(0.18))
+                            .foregroundColor(Color.Premium.emeraldMineral)
                             .clipShape(Capsule())
                     }
                 }
@@ -386,8 +386,8 @@ public struct PlaylistIngestionSheet: View {
                         .font(.system(size: 8, weight: .bold))
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(Color.green.opacity(0.2))
-                        .foregroundColor(.green)
+                        .background(Color.Premium.emeraldMineral.opacity(0.18))
+                        .foregroundColor(Color.Premium.emeraldMineral)
                         .clipShape(Capsule())
                 }
             }

@@ -37,7 +37,7 @@ public struct SessionSaveModeSheet: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.accentColor.opacity(0.35), .purple.opacity(0.2)],
+                                colors: [Color.Premium.sapphirePro.opacity(0.35), Color.Premium.sapphireProDeep.opacity(0.2)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -159,8 +159,8 @@ public struct SessionSaveModeSheet: View {
                             .font(.system(size: 9, weight: .bold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .background(Color.green.opacity(0.2))
-                            .foregroundColor(.green)
+                            .background(Color.Premium.emeraldMineral.opacity(0.18))
+                            .foregroundColor(Color.Premium.emeraldMineral)
                             .clipShape(Capsule())
                     }
                 }

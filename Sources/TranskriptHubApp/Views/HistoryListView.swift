@@ -49,10 +49,10 @@ struct HistoryListView: View {
                             Text(viewModel.t("history_clear_btn"))
                                 .font(.system(size: 11, weight: .medium))
                         }
-                        .foregroundColor(.red.opacity(0.85))
+                        .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.85))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.red.opacity(0.1))
+                        .background(Color.Premium.crimsonVelvet.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)

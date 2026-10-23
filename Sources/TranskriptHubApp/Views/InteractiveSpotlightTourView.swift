@@ -26,13 +26,13 @@ public enum StudioTourStep: Int, CaseIterable, Identifiable, Sendable {
     
     public var tintColor: Color {
         switch self {
-        case .modelSelection: return .orange
-        case .languageSelection: return .blue
-        case .clipboardMonitoring: return .green
-        case .audioRecording: return .red
-        case .watchedFolders: return .teal
-        case .heroDropAndPaste: return .purple
-        case .queueAndTranscribe: return .accentColor
+        case .modelSelection: return Color.Premium.champagneBronze
+        case .languageSelection: return Color.Premium.slateAzure
+        case .clipboardMonitoring: return Color.Premium.emeraldMineral
+        case .audioRecording: return Color.Premium.crimsonVelvet
+        case .watchedFolders: return Color.Premium.obsidianTeal
+        case .heroDropAndPaste: return Color.Premium.cashmereViolet
+        case .queueAndTranscribe: return Color.accentColor
         }
     }
     

@@ -27,7 +27,7 @@ struct MenuBarMiniWindow: View {
                 // Live Status Pulse
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(viewModel.isFolderWatching ? Color.green : Color.gray.opacity(0.5))
+                        .fill(viewModel.isFolderWatching ? Color.Premium.emeraldMineral : Color.gray.opacity(0.5))
                         .frame(width: 7, height: 7)
                     Text(viewModel.isFolderWatching ? viewModel.t("status_watching") : viewModel.t("status_ready"))
                         .font(.system(size: 10, weight: .medium))
@@ -35,7 +35,7 @@ struct MenuBarMiniWindow: View {
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .liquidGlassCapsule(glowColor: viewModel.isFolderWatching ? .green : .white, material: .ultraThinMaterial)
+                .liquidGlassCapsule(glowColor: viewModel.isFolderWatching ? Color.Premium.emeraldMineral : .white, material: .ultraThinMaterial)
             }
             
             Divider()
@@ -116,7 +116,7 @@ struct MenuBarMiniWindow: View {
                 }) {
                     Label(viewModel.t("menu_record_audio"), systemImage: "mic.fill")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(Color.Premium.crimsonVelvet)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)

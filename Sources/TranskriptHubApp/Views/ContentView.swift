@@ -138,8 +138,8 @@ public struct ContentView: View {
         .overlay(
             LinearGradient(
                 stops: [
-                    .init(color: Color.blue.opacity(0.06), location: 0.0),
-                    .init(color: Color.purple.opacity(0.04), location: 0.35),
+                    .init(color: Color.white.opacity(0.025), location: 0.0),
+                    .init(color: Color(hex: "#8E9EAB").opacity(0.02), location: 0.35),
                     .init(color: .clear, location: 0.75)
                 ],
                 startPoint: .topLeading,

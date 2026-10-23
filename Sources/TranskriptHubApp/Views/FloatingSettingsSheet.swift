@@ -192,7 +192,7 @@ public struct FloatingSettingsSheet: View {
                             description: viewModel.t("hub_tooltip_clipboard_desc"),
                             icon: "doc.on.clipboard.fill",
                             status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
-                            statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                            statusColor: viewModel.isClipboardMonitoring ? Color.Premium.emeraldMineral : .secondary,
                             hint: viewModel.t("hub_tooltip_clipboard_hint"),
                             placement: .bottomLeading,
                             width: 250
@@ -223,12 +223,12 @@ public struct FloatingSettingsSheet: View {
                     HStack(spacing: 12) {
                         Label(viewModel.t("record_source_mic"), systemImage: "mic.fill")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.red)
+                            .foregroundColor(Color.Premium.crimsonVelvet)
                         Text("•")
                             .foregroundColor(.secondary.opacity(0.5))
                         Label(viewModel.t("record_source_system"), systemImage: "display")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color.Premium.slateAzure)
                         Spacer()
                         Button(action: {
                             viewModel.isRecordingSourceSheetPresented = true
@@ -246,7 +246,7 @@ public struct FloatingSettingsSheet: View {
                             description: viewModel.t("hub_tooltip_recording_desc"),
                             icon: "record.circle",
                             status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                            statusColor: .red,
+                            statusColor: Color.Premium.crimsonVelvet,
                             hint: viewModel.t("hub_tooltip_recording_hint"),
                             placement: .bottomTrailing,
                             width: 250
@@ -389,20 +389,20 @@ public struct FloatingSettingsSheet: View {
                         if let b = spec.badge {
                             Text(b)
                                 .font(.system(size: 9, weight: .semibold))
-                                .foregroundColor(.purple)
+                                .foregroundColor(Color.Premium.cashmereViolet)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.purple.opacity(0.12)))
+                                .background(Capsule().fill(Color.Premium.cashmereViolet.opacity(0.12)))
                                 .lineLimit(1)
                         }
                         
                         if isActive {
                             Text(viewModel.t("settings_active"))
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.green)
+                                .foregroundColor(Color.Premium.emeraldMineral)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
+                                .liquidGlassCapsule(glowColor: Color.Premium.emeraldMineral, material: .ultraThinMaterial)
                         }
                     }
                     
@@ -431,9 +431,9 @@ public struct FloatingSettingsSheet: View {
                         } label: {
                             Image(systemName: "trash")
                                 .font(.system(size: 11))
-                                .foregroundColor(.red.opacity(0.8))
+                                .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
                                 .padding(5)
-                                .background(Color.red.opacity(0.1))
+                                .background(Color.Premium.crimsonVelvet.opacity(0.1))
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -489,10 +489,10 @@ public struct FloatingSettingsSheet: View {
                                     .font(.system(size: 12, weight: .semibold))
                                 Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
                                     .font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(viewModel.isCustomOutputDirectory ? .teal : .secondary)
+                                    .foregroundColor(viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : .secondary)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill((viewModel.isCustomOutputDirectory ? Color.teal : Color.secondary).opacity(0.12)))
+                                    .background(Capsule().fill((viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : Color.secondary).opacity(0.12)))
                             }
                             Text(viewModel.outputDirectoryURL.path)
                                 .font(.system(size: 10, design: .monospaced))
@@ -516,7 +516,7 @@ public struct FloatingSettingsSheet: View {
                             }
                             .font(.system(size: 10))
                             .buttonStyle(.plain)
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
                         }
                         
                         Button(viewModel.t("action_open_finder")) {
@@ -590,15 +590,15 @@ public struct FloatingSettingsSheet: View {
                         HStack {
                             Label(viewModel.t("watched_icloud_title"), systemImage: "icloud.fill")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(Color.Premium.slateAzure)
                             
                             if viewModel.folderWatcher.isICloudDriveAvailable {
                                 Text(viewModel.t("watched_icloud_status_ready"))
                                     .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.green)
+                                    .foregroundColor(Color.Premium.emeraldMineral)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1.5)
-                                    .background(Capsule().fill(Color.green.opacity(0.12)))
+                                    .background(Capsule().fill(Color.Premium.emeraldMineral.opacity(0.12)))
                             }
                             
                             Spacer()
@@ -641,7 +641,7 @@ public struct FloatingSettingsSheet: View {
                         HStack {
                             Label(viewModel.t("watched_voicememos_title"), systemImage: "waveform")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.orange)
+                                .foregroundColor(Color.Premium.champagneBronze)
                             Spacer()
                             Toggle("", isOn: $viewModel.isVoiceMemosEnabled)
                                 .toggleStyle(.switch)
@@ -650,7 +650,7 @@ public struct FloatingSettingsSheet: View {
                             HStack {
                                 Text(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? viewModel.t("watched_status_accessible") : viewModel.t("watched_status_fda_needed"))
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? .green : .orange)
+                                    .foregroundColor(viewModel.folderWatcher.isVoiceMemosDirectlyAccessible ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze)
                                 Spacer()
                                 if !viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
                                     Button(viewModel.t("watched_open_settings")) {
@@ -672,7 +672,7 @@ public struct FloatingSettingsSheet: View {
                         HStack {
                             Label(viewModel.t("watched_custom_title"), systemImage: "folder.badge.plus")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.purple)
+                                .foregroundColor(Color.Premium.cashmereViolet)
                             Spacer()
                             Toggle("", isOn: $viewModel.folderWatcher.watchCustomFolder)
                                 .toggleStyle(.switch)
@@ -761,15 +761,15 @@ public struct FloatingSettingsSheet: View {
                     HStack {
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(viewModel.fullDiskAccessStatus.isGranted ? Color.green : Color.orange)
+                                .fill(viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze)
                                 .frame(width: 8, height: 8)
                             Text(viewModel.fullDiskAccessStatus.isGranted ? viewModel.t("settings_fda_granted") : viewModel.t("settings_fda_pending"))
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(viewModel.fullDiskAccessStatus.isGranted ? .green : .orange)
+                                .foregroundColor(viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral : Color.Premium.champagneBronze)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(viewModel.fullDiskAccessStatus.isGranted ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
+                        .background(viewModel.fullDiskAccessStatus.isGranted ? Color.Premium.emeraldMineral.opacity(0.12) : Color.Premium.champagneBronze.opacity(0.12))
                         .cornerRadius(6)
                         
                         Spacer()

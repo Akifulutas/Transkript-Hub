@@ -36,11 +36,11 @@ struct WatchedFolderView: View {
                         HStack(spacing: 8) {
                             ZStack {
                                 Circle()
-                                    .fill(viewModel.isFolderWatching ? Color.green : Color.gray)
+                                    .fill(viewModel.isFolderWatching ? Color.Premium.emeraldMineral : Color.gray)
                                     .frame(width: 9, height: 9)
                                 if viewModel.isFolderWatching {
                                     Circle()
-                                        .stroke(Color.green.opacity(0.4), lineWidth: 2)
+                                        .stroke(Color.Premium.emeraldMineral.opacity(0.4), lineWidth: 2)
                                         .frame(width: 15, height: 15)
                                 }
                             }
@@ -61,11 +61,11 @@ struct WatchedFolderView: View {
                     HStack(alignment: .top, spacing: 10) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(viewModel.folderWatcher.autoTranscribe ? Color.teal.opacity(0.14) : Color.secondary.opacity(0.1))
+                                .fill(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal.opacity(0.14) : Color.secondary.opacity(0.1))
                                 .frame(width: 28, height: 28)
                             Image(systemName: viewModel.folderWatcher.autoTranscribe ? "bolt.fill" : "hand.tap.fill")
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(viewModel.folderWatcher.autoTranscribe ? .teal : .secondary)
+                                .foregroundColor(viewModel.folderWatcher.autoTranscribe ? Color.Premium.obsidianTeal : .secondary)
                         }
                         
                         VStack(alignment: .leading, spacing: 2) {
@@ -166,11 +166,11 @@ struct WatchedFolderView: View {
                         HStack(alignment: .top) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.blue.opacity(0.12))
+                                    .fill(Color.Premium.slateAzure.opacity(0.12))
                                     .frame(width: 32, height: 32)
                                 Image(systemName: "icloud.fill")
                                     .font(.system(size: 16))
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(Color.Premium.slateAzure)
                             }
                             
                             VStack(alignment: .leading, spacing: 3) {
@@ -181,26 +181,26 @@ struct WatchedFolderView: View {
                                     if viewModel.folderWatcher.isICloudDriveAvailable {
                                         Text(viewModel.t("watched_icloud_status_ready"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.green)
+                                            .foregroundColor(Color.Premium.emeraldMineral)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.green.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.emeraldMineral.opacity(0.12)))
                                     } else {
                                         Text(viewModel.t("watched_icloud_status_missing"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.orange)
+                                            .foregroundColor(Color.Premium.champagneBronze)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.orange.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.champagneBronze.opacity(0.12)))
                                     }
                                     
                                     if viewModel.folderWatcher.isICloudTranskriptFolderReady {
                                         Text(viewModel.t("watched_icloud_folder_ready"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(Color.Premium.slateAzure)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.blue.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.slateAzure.opacity(0.12)))
                                     }
                                 }
                                 Text(viewModel.t("watched_icloud_desc"))
@@ -277,11 +277,11 @@ struct WatchedFolderView: View {
                         HStack(alignment: .top) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.orange.opacity(0.12))
+                                    .fill(Color.Premium.champagneBronze.opacity(0.12))
                                     .frame(width: 32, height: 32)
                                 Image(systemName: "waveform")
                                     .font(.system(size: 16))
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(Color.Premium.champagneBronze)
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
@@ -292,17 +292,17 @@ struct WatchedFolderView: View {
                                     if viewModel.folderWatcher.isVoiceMemosDirectlyAccessible {
                                         Text(viewModel.t("watched_status_accessible"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.green)
+                                            .foregroundColor(Color.Premium.emeraldMineral)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.green.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.emeraldMineral.opacity(0.12)))
                                     } else {
                                         Text(viewModel.t("watched_status_fda_needed"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.orange)
+                                            .foregroundColor(Color.Premium.champagneBronze)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.orange.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.champagneBronze.opacity(0.12)))
                                     }
                                 }
                                 Text(viewModel.t("watched_voicememos_desc"))
@@ -350,18 +350,18 @@ struct WatchedFolderView: View {
                         }
                     }
                     .padding(14)
-                    .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchVoiceMemos ? .orange.opacity(0.5) : .white, material: .ultraThinMaterial)
+                    .liquidGlass(cornerRadius: 12, glowColor: viewModel.folderWatcher.watchVoiceMemos ? Color.Premium.champagneBronze.opacity(0.4) : .white, material: .ultraThinMaterial)
                     
                     // Source 3: Custom Watched Folder (İzlenecek Klasör)
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .top) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.purple.opacity(0.12))
+                                    .fill(Color.Premium.cashmereViolet.opacity(0.12))
                                     .frame(width: 32, height: 32)
                                 Image(systemName: "folder.badge.plus")
                                     .font(.system(size: 16))
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(Color.Premium.cashmereViolet)
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
@@ -371,10 +371,10 @@ struct WatchedFolderView: View {
                                     if viewModel.folderWatcher.watchCustomFolder && viewModel.folderWatcher.customFolderURL != nil {
                                         Text(viewModel.t("settings_active"))
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.purple)
+                                            .foregroundColor(Color.Premium.cashmereViolet)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.purple.opacity(0.12)))
+                                            .background(Capsule().fill(Color.Premium.cashmereViolet.opacity(0.12)))
                                     }
                                 }
                                 Text(viewModel.t("watched_custom_desc"))
@@ -461,11 +461,11 @@ struct WatchedFolderView: View {
                         HStack(alignment: .center, spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.teal.opacity(0.14))
+                                    .fill(Color.Premium.obsidianTeal.opacity(0.14))
                                     .frame(width: 34, height: 34)
                                 Image(systemName: "doc.text.fill")
                                     .font(.system(size: 16))
-                                    .foregroundColor(.teal)
+                                    .foregroundColor(Color.Premium.obsidianTeal)
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
@@ -475,12 +475,12 @@ struct WatchedFolderView: View {
                                     
                                     Text(viewModel.isCustomOutputDirectory ? viewModel.t("watched_output_custom_badge") : viewModel.t("watched_output_default_badge"))
                                         .font(.system(size: 9, weight: .bold))
-                                        .foregroundColor(viewModel.isCustomOutputDirectory ? .teal : .secondary)
+                                        .foregroundColor(viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : .secondary)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(
                                             Capsule().fill(
-                                                (viewModel.isCustomOutputDirectory ? Color.teal : Color.secondary).opacity(0.12)
+                                                (viewModel.isCustomOutputDirectory ? Color.Premium.obsidianTeal : Color.secondary).opacity(0.12)
                                             )
                                         )
                                 }

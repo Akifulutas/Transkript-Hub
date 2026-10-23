@@ -168,17 +168,17 @@ private struct SegmentRowView: View {
     @State private var isHovered: Bool = false
     
     private var higColor: Color {
-        guard let spk = segment.speaker, !spk.isEmpty else { return .purple }
+        guard let spk = segment.speaker, !spk.isEmpty else { return Color.Premium.cashmereViolet }
         let badge = AppleHIGPalette.color(for: spk)
         switch badge.index {
-        case 0: return .blue
-        case 1: return .purple
-        case 2: return .orange
-        case 3: return .green
-        case 4: return .pink
-        case 5: return .teal
-        case 6: return .indigo
-        case 7: return .yellow
+        case 0: return Color.Premium.slateAzure
+        case 1: return Color.Premium.cashmereViolet
+        case 2: return Color.Premium.champagneBronze
+        case 3: return Color.Premium.emeraldMineral
+        case 4: return Color.Premium.crimsonVelvet
+        case 5: return Color.Premium.obsidianTeal
+        case 6: return Color.Premium.sapphirePro
+        case 7: return Color.Premium.champagneBronze
         default: return .accentColor
         }
     }

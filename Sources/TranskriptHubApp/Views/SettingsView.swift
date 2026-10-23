@@ -81,7 +81,7 @@ struct SettingsView: View {
                             }
                             .font(.system(size: 10))
                             .buttonStyle(.plain)
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
                         }
                         
                         Button(viewModel.t("settings_open_folder")) {
@@ -157,7 +157,7 @@ struct SettingsView: View {
                 HStack(spacing: 10) {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(Color.Premium.emeraldMineral)
                             .font(.system(size: 12))
                         Text(viewModel.t("settings_downloaded"))
                             .font(.system(size: 11, weight: .medium))
@@ -169,9 +169,9 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 11))
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundColor(Color.Premium.crimsonVelvet.opacity(0.8))
                             .padding(4)
-                            .background(Color.red.opacity(0.1))
+                            .background(Color.Premium.crimsonVelvet.opacity(0.1))
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)

@@ -130,6 +130,39 @@ public extension Color {
     }
 }
 
+// MARK: - Premium High-End Design Palette
+public extension Color {
+    enum Premium {
+        /// Refined Warm Champagne Bronze (AI Model selection, neural engines)
+        public static let champagneBronze = Color(hex: "#D9A05B")
+        
+        /// Slate Titanium Azure (Speech Language, internationalization)
+        public static let slateAzure = Color(hex: "#628EB3")
+        
+        /// Mineral Emerald / Muted Jade (Clipboard monitoring, active states)
+        public static let emeraldMineral = Color(hex: "#449E70")
+        
+        /// Velvet Crimson / Muted Studio Ruby (Live audio recording, microphone)
+        public static let crimsonVelvet = Color(hex: "#C25252")
+        
+        /// Smoked Obsidian Teal / Steel Marine (Watched folders, ingestion engine)
+        public static let obsidianTeal = Color(hex: "#4E8C9C")
+        
+        /// Cashmere Smoked Amethyst (History & Archive, completed records)
+        public static let cashmereViolet = Color(hex: "#8C71A2")
+        
+        /// Muted Terracotta Coral (Warnings, retries, non-fatal errors)
+        public static let terracotta = Color(hex: "#BD614E")
+        
+        /// High-End Titanium Specular Rim (Card highlights, glass borders)
+        public static let titaniumRim = Color(hex: "#E2E8F0")
+        
+        /// Executive Sapphire Gradient Start & End
+        public static let sapphirePro = Color(hex: "#2563EB")
+        public static let sapphireProDeep = Color(hex: "#1D4ED8")
+    }
+}
+
 // MARK: - Floating Undo Toast View (Confirmation State in 8-State Matrix)
 public struct LiquidUndoToast: View {
     public let message: String

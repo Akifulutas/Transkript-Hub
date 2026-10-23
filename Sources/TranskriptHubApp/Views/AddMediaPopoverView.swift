@@ -104,7 +104,7 @@ public struct AddMediaPopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "doc.on.clipboard")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.blue)
+                            .foregroundStyle(Color.Premium.slateAzure)
                             .frame(width: 18)
                         Text(viewModel.t("hub_paste_clipboard"))
                             .font(.system(size: 11.5, weight: .medium))
@@ -128,7 +128,7 @@ public struct AddMediaPopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "waveform")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.purple)
+                            .foregroundStyle(Color.Premium.cashmereViolet)
                             .frame(width: 18)
                         Text(viewModel.t("hub_choose_audio_file"))
                             .font(.system(size: 11.5, weight: .medium))

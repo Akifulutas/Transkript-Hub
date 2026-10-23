@@ -15,11 +15,11 @@ public struct AudioRecordingSourceSheet: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color.red.opacity(0.15))
+                        .fill(Color.Premium.crimsonVelvet.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "waveform.badge.plus")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.Premium.crimsonVelvet)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -57,14 +57,14 @@ public struct AudioRecordingSourceSheet: View {
                     source: .microphone,
                     title: viewModel.t("record_source_mic"),
                     description: viewModel.t("record_source_mic_desc"),
-                    accentColor: .red,
+                    accentColor: Color.Premium.crimsonVelvet,
                     icon: "mic.fill"
                 )
                 .hoverHelpTooltip(
                     title: viewModel.t("hub_tooltip_mic_source_title"),
                     description: viewModel.t("hub_tooltip_mic_source_desc"),
                     icon: "mic.fill",
-                    statusColor: .red,
+                    statusColor: Color.Premium.crimsonVelvet,
                     placement: .bottomLeading,
                     width: 220
                 )
@@ -73,14 +73,14 @@ public struct AudioRecordingSourceSheet: View {
                     source: .systemAudio,
                     title: viewModel.t("record_source_system"),
                     description: viewModel.t("record_source_system_desc"),
-                    accentColor: .blue,
+                    accentColor: Color.Premium.slateAzure,
                     icon: "display"
                 )
                 .hoverHelpTooltip(
                     title: viewModel.t("hub_tooltip_system_source_title"),
                     description: viewModel.t("hub_tooltip_system_source_desc"),
                     icon: "display",
-                    statusColor: .blue,
+                    statusColor: Color.Premium.slateAzure,
                     placement: .bottomTrailing,
                     width: 220
                 )

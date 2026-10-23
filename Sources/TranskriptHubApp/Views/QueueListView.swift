@@ -137,7 +137,7 @@ struct QueueListView: View {
     private var actionableHeader: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(viewModel.isProcessing ? Color.purple : (viewModel.failedCount > 0 ? Color.orange : Color.green))
+                .fill(viewModel.isProcessing ? Color.Premium.cashmereViolet : (viewModel.failedCount > 0 ? Color.Premium.terracotta : Color.Premium.emeraldMineral))
                 .frame(width: 8, height: 8)
             
             Text(viewModel.actionableSummary)
@@ -157,7 +157,7 @@ struct QueueListView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
-                .foregroundColor(.orange)
+                .foregroundColor(Color.Premium.terracotta)
             }
         }
     }
@@ -459,11 +459,11 @@ struct StandardQueueRow: View {
     private var fallbackIcon: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
+                .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
                 .frame(width: 60, height: 34)
             
             Image(systemName: item.isYouTube ? "play.tv.fill" : "waveform")
-                .foregroundColor(item.isYouTube ? .red : .purple)
+                .foregroundColor(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
                 .font(.system(size: 13))
         }
     }
@@ -498,10 +498,10 @@ struct LiquidStatusPill: View {
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
-                .foregroundColor(.blue)
+                .foregroundColor(Color.Premium.slateAzure)
                 .padding(.horizontal, compact ? 5 : 8)
                 .padding(.vertical, compact ? 1 : 3)
-                .liquidGlassCapsule(glowColor: .blue, material: .ultraThinMaterial)
+                .liquidGlassCapsule(glowColor: Color.Premium.slateAzure, material: .ultraThinMaterial)
                 
             case .transcribing:
                 HStack(spacing: 4) {
@@ -511,10 +511,10 @@ struct LiquidStatusPill: View {
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
-                .foregroundColor(.purple)
+                .foregroundColor(Color.Premium.cashmereViolet)
                 .padding(.horizontal, compact ? 5 : 8)
                 .padding(.vertical, compact ? 1 : 3)
-                .liquidGlassCapsule(glowColor: .purple, material: .ultraThinMaterial)
+                .liquidGlassCapsule(glowColor: Color.Premium.cashmereViolet, material: .ultraThinMaterial)
                 
             case .completed:
                 HStack(spacing: 3) {
@@ -525,10 +525,10 @@ struct LiquidStatusPill: View {
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
-                .foregroundColor(.green)
+                .foregroundColor(Color.Premium.emeraldMineral)
                 .padding(.horizontal, compact ? 5 : 8)
                 .padding(.vertical, compact ? 1 : 3)
-                .liquidGlassCapsule(glowColor: .green, material: .ultraThinMaterial)
+                .liquidGlassCapsule(glowColor: Color.Premium.emeraldMineral, material: .ultraThinMaterial)
                 
             case .failed:
                 HStack(spacing: 3) {
@@ -539,10 +539,10 @@ struct LiquidStatusPill: View {
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
-                .foregroundColor(.orange)
+                .foregroundColor(Color.Premium.terracotta)
                 .padding(.horizontal, compact ? 5 : 8)
                 .padding(.vertical, compact ? 1 : 3)
-                .liquidGlassCapsule(glowColor: .orange, material: .ultraThinMaterial)
+                .liquidGlassCapsule(glowColor: Color.Premium.terracotta, material: .ultraThinMaterial)
             }
         }
     }

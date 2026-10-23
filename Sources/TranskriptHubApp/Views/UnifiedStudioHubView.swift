@@ -178,7 +178,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     StudioInteractiveCardView(
                         icon: "cpu.fill",
-                        badgeColor: .orange,
+                        badgeColor: Color.Premium.champagneBronze,
                         caption: viewModel.t("hub_card_model"),
                         title: viewModel.selectedModelTitle,
                         showsChevron: true
@@ -193,7 +193,7 @@ public struct UnifiedStudioHubView: View {
                     description: viewModel.t("hub_tooltip_model_desc"),
                     icon: "cpu.fill",
                     status: viewModel.selectedModelTitle,
-                    statusColor: .orange,
+                    statusColor: Color.Premium.champagneBronze,
                     hint: viewModel.t("hub_tooltip_model_hint"),
                     placement: .bottomLeading
                 )
@@ -204,7 +204,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isModelInfoPresented ? Color.orange : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isModelInfoPresented ? Color.Premium.champagneBronze : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -215,7 +215,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_model_title"),
                         description: viewModel.t("hub_tooltip_model_desc"),
                         icon: "cpu.fill",
-                        tintColor: .orange,
+                        tintColor: Color.Premium.champagneBronze,
                         onDismiss: { isModelInfoPresented = false }
                     )
                 }
@@ -230,7 +230,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     StudioInteractiveCardView(
                         icon: "globe",
-                        badgeColor: .blue,
+                        badgeColor: Color.Premium.slateAzure,
                         caption: viewModel.t("hub_card_speech_language"),
                         title: languageTitle(viewModel.selectedLanguage),
                         showsChevron: true
@@ -245,7 +245,7 @@ public struct UnifiedStudioHubView: View {
                     description: viewModel.t("hub_tooltip_language_desc"),
                     icon: "globe",
                     status: languageTitle(viewModel.selectedLanguage),
-                    statusColor: .blue,
+                    statusColor: Color.Premium.slateAzure,
                     hint: viewModel.t("hub_tooltip_language_hint"),
                     placement: .bottomLeading
                 )
@@ -256,7 +256,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isLanguageInfoPresented ? Color.blue : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isLanguageInfoPresented ? Color.Premium.slateAzure : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -267,7 +267,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_language_title"),
                         description: viewModel.t("hub_tooltip_language_desc"),
                         icon: "globe",
-                        tintColor: .blue,
+                        tintColor: Color.Premium.slateAzure,
                         onDismiss: { isLanguageInfoPresented = false }
                     )
                 }
@@ -284,7 +284,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     StudioInteractiveCardView(
                         icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
-                        badgeColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                        badgeColor: viewModel.isClipboardMonitoring ? Color.Premium.emeraldMineral : .secondary,
                         caption: viewModel.t("hub_card_clipboard"),
                         title: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
                         isPulseActive: viewModel.isClipboardMonitoring
@@ -296,7 +296,7 @@ public struct UnifiedStudioHubView: View {
                     description: viewModel.t("hub_tooltip_clipboard_desc"),
                     icon: viewModel.isClipboardMonitoring ? "doc.on.clipboard.fill" : "doc.on.clipboard",
                     status: viewModel.isClipboardMonitoring ? viewModel.t("hub_status_monitoring") : viewModel.t("hub_status_off"),
-                    statusColor: viewModel.isClipboardMonitoring ? .green : .secondary,
+                    statusColor: viewModel.isClipboardMonitoring ? Color.Premium.emeraldMineral : .secondary,
                     hint: viewModel.t("hub_tooltip_clipboard_hint"),
                     placement: .bottom
                 )
@@ -307,7 +307,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isClipboardInfoPresented ? Color.green : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isClipboardInfoPresented ? Color.Premium.emeraldMineral : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -318,7 +318,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_clipboard_title"),
                         description: viewModel.t("hub_tooltip_clipboard_desc"),
                         icon: "doc.on.clipboard.fill",
-                        tintColor: .green,
+                        tintColor: Color.Premium.emeraldMineral,
                         onDismiss: { isClipboardInfoPresented = false }
                     )
                 }
@@ -333,7 +333,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     StudioInteractiveCardView(
                         icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
-                        badgeColor: .red,
+                        badgeColor: Color.Premium.crimsonVelvet,
                         caption: viewModel.t("hub_card_recording"),
                         title: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
                         showsChevron: true
@@ -345,7 +345,7 @@ public struct UnifiedStudioHubView: View {
                     description: viewModel.t("hub_tooltip_recording_desc"),
                     icon: viewModel.recordingSource == .microphone ? "mic.fill" : "display",
                     status: viewModel.recordingSource == .microphone ? viewModel.t("record_source_mic") : viewModel.t("record_source_system"),
-                    statusColor: .red,
+                    statusColor: Color.Premium.crimsonVelvet,
                     hint: viewModel.t("hub_tooltip_recording_hint"),
                     placement: .bottom
                 )
@@ -356,7 +356,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isRecordingInfoPresented ? Color.red : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isRecordingInfoPresented ? Color.Premium.crimsonVelvet : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -367,7 +367,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_recording_title"),
                         description: viewModel.t("hub_tooltip_recording_desc"),
                         icon: "mic.fill",
-                        tintColor: .red,
+                        tintColor: Color.Premium.crimsonVelvet,
                         onDismiss: { isRecordingInfoPresented = false }
                     )
                 }
@@ -387,7 +387,7 @@ public struct UnifiedStudioHubView: View {
                     ].filter { $0 }.count
                     StudioInteractiveCardView(
                         icon: "folder.fill.badge.gearshape",
-                        badgeColor: activeCount > 0 ? .teal : .secondary,
+                        badgeColor: activeCount > 0 ? Color.Premium.obsidianTeal : .secondary,
                         caption: viewModel.t("hub_card_watched_folder"),
                         title: activeCount > 0 ? String(format: viewModel.t("hub_sources_active"), activeCount) : viewModel.t("hub_configure")
                     )
@@ -397,7 +397,7 @@ public struct UnifiedStudioHubView: View {
                     title: viewModel.t("hub_tooltip_folder_title"),
                     description: viewModel.t("hub_tooltip_folder_desc"),
                     icon: "folder.fill.badge.gearshape",
-                    statusColor: .teal,
+                    statusColor: Color.Premium.obsidianTeal,
                     hint: viewModel.t("hub_tooltip_folder_hint"),
                     placement: .bottomTrailing
                 )
@@ -408,7 +408,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isFolderInfoPresented ? Color.teal : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isFolderInfoPresented ? Color.Premium.obsidianTeal : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -419,7 +419,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_folder_title"),
                         description: viewModel.t("hub_tooltip_folder_desc"),
                         icon: "folder.fill.badge.gearshape",
-                        tintColor: .teal,
+                        tintColor: Color.Premium.obsidianTeal,
                         onDismiss: { isFolderInfoPresented = false }
                     )
                 }
@@ -434,7 +434,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     StudioInteractiveCardView(
                         icon: "clock.arrow.circlepath",
-                        badgeColor: .purple,
+                        badgeColor: Color.Premium.cashmereViolet,
                         caption: viewModel.t("hub_card_history"),
                         title: String(format: viewModel.t("hub_files_count"), viewModel.historyItems.count)
                     )
@@ -447,7 +447,7 @@ public struct UnifiedStudioHubView: View {
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isHistoryInfoPresented ? Color.purple : Color.secondary.opacity(0.45))
+                        .foregroundStyle(isHistoryInfoPresented ? Color.Premium.cashmereViolet : Color.secondary.opacity(0.45))
                         .padding(.trailing, 8)
                         .padding(.top, 5)
                         .contentShape(Rectangle())
@@ -458,7 +458,7 @@ public struct UnifiedStudioHubView: View {
                         title: viewModel.t("hub_tooltip_history_title"),
                         description: viewModel.t("hub_tooltip_history_desc"),
                         icon: "clock.arrow.circlepath",
-                        tintColor: .purple,
+                        tintColor: Color.Premium.cashmereViolet,
                         onDismiss: { isHistoryInfoPresented = false }
                     )
                 }
@@ -473,7 +473,7 @@ public struct UnifiedStudioHubView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "cpu.fill")
                         .font(.system(size: 13))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.Premium.champagneBronze)
                     Text(viewModel.t("hub_model_picker_title"))
                         .font(.system(size: 13, weight: .bold))
                 }
@@ -560,7 +560,7 @@ public struct UnifiedStudioHubView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.green))
+                        .background(Capsule().fill(Color.Premium.emeraldMineral))
                         .fixedSize(horizontal: true, vertical: false)
                     } else {
                         Button(viewModel.t("hub_select")) {
@@ -571,7 +571,7 @@ public struct UnifiedStudioHubView: View {
                         }
                         .font(.system(size: 10, weight: .semibold))
                         .buttonStyle(.borderedProminent)
-                        .tint(.blue)
+                        .tint(Color.Premium.slateAzure)
                         .controlSize(.small)
                         .fixedSize(horizontal: true, vertical: false)
                     }
@@ -581,7 +581,7 @@ public struct UnifiedStudioHubView: View {
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 10))
-                            .foregroundStyle(Color.red.opacity(0.8))
+                            .foregroundStyle(Color.Premium.crimsonVelvet.opacity(0.8))
                             .padding(4)
                     }
                     .buttonStyle(.plain)
@@ -639,7 +639,7 @@ public struct UnifiedStudioHubView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "globe")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.Premium.slateAzure)
                     .font(.system(size: 12))
                 Text(viewModel.t("hub_speech_language_title"))
                     .font(.system(size: 12, weight: .bold))
@@ -703,17 +703,17 @@ public struct UnifiedStudioHubView: View {
     private func modelSpecVisuals(_ spec: WhisperModelSpec) -> (icon: String, color: Color) {
         switch spec.model {
         case .largeV3Turbo:
-            return ("flame.fill", .purple)
+            return ("flame.fill", Color.Premium.cashmereViolet)
         case .largeV3TurboQ5:
-            return ("bolt.badge.automatic.fill", .cyan)
+            return ("bolt.badge.automatic.fill", Color.Premium.obsidianTeal)
         case .small:
-            return ("sparkles", .green)
+            return ("sparkles", Color.Premium.emeraldMineral)
         case .base:
-            return ("hare.fill", .orange)
+            return ("hare.fill", Color.Premium.champagneBronze)
         case .tiny:
-            return ("leaf.fill", .mint)
+            return ("leaf.fill", Color.Premium.emeraldMineral)
         case .medium:
-            return ("books.vertical.fill", .blue)
+            return ("books.vertical.fill", Color.Premium.slateAzure)
         }
     }
     
@@ -819,9 +819,9 @@ public struct UnifiedStudioHubView: View {
             .overlay(alignment: .bottomTrailing) {
                 if isPulseActive {
                     Circle()
-                        .fill(Color.green)
+                        .fill(Color.Premium.emeraldMineral)
                         .frame(width: 6, height: 6)
-                        .shadow(color: Color.green.opacity(0.8), radius: 3)
+                        .shadow(color: Color.Premium.emeraldMineral.opacity(0.6), radius: 3)
                         .padding(.trailing, 8)
                         .padding(.bottom, 7)
                 } else if showsChevron {
@@ -884,10 +884,10 @@ public struct UnifiedStudioHubView: View {
                     if viewModel.failedCount > 0 {
                         Text(String(format: viewModel.t("hub_failed_count"), viewModel.failedCount))
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color.orange)
+                            .foregroundStyle(Color.Premium.terracotta)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.orange.opacity(0.14)))
+                            .background(Capsule().fill(Color.Premium.terracotta.opacity(0.14)))
                     }
                 }
                 
@@ -976,14 +976,14 @@ public struct UnifiedStudioHubView: View {
                     .padding(.vertical, 6)
                     .background(
                         viewModel.canStartQueue
-                            ? AnyShapeStyle(LinearGradient(colors: [Color.accentColor, Color.purple], startPoint: .leading, endPoint: .trailing))
+                            ? AnyShapeStyle(LinearGradient(colors: [Color.Premium.sapphirePro, Color.Premium.sapphireProDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
                             : AnyShapeStyle(Color.primary.opacity(0.04))
                     )
                     .clipShape(Capsule())
                     .overlay(
-                        Capsule().stroke(viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: 1)
+                        Capsule().stroke(viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
                     )
-                    .shadow(color: viewModel.canStartQueue ? Color.accentColor.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
+                    .shadow(color: viewModel.canStartQueue ? Color.Premium.sapphirePro.opacity(0.35) : Color.clear, radius: 5, x: 0, y: 2)
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -1073,7 +1073,7 @@ public struct UnifiedStudioHubView: View {
                 // Media Type Icon / Thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(item.isYouTube ? Color.red.opacity(0.14) : Color.purple.opacity(0.14))
+                        .fill(item.isYouTube ? Color.Premium.crimsonVelvet.opacity(0.14) : Color.Premium.cashmereViolet.opacity(0.14))
                         .frame(width: 48, height: 36)
                     
                     if let thumbURL = item.thumbnailURL {
@@ -1088,7 +1088,7 @@ public struct UnifiedStudioHubView: View {
                             case .failure:
                                 Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
                                     .font(.system(size: 16))
-                                    .foregroundStyle(item.isYouTube ? Color.red : Color.purple)
+                                    .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
                             case .empty:
                                 ProgressView()
                                     .controlSize(.mini)
@@ -1101,7 +1101,7 @@ public struct UnifiedStudioHubView: View {
                     } else {
                         Image(systemName: item.isYouTube ? "play.rectangle.fill" : "waveform")
                             .font(.system(size: 16))
-                            .foregroundStyle(item.isYouTube ? Color.red : Color.purple)
+                            .foregroundStyle(item.isYouTube ? Color.Premium.crimsonVelvet : Color.Premium.cashmereViolet)
                     }
                 }
                 .frame(width: 48, height: 36)
@@ -1207,10 +1207,10 @@ public struct UnifiedStudioHubView: View {
     private func badgeColor(for state: QueueItemState) -> Color {
         switch state {
         case .queued: return .secondary
-        case .fetching: return .blue
-        case .transcribing: return .purple
-        case .completed: return .green
-        case .failed: return .orange
+        case .fetching: return Color.Premium.slateAzure
+        case .transcribing: return Color.Premium.cashmereViolet
+        case .completed: return Color.Premium.emeraldMineral
+        case .failed: return Color.Premium.terracotta
         }
     }
     
