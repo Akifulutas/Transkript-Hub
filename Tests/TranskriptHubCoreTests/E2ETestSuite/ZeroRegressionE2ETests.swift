@@ -44,13 +44,13 @@ struct ZeroRegressionE2ETests {
     @Test("AudioValidator regression check: verifies extension support and duration on sample")
     func testAudioValidatorRegressionCheck() throws {
         // Supported extensions
-        let supported = ["m4a", "mp3", "wav", "aac", "caf", "aiff", "mp4", "mov"]
+        let supported = ["m4a", "mp3", "wav", "aac", "caf", "aiff", "flac", "mp4", "mov", "mkv"]
         for ext in supported {
             #expect(AudioValidator.isExtensionSupported(ext) == true)
         }
         
         // Unsupported extensions
-        let unsupported = ["txt", "pdf", "docx", "exe", "dmg", "zip", "flac"]
+        let unsupported = ["txt", "pdf", "docx", "exe", "dmg", "zip", "iso"]
         for ext in unsupported {
             #expect(AudioValidator.isExtensionSupported(ext) == false)
         }

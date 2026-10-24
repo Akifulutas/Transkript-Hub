@@ -493,6 +493,7 @@ public final class AppViewModel: ObservableObject {
     private var folderWatcherCancellable: AnyCancellable?
     public let modelManager = ModelManager()
     public let outputWriter = OutputWriter()
+    public let videoAudioExtractor = VideoAudioExtractor.shared
     @Published public var outputDirectoryURL: URL = OutputWriter.systemDefaultOutputDirectory
     private var jobManager: JobManager?
     private var appDatabase: AppDatabase?
@@ -1547,17 +1548,19 @@ public final class AppViewModel: ObservableObject {
         for url in resolvedURLs {
             guard !queueItems.contains(where: { $0.id == url.path }) else { continue }
             
+            let isVideo = AudioValidator.isVideoExtension(url.pathExtension)
             let title = url.deletingPathExtension().lastPathComponent
             let duration = try? AudioValidator.validate(fileURL: url)
             let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+            let itemAutoProcess = autoProcess || isVideo
             
             var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
                 title: title,
-                subtitle: "Ses Dosyası • \(url.pathExtension.uppercased())",
+                subtitle: isVideo ? "Video Dosyası • \(url.pathExtension.uppercased())" : "Ses Dosyası • \(url.pathExtension.uppercased())",
                 state: .queued,
-                autoProcess: autoProcess,
+                autoProcess: itemAutoProcess,
                 isWatchedFolderItem: false,
                 fileModificationDate: modDate,
                 audioURL: url
@@ -1568,7 +1571,7 @@ public final class AppViewModel: ObservableObject {
                 queueItems.append(item)
                 sortQueue(by: currentSortOrder)
             }
-            if autoProcess {
+            if itemAutoProcess {
                 anyAddedForAuto = true
             }
             
@@ -1586,7 +1589,9 @@ public final class AppViewModel: ObservableObject {
                         self.queueItems[idx].transcript = cached.transcriptText
                         self.queueItems[idx].state = .completed
                         self.queueItems[idx].progress = 1.0
-                        self.queueItems[idx].subtitle = "Önbellekten Yüklendi • Zaten Deşifre Edilmiş"
+                        self.queueItems[idx].subtitle = isVideo
+                            ? "Önbellekten Yüklendi • Video Transkripti"
+                            : "Önbellekten Yüklendi • Zaten Deşifre Edilmiş"
                         if let outPath = cached.outputPath {
                             self.queueItems[idx].outputURL = URL(fileURLWithPath: outPath)
                         }
@@ -1597,8 +1602,15 @@ public final class AppViewModel: ObservableObject {
             }
         }
         if anyAddedForAuto {
-            startAutoProcessingWatchedItems()
+            startAutoProcessingItems()
         }
+    }
+    
+    /// Triggers queue processing for eligible items (including auto-transcribe videos and audio files)
+    public func startAutoProcessingItems() {
+        self.sessionSaveMode = .individual
+        guard queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
+        runQueueProcessor()
     }
     
     // MARK: - Universal Drag-and-Drop Ingestion (Anywhere in App)
@@ -1712,7 +1724,15 @@ public final class AppViewModel: ObservableObject {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.audio, .movie]
+        panel.allowsOtherFileTypes = true
+        
+        var types: [UTType] = [.audio, .movie, .video, .quickTimeMovie, .mpeg4Movie]
+        for ext in AudioValidator.allowedExtensions {
+            if let ut = UTType(filenameExtension: ext) {
+                types.append(ut)
+            }
+        }
+        panel.allowedContentTypes = types
         if panel.runModal() == .OK {
             addAudioFiles(panel.urls)
         }
@@ -2359,6 +2379,7 @@ public final class AppViewModel: ObservableObject {
                         
                     case .audioFile(let fileURL):
                         do {
+                            let isVideo = AudioValidator.isVideoExtension(fileURL.pathExtension)
                             let duration = try AudioValidator.validate(fileURL: fileURL)
                             current.durationSec = duration
                             
@@ -2369,19 +2390,23 @@ public final class AppViewModel: ObservableObject {
                                 sourcePath: fileURL.path,
                                 externalID: fileURL.path
                             ) {
-                                Log.info("Audio file loaded from cache (skipping duplicate transcription): \(current.title) (\(duration)s)")
+                                Log.info("Media file loaded from cache (skipping duplicate transcription): \(current.title) (\(duration)s)")
                                 current.transcript = cached.transcriptText
                                 current.state = .completed
                                 current.progress = 1.0
-                                current.subtitle = "Loaded from Cache • Already Transcribed (\(Int(duration))s)"
+                                current.subtitle = isVideo
+                                    ? "Önbellekten Yüklendi • Video Transkripti (\(Int(duration))s)"
+                                    : "Önbellekten Yüklendi • Zaten Deşifre Edilmiş (\(Int(duration))s)"
+                                
+                                let baseName = fileURL.deletingPathExtension().lastPathComponent
+                                let targetDir = isVideo ? fileURL.deletingLastPathComponent() : self.outputWriter.defaultOutputDirectory
                                 if let outPath = cached.outputPath, FileManager.default.fileExists(atPath: outPath) {
                                     current.outputURL = URL(fileURLWithPath: outPath)
                                     self.lastOutputURL = current.outputURL
-                                } else if current.isWatchedFolderItem || self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
-                                    let baseName = fileURL.deletingPathExtension().lastPathComponent
+                                } else {
                                     let targetURL = self.outputWriter.resolveUniqueURL(
                                         forBaseName: baseName,
-                                        in: self.outputWriter.defaultOutputDirectory,
+                                        in: targetDir,
                                         allowOverwrite: true,
                                         matchingContent: cached.transcriptText
                                     )
@@ -2403,13 +2428,44 @@ public final class AppViewModel: ObservableObject {
                                 break
                             }
                             
+                            // 1. Audio Extraction if file is Video
+                            let effectiveAudioURL: URL
+                            if isVideo {
+                                current.state = .fetching
+                                current.subtitle = "Videodan Ses Ayıklanıyor..."
+                                self.updateItem(current)
+                                self.currentOperation = "Videodan ses ayıklanıyor (M4A / MP3)..."
+                                
+                                let extracted = try await self.videoAudioExtractor.extractAudio(
+                                    from: fileURL,
+                                    destinationDirectory: self.sessionMediaDirectory
+                                )
+                                effectiveAudioURL = extracted
+                            } else {
+                                effectiveAudioURL = fileURL
+                            }
+                            
+                            if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
+                                current.state = .queued
+                                current.autoProcess = false
+                                current.progress = 0.0
+                                current.transcript = nil
+                                current.errorMessage = nil
+                                self.updateItem(current)
+                                break
+                            }
+                            
+                            // 2. Transcription
                             current.state = .transcribing
+                            current.subtitle = isVideo ? "Video Transkript Ediliyor..." : "Ses Transkript Ediliyor..."
                             current.transcript = ""
                             self.updateItem(current)
-                            self.currentOperation = "Yerel ses çözümleniyor ve transkript ediliyor..."
+                            self.currentOperation = isVideo
+                                ? "Video sesi çözümleniyor ve transkript ediliyor..."
+                                : "Yerel ses çözümleniyor ve transkript ediliyor..."
                             
                             let prepared = try await Task.detached(priority: .userInitiated) {
-                                try audioDecoder.decode(fileURL: fileURL)
+                                try audioDecoder.decode(fileURL: effectiveAudioURL)
                             }.value
                             let collector = SegmentCollector()
                             let itemId = current.id
@@ -2437,19 +2493,22 @@ public final class AppViewModel: ObservableObject {
                             let formatted = postProcessor.process(segments: result.segments)
                             
                             current.transcript = formatted
-                            current.audioURL = fileURL
+                            current.audioURL = effectiveAudioURL
                             current.segments = result.segments
                             let waveformGen = WaveformGenerator()
                             current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
                             
+                            // 3. Write Transcript: Next to source video ("videoyu nereden aldıysak onun yanına transkriptini vermiş ol")
                             var targetURLPath: String? = nil
                             let baseName = fileURL.deletingPathExtension().lastPathComponent
-                            if current.isWatchedFolderItem || self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
+                            let targetDirectory: URL = isVideo ? fileURL.deletingLastPathComponent() : self.outputWriter.defaultOutputDirectory
+                            
+                            do {
                                 let targetURL = self.outputWriter.resolveUniqueURL(
                                     forBaseName: baseName,
-                                    in: self.outputWriter.defaultOutputDirectory,
+                                    in: targetDirectory,
                                     allowOverwrite: true,
                                     matchingContent: formatted
                                 )
@@ -2458,13 +2517,30 @@ public final class AppViewModel: ObservableObject {
                                 self.lastOutputURL = targetURL
                                 targetURLPath = targetURL.path
                                 
-                                self.saveToHistory(
-                                    title: baseName,
-                                    kind: "audio",
-                                    outputPath: targetURL.path,
-                                    snippet: String(formatted.prefix(200))
+                                if isVideo {
+                                    current.subtitle = "Video Transkripti • Dosyanın Yanına Kaydedildi"
+                                    self.statusMessage = "Transkript videonun yanına kaydedildi: \(targetURL.lastPathComponent)"
+                                }
+                            } catch {
+                                Log.warning("Could not write next to media file (\(error.localizedDescription)), falling back to default output directory.")
+                                let fallbackURL = self.outputWriter.resolveUniqueURL(
+                                    forBaseName: baseName,
+                                    in: self.outputWriter.defaultOutputDirectory,
+                                    allowOverwrite: true,
+                                    matchingContent: formatted
                                 )
+                                try self.outputWriter.write(content: formatted, to: fallbackURL)
+                                current.outputURL = fallbackURL
+                                self.lastOutputURL = fallbackURL
+                                targetURLPath = fallbackURL.path
                             }
+                            
+                            self.saveToHistory(
+                                title: baseName,
+                                kind: isVideo ? "video" : "audio",
+                                outputPath: current.outputURL?.path ?? targetURLPath ?? "",
+                                snippet: String(formatted.prefix(200))
+                            )
                             
                             // Save to cache for future instant re-use
                             await self.transcriptCacheManager?.save(
@@ -2475,6 +2551,8 @@ public final class AppViewModel: ObservableObject {
                                 outputPath: targetURLPath,
                                 transcriptText: formatted
                             )
+                            
+                            self.updateItem(current)
                             
                         } catch is CancellationError {
                             Log.info("Audio transcription cancelled.")

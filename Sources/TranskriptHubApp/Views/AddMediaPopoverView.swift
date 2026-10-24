@@ -62,7 +62,7 @@ public struct AddMediaPopoverView: View {
                     .stroke(Color.primary.opacity(0.09), lineWidth: 1)
             )
             
-            // 2. Ses Dosyası Seçme Arayüzü (Benzer, simetrik kart)
+            // 2. Ses veya Video Dosyası Seçme Arayüzü (Benzer, simetrik kart)
             Button(action: {
                 isPresented = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -70,7 +70,7 @@ public struct AddMediaPopoverView: View {
                 }
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "waveform")
+                    Image(systemName: "film.and.waveform")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.Premium.cashmereViolet)
                         .frame(width: 18)

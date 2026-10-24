@@ -9,6 +9,20 @@ import Testing
     #expect(AudioValidator.isExtensionSupported("aac"))
     #expect(AudioValidator.isExtensionSupported("caf"))
     
+    // Video extensions
+    #expect(AudioValidator.isExtensionSupported("mp4"))
+    #expect(AudioValidator.isExtensionSupported("mov"))
+    #expect(AudioValidator.isExtensionSupported("m4v"))
+    #expect(AudioValidator.isExtensionSupported("mkv"))
+    #expect(AudioValidator.isExtensionSupported("webm"))
+    #expect(AudioValidator.isExtensionSupported("avi"))
+    
+    #expect(AudioValidator.isVideoExtension("mp4"))
+    #expect(AudioValidator.isVideoExtension("mov"))
+    #expect(AudioValidator.isVideoExtension("mkv"))
+    #expect(!AudioValidator.isVideoExtension("mp3"))
+    #expect(!AudioValidator.isVideoExtension("wav"))
+    
     #expect(!AudioValidator.isExtensionSupported("txt"))
     #expect(!AudioValidator.isExtensionSupported("pdf"))
     #expect(!AudioValidator.isExtensionSupported("part"))

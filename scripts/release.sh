@@ -66,11 +66,11 @@ RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
 ### 🚀 Yenilikler ve İyileştirmeler
-- **Kuyruk Temizleme Kalıcılığı (Tombstone Tracking)**: Silinen kuyruk öğeleri ve Apple Sesli Notlar uygulama yeniden başlatıldığında tekrar kuyruğa gelmez.
-- **Toplu Kuyruk Yönetimi**: Seçili öğeleri tek tıkla toplu olarak temizleme desteği.
-- **Modern Sağ Hizalı Araç Çubuğu**: '+ Medya Ekle' ve 'Ayarlar' butonları macOS penceresinin en sağına sabitlendi.
-- **İkili Ses Kaydı Göstergesi**: Canlı ses kaydı kartı hem Mikrofon hem de Mac Sistem Sesi (Toplantı/Video) kaynaklarını açıkça gösterir.
-- **Hızlı Sağ Tık Menüsü**: Canlı ses kaydı kartına sağ tıklayarak anında mikrofon veya sistem sesi kaydı başlatabilme.
+- **Video Dosyaları Desteği**: Artık \`Ses veya Video Dosyası Seç\` butonu ve sürükle-bırak desteği ile \`.mp4\`, \`.mov\`, \`.m4v\`, \`.mkv\`, \`.avi\`, \`.webm\`, \`.flv\` ve \`.ts\` video dosyalarını doğrudan seçebilirsiniz.
+- **Otomatik Donanım Hızlandırmalı Ses Ayıklama**: Apple Silicon donanım hızlandırmalı \`AVAssetExportSession\` ve evrensel \`ffmpeg\` yedekleme motoru ile videolardan anında AAC/MP3 ses ayıklanır.
+- **Otomatik Transkripsiyon Başlatma**: Video dosyası seçildiği anda arka planda otomatik olarak transkript işlemi başlatılır.
+- **Videoyla Aynı Dizine Kaydetme**: Transkript dosyası (\`.txt\`), orijinal videonun bulunduğu klasöre doğrudan videonun yanına kaydedilir.
+- **Karaoke & Dalga Formu Entegrasyonu**: Ayıklanan ses parçası dahili ses oynatıcısında interaktif dalga formu ve kelime bazlı karaoke senkronizasyonu ile dinlenebilir.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."
