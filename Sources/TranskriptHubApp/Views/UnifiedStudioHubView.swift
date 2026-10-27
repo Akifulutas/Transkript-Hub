@@ -1214,6 +1214,41 @@ public struct UnifiedStudioHubView: View {
                             .buttonStyle(.plain)
                             .help(viewModel.t("action_remove_item"))
                         }
+                        
+                        // Copy Combined Session Transcript Pill
+                        if viewModel.completedCount > 1 {
+                            Button(action: {
+                                viewModel.copyCombinedTranscript()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: viewModel.copiedCombinedToast ? "checkmark" : "doc.on.doc.fill")
+                                        .font(.system(size: 10, weight: .semibold))
+                                    Text(viewModel.copiedCombinedToast ? viewModel.t("action_copied") : String(format: viewModel.t("hub_copy_combined_count"), viewModel.completedCount))
+                                        .font(.system(size: 10.5, weight: .medium))
+                                }
+                                .foregroundStyle(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral : Color.accentColor)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral.opacity(0.18) : Color.accentColor.opacity(0.12))
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral.opacity(0.35) : Color.accentColor.opacity(0.30), lineWidth: 0.5)
+                                )
+                                .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .hoverHelpTooltip(
+                                title: viewModel.t("action_copy_combined_session"),
+                                description: viewModel.t("hub_tooltip_copy_combined_desc"),
+                                icon: "doc.on.doc.fill",
+                                statusColor: .accentColor,
+                                placement: .topLeading,
+                                width: 240
+                            )
+                        }
                     }
                 }
                 
@@ -1813,7 +1848,7 @@ struct StudioQueueItemRow: View {
     }
     
     private func copyTranscriptContent() {
-        viewModel.copyTranscriptContent(for: item)
+        viewModel.requestCopyTranscript(for: item)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             isCopied = true
         }

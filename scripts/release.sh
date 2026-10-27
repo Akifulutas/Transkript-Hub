@@ -66,11 +66,10 @@ RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
 ### 🚀 Yenilikler ve İyileştirmeler
-- **Video Dosyaları Desteği**: Artık \`Ses veya Video Dosyası Seç\` butonu ve sürükle-bırak desteği ile \`.mp4\`, \`.mov\`, \`.m4v\`, \`.mkv\`, \`.avi\`, \`.webm\`, \`.flv\` ve \`.ts\` video dosyalarını doğrudan seçebilirsiniz.
-- **Otomatik Donanım Hızlandırmalı Ses Ayıklama**: Apple Silicon donanım hızlandırmalı \`AVAssetExportSession\` ve evrensel \`ffmpeg\` yedekleme motoru ile videolardan anında AAC/MP3 ses ayıklanır.
-- **Otomatik Transkripsiyon Başlatma**: Video dosyası seçildiği anda arka planda otomatik olarak transkript işlemi başlatılır.
-- **Videoyla Aynı Dizine Kaydetme**: Transkript dosyası (\`.txt\`), orijinal videonun bulunduğu klasöre doğrudan videonun yanına kaydedilir.
-- **Karaoke & Dalga Formu Entegrasyonu**: Ayıklanan ses parçası dahili ses oynatıcısında interaktif dalga formu ve kelime bazlı karaoke senkronizasyonu ile dinlenebilir.
+- **Format Seçim Ekranı Metin Düzeltmeleri**: Kayıt formatı penceresindeki \`sheet_save_both_title\`, \`sheet_save_both_badge\` gibi ham anahtarlar temizlendi; Türkçe, İngilizce ve Almanca yerelleştirmeleri eksiksiz hale getirildi.
+- **Toplu Oturum Transkripti Kopyalama Seçeneği**: Toplu transkripsiyon yapıldığında hem başlık çubuğunda hem kuyruk araç çubuğunda doğrudan 'Toplu Transkripti Kopyala' butonu eklendi. Tekil kopyalama tuşuna tıklandığında artık 'Bu videonun transkriptini mi yoksa toplu transkripti mi kopyalamak istiyorsunuz?' seçeneği sunulur.
+- **Zaten Deşifre Edilmiş Öğeler İçin Yeniden Transkript Onayı**: Daha önce işlenmiş bir video veya ses dosyası geldiğinde sistem otomatik sormakta: 'Daha önce transkript edilmiş. Yeniden transkript edilsin mi, yoksa mevcut önbellek mi kullanılsın?'. 'Yeniden Transkript Et' seçildiğinde önbellek atlanır ve modelle sıfırdan deşifre işlemi başlatılır.
+- **Akıllı Önbellek Güncelleme (Cache Overwrite)**: Yeniden transkript edilen dosyaların güncellenmiş metinleri veritabanı önbelleğine anında işlenir.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."
@@ -126,9 +125,12 @@ if [ -f "$DMG_FILE" ]; then
         -H "Authorization: token $TOKEN" \
         -H "Content-Type: application/octet-stream" \
         --data-binary @"$DMG_FILE" \
-        "$UPLOAD_URL")
+        "$UPLOAD_URL" || true)
     
-    DOWNLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o '"browser_download_url": "[^"]*"' | head -1 | cut -d'"' -f4)
+    DOWNLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o '"browser_download_url": "[^"]*"' | head -1 | cut -d'"' -f4 || true)
+    if [ -z "$DOWNLOAD_URL" ]; then
+        DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/TranskriptHub.dmg"
+    fi
     echo "✓ TranskriptHub.dmg uploaded successfully!"
     echo "  Download URL: $DOWNLOAD_URL"
 fi

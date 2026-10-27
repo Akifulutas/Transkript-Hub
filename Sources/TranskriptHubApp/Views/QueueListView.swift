@@ -236,7 +236,7 @@ struct QueueListView: View {
             isSelected: viewModel.selectedItemID == item.id,
             statusTitle: viewModel.localizedState(item.state),
             onRemove: { viewModel.removeItem(id: item.id) },
-            onCopyTranscript: { viewModel.copyTranscriptContent(for: item) },
+            onCopyTranscript: { viewModel.requestCopyTranscript(for: item) },
             onOpenFinder: { viewModel.openItemOutputInFinder(item) }
         )
         .contextMenu { rowContextMenu(item: item) }
@@ -249,9 +249,17 @@ struct QueueListView: View {
                 viewModel.retryItem(id: item.id)
             }
         }
-        if let transcript = item.transcript {
+        if item.transcript != nil {
             Button("\(viewModel.t("action_copy")) (⌘⇧C)") {
-                viewModel.copyTranscript(text: transcript)
+                viewModel.requestCopyTranscript(for: item)
+            }
+            if viewModel.completedCount > 1 {
+                Button(viewModel.t("action_copy_combined_session")) {
+                    viewModel.copyCombinedTranscript()
+                }
+            }
+            Button(viewModel.t("action_retranscribe")) {
+                viewModel.retryItem(id: item.id)
             }
         }
         if let output = item.outputURL {

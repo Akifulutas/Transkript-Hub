@@ -120,4 +120,43 @@ struct TranscriptCacheTests {
         #expect(recovered != nil)
         #expect(recovered?.transcriptText == "Recovered transcript content from database.")
     }
+    
+    @Test("Updating cache on re-transcription replaces previous transcript")
+    func testReTranscriptionCacheUpdate() async throws {
+        let db = try makeTestDatabase()
+        let cache = TranscriptCacheManager(database: db)
+        
+        await cache.save(
+            externalID: "RETRY_ITEM_1",
+            title: "Meeting Note",
+            durationSec: 60.0,
+            sourcePath: "/path/to/meeting.mp4",
+            outputPath: "/path/to/meeting.txt",
+            transcriptText: "Old transcript text."
+        )
+        
+        let initial = await cache.findCached(
+            title: "Meeting Note",
+            durationSec: 60.0,
+            externalID: "RETRY_ITEM_1"
+        )
+        #expect(initial?.transcriptText == "Old transcript text.")
+        
+        // Re-transcribe with improved text
+        await cache.save(
+            externalID: "RETRY_ITEM_1",
+            title: "Meeting Note",
+            durationSec: 60.0,
+            sourcePath: "/path/to/meeting.mp4",
+            outputPath: "/path/to/meeting.txt",
+            transcriptText: "New improved re-transcribed text."
+        )
+        
+        let updated = await cache.findCached(
+            title: "Meeting Note",
+            durationSec: 60.0,
+            externalID: "RETRY_ITEM_1"
+        )
+        #expect(updated?.transcriptText == "New improved re-transcribed text.")
+    }
 }

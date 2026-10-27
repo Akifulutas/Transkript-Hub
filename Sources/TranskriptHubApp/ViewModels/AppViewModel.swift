@@ -343,6 +343,22 @@ public final class AppViewModel: ObservableObject {
     @Published public var isVoiceMemosPromptPresented: Bool = false
     @Published public var pendingVoiceMemosCount: Int = 0
     
+    // Copy Dialog & Actions
+    @Published public var copyChoicePendingItem: QueueItem? = nil
+    @Published public var isCopyChoicePresented: Bool = false
+    @Published public var copiedCombinedToast: Bool = false
+    
+    // Already Transcribed Prompt State
+    public struct AlreadyTranscribedPromptInfo: Identifiable, Sendable {
+        public let id: String
+        public let items: [QueueItem]
+        public init(id: String = UUID().uuidString, items: [QueueItem]) {
+            self.id = id
+            self.items = items
+        }
+    }
+    @Published public var alreadyTranscribedPrompt: AlreadyTranscribedPromptInfo? = nil
+    
     // Welcome & Feature Tour Onboarding
     @Published public var isOnboardingPresented: Bool = false
     @Published public var isSpotlightTourActive: Bool = false
@@ -1484,6 +1500,10 @@ public final class AppViewModel: ObservableObject {
                     }
                     self?.checkedQueueItemIDs.remove(video.videoID)
                     self?.sortQueue(by: self?.currentSortOrder ?? .newestFirst)
+                    
+                    if let item = self?.queueItems[idx] {
+                        self?.alreadyTranscribedPrompt = AlreadyTranscribedPromptInfo(items: [item])
+                    }
                 }
             }
         }
@@ -1597,6 +1617,9 @@ public final class AppViewModel: ObservableObject {
                         }
                         self.checkedQueueItemIDs.remove(itemId)
                         self.sortQueue(by: self.currentSortOrder)
+                        
+                        // Prompt user if they want to re-transcribe
+                        self.alreadyTranscribedPrompt = AlreadyTranscribedPromptInfo(items: [self.queueItems[idx]])
                     }
                 }
             }
@@ -1995,6 +2018,8 @@ public final class AppViewModel: ObservableObject {
                 queueItems[i].state = .queued
                 queueItems[i].autoProcess = true
                 queueItems[i].errorMessage = nil
+                queueItems[i].forceReTranscribe = true
+                queueItems[i].progress = 0.0
             }
         }
         startProcessingQueue()
@@ -2005,6 +2030,8 @@ public final class AppViewModel: ObservableObject {
             queueItems[idx].state = .queued
             queueItems[idx].autoProcess = true
             queueItems[idx].errorMessage = nil
+            queueItems[idx].forceReTranscribe = true
+            queueItems[idx].progress = 0.0
             startProcessingQueue()
         }
     }
@@ -2201,7 +2228,7 @@ public final class AppViewModel: ObservableObject {
                     switch item.kind {
                     case .youtube(let video):
                         // Check cache before fetching or transcribing
-                        if let cached = await self.transcriptCacheManager?.findCached(
+                        if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                             title: current.title,
                             durationSec: current.durationSec,
                             externalID: video.videoID
@@ -2210,6 +2237,7 @@ public final class AppViewModel: ObservableObject {
                             current.transcript = cached.transcriptText
                             current.state = .completed
                             current.progress = 1.0
+                            current.forceReTranscribe = false
                             current.subtitle = "Loaded from Cache • Already Transcribed"
                             if let outPath = cached.outputPath {
                                 current.outputURL = URL(fileURLWithPath: outPath)
@@ -2243,7 +2271,7 @@ public final class AppViewModel: ObservableObject {
                             current.durationSec = media.metadata.duration
                             
                             // Check cache again with fetched metadata title
-                            if let cached = await self.transcriptCacheManager?.findCached(
+                            if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: media.metadata.title,
                                 durationSec: media.metadata.duration,
                                 externalID: video.videoID
@@ -2321,6 +2349,7 @@ public final class AppViewModel: ObservableObject {
                             current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
+                            current.forceReTranscribe = false
                             
                             var targetURLPath: String? = nil
                             // Save individual file if requested
@@ -2384,7 +2413,7 @@ public final class AppViewModel: ObservableObject {
                             current.durationSec = duration
                             
                             // Check cache using both name and exact duration!
-                            if let cached = await self.transcriptCacheManager?.findCached(
+                            if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: current.title,
                                 durationSec: duration,
                                 sourcePath: fileURL.path,
@@ -2499,6 +2528,7 @@ public final class AppViewModel: ObservableObject {
                             current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
+                            current.forceReTranscribe = false
                             
                             // 3. Write Transcript: Next to source video ("videoyu nereden aldıysak onun yanına transkriptini vermiş ol")
                             var targetURLPath: String? = nil
@@ -2782,10 +2812,58 @@ public final class AppViewModel: ObservableObject {
         copyTranscript(text: text)
     }
     
+    public func requestCopyTranscript(for item: QueueItem) {
+        if completedCount > 1 {
+            copyChoicePendingItem = item
+            isCopyChoicePresented = true
+        } else {
+            copyTranscriptContent(for: item)
+        }
+    }
+    
+    public func copyCombinedTranscript() {
+        let text = combinedTranscript
+        guard !text.isEmpty else { return }
+        copyTranscript(text: text)
+        
+        copiedCombinedToast = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.copiedCombinedToast = false
+        }
+        statusMessage = String(format: t("status_combined_copied"), completedCount)
+    }
+    
     public func copySelectedTranscript() {
-        if let currentText = selectedItem?.transcript ?? selectedHistoryItem?.snippet {
+        if showCombinedSessionTranscript {
+            copyCombinedTranscript()
+        } else if let item = selectedItem {
+            requestCopyTranscript(for: item)
+        } else if let currentText = selectedHistoryItem?.snippet {
             copyTranscript(text: currentText)
         }
+    }
+    
+    public func confirmReTranscribe(items: [QueueItem]) {
+        let idsToReTranscribe = Set(items.map { $0.id })
+        for id in idsToReTranscribe {
+            if let idx = queueItems.firstIndex(where: { $0.id == id }) {
+                queueItems[idx].forceReTranscribe = true
+                queueItems[idx].state = .queued
+                queueItems[idx].autoProcess = true
+                queueItems[idx].progress = 0.0
+                queueItems[idx].transcript = nil
+                queueItems[idx].errorMessage = nil
+                queueItems[idx].subtitle = queueItems[idx].isVideo
+                    ? "Video Dosyası • Yeniden Deşifre Edilecek"
+                    : "Ses Dosyası • Yeniden Deşifre Edilecek"
+            }
+        }
+        alreadyTranscribedPrompt = nil
+        startProcessingQueue()
+    }
+    
+    public func dismissAlreadyTranscribedPrompt() {
+        alreadyTranscribedPrompt = nil
     }
     
     public func openInFinder(path: String) {

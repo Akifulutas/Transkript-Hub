@@ -59,7 +59,7 @@ public actor TranscriptCacheManager {
                 if let extID = externalID, !extID.isEmpty {
                     let row = try Row.fetchOne(
                         db,
-                        sql: "SELECT * FROM transcript_cache WHERE external_id = ? ORDER BY created_at DESC LIMIT 1",
+                        sql: "SELECT * FROM transcript_cache WHERE external_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                         arguments: [extID]
                     )
                     if let row = row, let cached = self.makeCachedFromRow(row) {
@@ -73,7 +73,7 @@ public actor TranscriptCacheManager {
                     let maxDur = duration + 1.0
                     let rows = try Row.fetchAll(
                         db,
-                        sql: "SELECT * FROM transcript_cache WHERE duration_sec BETWEEN ? AND ? ORDER BY created_at DESC",
+                        sql: "SELECT * FROM transcript_cache WHERE duration_sec BETWEEN ? AND ? ORDER BY created_at DESC, rowid DESC",
                         arguments: [minDur, maxDur]
                     )
                     for row in rows {
@@ -194,9 +194,12 @@ public actor TranscriptCacheManager {
         
         do {
             try await database.dbQueue.write { db in
+                if let ext = externalID, !ext.isEmpty {
+                    try db.execute(sql: "DELETE FROM transcript_cache WHERE external_id = ?", arguments: [ext])
+                }
                 try db.execute(
                     sql: """
-                    INSERT OR REPLACE INTO transcript_cache
+                    INSERT INTO transcript_cache
                     (id, external_id, title, duration_sec, file_size, source_path, output_path, transcript_text, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,

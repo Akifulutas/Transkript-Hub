@@ -328,10 +328,46 @@ public struct TranscriptDetailView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        
+                        // Dedicated Copy Combined Session Button
+                        Button(action: {
+                            viewModel.copyCombinedTranscript()
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: viewModel.copiedCombinedToast ? "checkmark" : "doc.on.doc.fill")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text(viewModel.copiedCombinedToast ? viewModel.t("action_copied") : viewModel.t("action_copy_combined_session"))
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral : Color.accentColor)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4.5)
+                            .background(
+                                Capsule()
+                                    .fill(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral.opacity(0.18) : Color.accentColor.opacity(0.12))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .hoverHelpTooltip(
+                            title: viewModel.t("action_copy_combined_session"),
+                            description: viewModel.t("hub_tooltip_copy_combined_desc"),
+                            icon: "doc.on.doc.fill",
+                            statusColor: .accentColor,
+                            placement: .bottomTrailing,
+                            width: 240
+                        )
                     }
                     
                     // Copy
-                    Button(action: { viewModel.copyTranscript(text: transcript) }) {
+                    Button(action: {
+                        if viewModel.showCombinedSessionTranscript {
+                            viewModel.copyCombinedTranscript()
+                        } else if let item = activeItem {
+                            viewModel.requestCopyTranscript(for: item)
+                        } else {
+                            viewModel.copyTranscript(text: transcript)
+                        }
+                    }) {
                         Image(systemName: viewModel.copiedToast ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(viewModel.copiedToast ? Color.Premium.emeraldMineral : Color.accentColor)
@@ -347,7 +383,7 @@ public struct TranscriptDetailView: View {
                     .accessibilityLabel(viewModel.t("action_copy_transcript"))
                     .hoverHelpTooltip(
                         title: "\(viewModel.t("action_copy")) (⌘⇧C)",
-                        description: viewModel.t("hub_tooltip_copy_transcript_desc"),
+                        description: viewModel.showCombinedSessionTranscript ? viewModel.t("hub_tooltip_copy_combined_desc") : viewModel.t("hub_tooltip_copy_transcript_desc"),
                         icon: viewModel.copiedToast ? "checkmark" : "doc.on.doc",
                         statusColor: viewModel.copiedToast ? Color.Premium.emeraldMineral : .accentColor,
                         placement: .bottomTrailing,

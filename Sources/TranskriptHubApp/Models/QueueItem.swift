@@ -32,6 +32,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var fileModificationDate: Date?
     public var thumbnailURL: URL?
     public var channelTitle: String?
+    public var forceReTranscribe: Bool
     
     // M1 Audio Playback & Media Retention Properties
     public var audioURL: URL?
@@ -57,6 +58,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         fileModificationDate: Date? = nil,
         thumbnailURL: URL? = nil,
         channelTitle: String? = nil,
+        forceReTranscribe: Bool = false,
         audioURL: URL? = nil,
         segments: [Segment] = [],
         waveformPoints: [WaveformPoint]? = nil,
@@ -79,6 +81,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.fileModificationDate = fileModificationDate
         self.thumbnailURL = thumbnailURL
         self.channelTitle = channelTitle
+        self.forceReTranscribe = forceReTranscribe
         self.audioURL = audioURL
         self.segments = segments
         self.waveformPoints = waveformPoints
@@ -87,6 +90,13 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     
     public var isYouTube: Bool {
         if case .youtube = kind { return true }
+        return false
+    }
+    
+    public var isVideo: Bool {
+        if case .audioFile(let url) = kind {
+            return AudioValidator.isVideoExtension(url.pathExtension)
+        }
         return false
     }
     

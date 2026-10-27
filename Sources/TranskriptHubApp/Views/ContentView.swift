@@ -119,6 +119,57 @@ public struct ContentView: View {
             } message: {
                 Text(String(format: viewModel.t("voice_memos_import_message"), viewModel.pendingVoiceMemosCount))
             }
+            .confirmationDialog(
+                viewModel.t("dialog_copy_title"),
+                isPresented: $viewModel.isCopyChoicePresented,
+                titleVisibility: .visible
+            ) {
+                Button(viewModel.t("dialog_copy_this_video")) {
+                    if let pending = viewModel.copyChoicePendingItem {
+                        viewModel.copyTranscriptContent(for: pending)
+                    } else if let selected = viewModel.selectedItem {
+                        viewModel.copyTranscriptContent(for: selected)
+                    }
+                    viewModel.copyChoicePendingItem = nil
+                }
+                
+                Button(String(format: viewModel.t("dialog_copy_combined_session"), viewModel.completedCount)) {
+                    viewModel.copyCombinedTranscript()
+                    viewModel.copyChoicePendingItem = nil
+                }
+                
+                Button(viewModel.t("action_cancel"), role: .cancel) {
+                    viewModel.copyChoicePendingItem = nil
+                }
+            } message: {
+                Text(viewModel.t("dialog_copy_prompt_message"))
+            }
+            .alert(
+                viewModel.alreadyTranscribedPrompt?.items.count == 1
+                    ? viewModel.t("already_transcribed_title")
+                    : String(format: viewModel.t("already_transcribed_title_multiple"), viewModel.alreadyTranscribedPrompt?.items.count ?? 0),
+                isPresented: Binding(
+                    get: { viewModel.alreadyTranscribedPrompt != nil },
+                    set: { if !$0 { viewModel.dismissAlreadyTranscribedPrompt() } }
+                )
+            ) {
+                if let info = viewModel.alreadyTranscribedPrompt {
+                    Button(viewModel.t("action_retranscribe")) {
+                        viewModel.confirmReTranscribe(items: info.items)
+                    }
+                    Button(viewModel.t("action_use_cache"), role: .cancel) {
+                        viewModel.dismissAlreadyTranscribedPrompt()
+                    }
+                }
+            } message: {
+                if let info = viewModel.alreadyTranscribedPrompt {
+                    if info.items.count == 1 {
+                        Text(String(format: viewModel.t("already_transcribed_message_single"), info.items[0].title))
+                    } else {
+                        Text(String(format: viewModel.t("already_transcribed_message_multiple"), info.items.count))
+                    }
+                }
+            }
             
             // Floating 5-Second Undo Toast (Confirmation State in 8-State Matrix)
             if viewModel.showUndoToast {
