@@ -41,7 +41,7 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
             container.widthTracksTextView = true
             container.lineFragmentPadding = 0
         }
-        textView.textContainerInset = NSSize(width: 24, height: 24)
+        textView.textContainerInset = NSSize(width: 30, height: 24)
         
         scrollView.documentView = textView
         updateTextView(textView)
@@ -65,7 +65,7 @@ public struct NativeTranscriptTextView: NSViewRepresentable {
         
         let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 4
+        paragraphStyle.lineSpacing = max(4.5, round(fontSize * 0.40))
         // Since paragraphs are already separated by empty lines (\n\n), paragraphSpacing is set to 0 to prevent giant white gaps
         paragraphStyle.paragraphSpacing = 0
         

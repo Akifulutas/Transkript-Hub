@@ -338,13 +338,15 @@ public struct UnifiedStudioHubView: View {
                     isModelInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isModelInfoPresented ? Color.Premium.champagneBronze : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isModelInfoPresented ? Color.Premium.champagneBronze : Color.secondary.opacity(0.6))
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.t("hub_tooltip_model_title"))
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isModelInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_model_title"),
@@ -390,13 +392,15 @@ public struct UnifiedStudioHubView: View {
                     isLanguageInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isLanguageInfoPresented ? Color.Premium.slateAzure : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isLanguageInfoPresented ? Color.Premium.slateAzure : Color.secondary.opacity(0.6))
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.t("hub_tooltip_language_title"))
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isLanguageInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_language_title"),
@@ -441,13 +445,15 @@ public struct UnifiedStudioHubView: View {
                     isClipboardInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isClipboardInfoPresented ? Color.Premium.emeraldMineral : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isClipboardInfoPresented ? Color.Premium.emeraldMineral : Color.secondary.opacity(0.6))
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.t("hub_tooltip_clipboard_title"))
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isClipboardInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_clipboard_title"),
@@ -521,14 +527,16 @@ public struct UnifiedStudioHubView: View {
                         isRecordingInfoPresented.toggle()
                     }) {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 9.5, weight: .medium))
-                            .foregroundStyle(isRecordingInfoPresented ? Color.Premium.crimsonVelvet : Color.secondary.opacity(0.45))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(isRecordingInfoPresented ? Color.Premium.crimsonVelvet : Color.secondary.opacity(0.6))
+                            .frame(width: 20, height: 20)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(viewModel.t("hub_tooltip_recording_title"))
                 }
-                .padding(.trailing, 8)
-                .padding(.top, 5)
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isRecordingInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_recording_title"),
@@ -575,13 +583,15 @@ public struct UnifiedStudioHubView: View {
                     isFolderInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isFolderInfoPresented ? Color.Premium.obsidianTeal : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isFolderInfoPresented ? Color.Premium.obsidianTeal : Color.secondary.opacity(0.6))
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.t("hub_tooltip_folder_title"))
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isFolderInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_folder_title"),
@@ -614,13 +624,15 @@ public struct UnifiedStudioHubView: View {
                     isHistoryInfoPresented.toggle()
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(isHistoryInfoPresented ? Color.Premium.cashmereViolet : Color.secondary.opacity(0.45))
-                        .padding(.trailing, 8)
-                        .padding(.top, 5)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isHistoryInfoPresented ? Color.Premium.cashmereViolet : Color.secondary.opacity(0.6))
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.t("hub_tooltip_history_title"))
+                .padding(.trailing, 4)
+                .padding(.top, 2)
                 .popover(isPresented: $isHistoryInfoPresented, arrowEdge: .bottom) {
                     StudioCompactInfoPopover(
                         title: viewModel.t("hub_tooltip_history_title"),
@@ -1043,12 +1055,13 @@ public struct UnifiedStudioHubView: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(caption)
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(isHovered ? Color.primary.opacity(0.85) : Color.secondary)
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(isHovered ? Color.primary.opacity(0.90) : Color.secondary.opacity(0.88))
                         .lineLimit(1)
                     
                     Text(title)
                         .font(.system(size: 12.5, weight: .bold))
+                        .monospacedDigit()
                         .foregroundStyle(Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -1118,6 +1131,7 @@ public struct UnifiedStudioHubView: View {
                     if !viewModel.queueItems.isEmpty {
                         Text("\(viewModel.queueItems.count)")
                             .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(Color.accentColor)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2)
@@ -1127,6 +1141,7 @@ public struct UnifiedStudioHubView: View {
                     if viewModel.failedCount > 0 {
                         Text(String(format: viewModel.t("hub_failed_count"), viewModel.failedCount))
                             .font(.system(size: 11, weight: .bold))
+                            .monospacedDigit()
                             .foregroundStyle(Color.Premium.terracotta)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -1170,6 +1185,7 @@ public struct UnifiedStudioHubView: View {
                                      ? viewModel.t("action_select_all")
                                      : String(format: viewModel.t("hub_selected_count"), viewModel.checkedQueueItemIDs.count))
                                     .font(.system(size: 10.5, weight: .medium))
+                                    .monospacedDigit()
                             }
                             .foregroundStyle(viewModel.checkedQueueItemIDs.isEmpty ? Color.secondary.opacity(0.85) : Color.accentColor)
                             .padding(.horizontal, 8)
@@ -1184,7 +1200,7 @@ public struct UnifiedStudioHubView: View {
                             )
                             .contentShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable()
                         .help(viewModel.checkedQueueItemIDs.isEmpty ? viewModel.t("action_select_all") : viewModel.t("action_deselect"))
                         
                         // Remove Selected Action Pill
@@ -1197,21 +1213,22 @@ public struct UnifiedStudioHubView: View {
                                         .font(.system(size: 10))
                                     Text(String(format: viewModel.t("hub_remove_selected"), viewModel.checkedQueueItemIDs.count))
                                         .font(.system(size: 10.5, weight: .medium))
+                                        .monospacedDigit()
                                 }
-                                .foregroundStyle(Color.red.opacity(0.85))
+                                .foregroundStyle(Color.Premium.crimsonVelvet)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
                                     Capsule()
-                                        .fill(Color.red.opacity(0.10))
+                                        .fill(Color.Premium.crimsonVelvet.opacity(0.12))
                                 )
                                 .overlay(
                                     Capsule()
-                                        .stroke(Color.red.opacity(0.25), lineWidth: 0.5)
+                                        .stroke(Color.Premium.crimsonVelvet.opacity(0.28), lineWidth: 0.5)
                                 )
                                 .contentShape(Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .studioPressable()
                             .help(viewModel.t("action_remove_item"))
                         }
                         
@@ -1225,6 +1242,7 @@ public struct UnifiedStudioHubView: View {
                                         .font(.system(size: 10, weight: .semibold))
                                     Text(viewModel.copiedCombinedToast ? viewModel.t("action_copied") : String(format: viewModel.t("hub_copy_combined_count"), viewModel.completedCount))
                                         .font(.system(size: 10.5, weight: .medium))
+                                        .monospacedDigit()
                                 }
                                 .foregroundStyle(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral : Color.accentColor)
                                 .padding(.horizontal, 8)
@@ -1239,7 +1257,7 @@ public struct UnifiedStudioHubView: View {
                                 )
                                 .contentShape(Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .studioPressable()
                             .hoverHelpTooltip(
                                 title: viewModel.t("action_copy_combined_session"),
                                 description: viewModel.t("hub_tooltip_copy_combined_desc"),
@@ -1372,18 +1390,7 @@ public struct UnifiedStudioHubView: View {
             
             // Queue Content: Empty State or Cards List
             if viewModel.queueItems.isEmpty {
-                HStack(spacing: 12) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.secondary.opacity(0.6))
-                    Text(viewModel.t("hub_empty_queue"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.secondary)
-                    Spacer()
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity)
-                .liquidGlass(cornerRadius: 12, glowColor: isDropTargeted ? Color.accentColor : .white.opacity(0.3), material: .ultraThinMaterial)
+                emptyQueueDropDeck
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.sortedQueueItems) { item in
@@ -1391,28 +1398,191 @@ public struct UnifiedStudioHubView: View {
                     }
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.sortedQueueItems.map { "\($0.id)_\($0.state.rawValue)" })
                     
-                    // Bottom Circular Clear Queue Button (Icon-only)
+                    // Bottom Clear Queue Capsule Button
                     HStack {
                         Spacer()
                         Button(action: {
                             viewModel.clearQueueWithUndo()
                         }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(Color.secondary.opacity(0.55))
-                                .padding(6)
-                                .contentShape(Circle())
+                            HStack(spacing: 5) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 10.5, weight: .medium))
+                                Text(viewModel.t("action_clear_queue"))
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(Color.secondary.opacity(0.85))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Color.primary.opacity(0.05)))
+                            .overlay(
+                                Capsule().stroke(Color.primary.opacity(0.10), lineWidth: 0.5)
+                            )
+                            .contentShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable()
                         .disabled(viewModel.isProcessing)
                         .help(viewModel.t("action_clear_queue"))
                         .accessibilityLabel(viewModel.t("action_clear_queue"))
                         Spacer()
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 4)
                 }
             }
         }
+    }
+    
+    // MARK: - Interactive Empty Queue Drop & Quick-Start Deck (Impeccable Operate & Delight)
+    private var emptyQueueDropDeck: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.Premium.sapphirePro.opacity(isDropTargeted ? 0.28 : 0.14),
+                                Color.Premium.cashmereViolet.opacity(isDropTargeted ? 0.22 : 0.10)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 52, height: 52)
+                
+                Image(systemName: isDropTargeted ? "arrow.down.doc.fill" : "waveform.and.mic")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(isDropTargeted ? Color.accentColor : Color.Premium.sapphirePro)
+                    .scaleEffect(isDropTargeted ? 1.12 : 1.0)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isDropTargeted)
+            }
+            
+            VStack(spacing: 6) {
+                Text(viewModel.t("hub_empty_queue_title"))
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.primary)
+                
+                Text(viewModel.t("hub_empty_queue_subtitle"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                    .frame(maxWidth: 460)
+            }
+            
+            // Interactive Quick-Start Pills with Keyboard Shortcut Badges
+            HStack(spacing: 10) {
+                emptyDeckActionPill(
+                    icon: "doc.on.clipboard.fill",
+                    title: viewModel.t("hub_quick_paste"),
+                    shortcut: "⌘V",
+                    tint: Color.Premium.emeraldMineral,
+                    action: { viewModel.addFromClipboard() }
+                )
+                
+                emptyDeckActionPill(
+                    icon: "film.and.waveform",
+                    title: viewModel.t("hub_quick_choose_file"),
+                    shortcut: "⌘O",
+                    tint: Color.Premium.sapphirePro,
+                    action: { viewModel.promptForLocalAudioFiles() }
+                )
+                
+                emptyDeckActionPill(
+                    icon: "mic.fill",
+                    title: viewModel.t("hub_quick_record"),
+                    shortcut: "⌘R",
+                    tint: Color.Premium.crimsonVelvet,
+                    action: { viewModel.isRecordingSourceSheetPresented = true }
+                )
+            }
+            
+            // Supported Format Badges
+            HStack(spacing: 8) {
+                emptyFormatChip(icon: "play.rectangle.fill", text: "YouTube", color: Color.Premium.crimsonVelvet)
+                emptyFormatChip(icon: "film", text: "MP4 · MOV · MKV", color: Color.Premium.cashmereViolet)
+                emptyFormatChip(icon: "waveform", text: "MP3 · M4A · WAV", color: Color.Premium.slateAzure)
+                emptyFormatChip(icon: "applewatch.radiowaves.left.and.right", text: viewModel.t("detail_voice_memos"), color: Color.Premium.obsidianTeal)
+            }
+            .padding(.top, 2)
+        }
+        .padding(.vertical, 32)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(
+            cornerRadius: 16,
+            glowColor: isDropTargeted ? Color.accentColor : Color.white.opacity(0.35),
+            material: .ultraThinMaterial
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(
+                    style: StrokeStyle(lineWidth: isDropTargeted ? 1.5 : 1, dash: isDropTargeted ? [6, 4] : [])
+                )
+                .foregroundStyle(isDropTargeted ? Color.accentColor.opacity(0.75) : Color.clear)
+                .allowsHitTesting(false)
+        )
+    }
+    
+    private func emptyDeckActionPill(
+        icon: String,
+        title: String,
+        shortcut: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(tint)
+                
+                Text(title)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Color.primary)
+                
+                Text(shortcut)
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color.primary.opacity(0.07))
+                    )
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(tint.opacity(0.10))
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(tint.opacity(0.28), lineWidth: 0.75)
+            )
+            .contentShape(Capsule())
+        }
+        .studioPressable()
+    }
+    
+    private func emptyFormatChip(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(color.opacity(0.85))
+            Text(text)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Color.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3.5)
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
     }
     
     private var transcribeButtonTitle: String {
@@ -1627,6 +1797,7 @@ struct StudioQueueItemRow: View {
                             if let dur = item.durationSec {
                                 Text("• \(AudioPlayerController.formatTime(dur))")
                                     .font(.system(size: 10, design: .monospaced))
+                                    .monospacedDigit()
                                     .foregroundStyle(Color.secondary)
                             }
                         }
@@ -1657,7 +1828,7 @@ struct StudioQueueItemRow: View {
                             )
                             .contentShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.92)
                     .accessibilityLabel(viewModel.t("action_copy_transcript"))
                     .hoverHelpTooltip(
                         title: viewModel.t("action_copy_transcript"),
@@ -1679,7 +1850,7 @@ struct StudioQueueItemRow: View {
                             .background(Circle().fill(Color.accentColor.opacity(0.12)))
                             .contentShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.92)
                     .accessibilityLabel(viewModel.t("action_open_finder"))
                     .hoverHelpTooltip(
                         title: viewModel.t("hub_tooltip_finder_title"),
@@ -1702,7 +1873,7 @@ struct StudioQueueItemRow: View {
                                 .background(Circle().fill(Color.accentColor.opacity(0.12)))
                                 .contentShape(Circle())
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable(scale: 0.92)
                         .accessibilityLabel(viewModel.t("action_open_browser"))
                         .hoverHelpTooltip(
                             title: viewModel.t("action_open_browser"),
@@ -1723,7 +1894,7 @@ struct StudioQueueItemRow: View {
                                 .background(Circle().fill(Color.accentColor.opacity(0.12)))
                                 .contentShape(Circle())
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable(scale: 0.92)
                         .accessibilityLabel(viewModel.t("hub_action_open_source_audio"))
                         .hoverHelpTooltip(
                             title: viewModel.t("hub_action_open_source_audio"),
@@ -1746,7 +1917,7 @@ struct StudioQueueItemRow: View {
                             .background(Circle().fill(Color.accentColor.opacity(0.12)))
                             .contentShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.92)
                     .help(viewModel.t("action_start_now"))
                     .accessibilityLabel(viewModel.t("action_start_now"))
                 }
@@ -1756,11 +1927,11 @@ struct StudioQueueItemRow: View {
                 }) {
                     Image(systemName: "trash")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.secondary.opacity(0.7))
+                        .foregroundStyle(Color.secondary.opacity(0.75))
                         .padding(4)
                         .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .studioPressable(scale: 0.92)
                 .help(viewModel.t("action_remove_item"))
                 .accessibilityLabel(viewModel.t("action_remove_item"))
             }

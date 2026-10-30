@@ -286,8 +286,8 @@ public struct TranscriptDetailView: View {
                             viewModel.isKaraokeMode
                                 ? AnyView(
                                     Capsule()
-                                        .fill(LinearGradient(colors: [Color.purple, Color.blue], startPoint: .leading, endPoint: .trailing))
-                                        .shadow(color: Color.purple.opacity(0.4), radius: 5, x: 0, y: 1)
+                                        .fill(LinearGradient(colors: [Color.Premium.cashmereViolet, Color.Premium.sapphirePro], startPoint: .leading, endPoint: .trailing))
+                                        .shadow(color: Color.Premium.cashmereViolet.opacity(0.38), radius: 5, x: 0, y: 1)
                                   )
                                 : AnyView(
                                     Capsule()
@@ -296,13 +296,13 @@ public struct TranscriptDetailView: View {
                         )
                         .foregroundColor(viewModel.isKaraokeMode ? .white : .primary)
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable()
                     .hoverHelpTooltip(
                         title: viewModel.t("hub_tooltip_karaoke_title"),
                         description: viewModel.t("hub_tooltip_karaoke_desc"),
                         icon: "sparkles",
                         status: viewModel.isKaraokeMode ? viewModel.t("detail_karaoke") : viewModel.t("detail_plain_text"),
-                        statusColor: .purple,
+                        statusColor: Color.Premium.cashmereViolet,
                         placement: .bottomTrailing,
                         width: 230
                     )
@@ -319,6 +319,7 @@ public struct TranscriptDetailView: View {
                                 systemImage: viewModel.showCombinedSessionTranscript ? "doc.plaintext" : "rectangle.stack.fill"
                             )
                             .font(.system(size: 11, weight: .medium))
+                            .monospacedDigit()
                             .foregroundStyle(viewModel.showCombinedSessionTranscript ? Color.accentColor : Color.primary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4.5)
@@ -327,7 +328,7 @@ public struct TranscriptDetailView: View {
                                     .fill(viewModel.showCombinedSessionTranscript ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
                             )
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable()
                         
                         // Dedicated Copy Combined Session Button
                         Button(action: {
@@ -347,7 +348,7 @@ public struct TranscriptDetailView: View {
                                     .fill(viewModel.copiedCombinedToast ? Color.Premium.emeraldMineral.opacity(0.18) : Color.accentColor.opacity(0.12))
                             )
                         }
-                        .buttonStyle(.plain)
+                        .studioPressable()
                         .hoverHelpTooltip(
                             title: viewModel.t("action_copy_combined_session"),
                             description: viewModel.t("hub_tooltip_copy_combined_desc"),
@@ -463,6 +464,7 @@ public struct TranscriptDetailView: View {
                     
                     Text("\(wordCount) \(viewModel.t("action_words"))")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .monospacedDigit()
                         .foregroundColor(.secondary)
                     
                     Text("•")
@@ -471,6 +473,7 @@ public struct TranscriptDetailView: View {
                     
                     Text("\(charCount) \(viewModel.t("action_chars"))")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .monospacedDigit()
                         .foregroundColor(.secondary)
                     
                     Spacer()

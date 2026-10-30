@@ -197,6 +197,7 @@ private struct SegmentRowView: View {
                             .opacity(isHovered || isActiveSegment ? 1.0 : 0.6)
                         Text("\(AudioPlayerController.formatTime(segment.start)) – \(AudioPlayerController.formatTime(segment.end))")
                             .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .monospacedDigit()
                     }
                     .foregroundStyle(isActiveSegment ? Color.accentColor : Color.secondary)
                     .padding(.horizontal, 6)

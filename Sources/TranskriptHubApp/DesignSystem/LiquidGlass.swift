@@ -102,6 +102,30 @@ public extension View {
     func liquidGlassCapsule(glowColor: Color = .white, material: Material = .ultraThinMaterial) -> some View {
         self.modifier(LiquidGlassCapsuleModifier(glowColor: glowColor, material: material))
     }
+    
+    func studioPressable(scale: CGFloat = 0.975) -> some View {
+        self.buttonStyle(StudioPressableButtonStyle(pressedScale: scale))
+    }
+}
+
+// MARK: - Tactile Pressable Button Style (Impeccable Craft Floor & Native Motion)
+public struct StudioPressableButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    public var pressedScale: CGFloat
+    
+    public init(pressedScale: CGFloat = 0.975) {
+        self.pressedScale = pressedScale
+    }
+    
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? pressedScale : 1.0)
+            .opacity(configuration.isPressed ? 0.88 : 1.0)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.78),
+                value: configuration.isPressed
+            )
+    }
 }
 
 public extension Color {
@@ -187,7 +211,7 @@ public struct LiquidUndoToast: View {
             
             Spacer()
             
-            Button("Geri Al (Undo)") {
+            Button(L10n.tr("action_undo")) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     undoAction()
                 }
@@ -201,8 +225,11 @@ public struct LiquidUndoToast: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(L10n.tr("action_cancel"))
             .padding(.leading, 4)
         }
         .padding(.horizontal, 16)

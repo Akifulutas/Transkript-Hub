@@ -65,11 +65,12 @@ REPO="Akifulutas/Transkript-Hub"
 RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
-### 🚀 Yenilikler ve İyileştirmeler
-- **Format Seçim Ekranı Metin Düzeltmeleri**: Kayıt formatı penceresindeki \`sheet_save_both_title\`, \`sheet_save_both_badge\` gibi ham anahtarlar temizlendi; Türkçe, İngilizce ve Almanca yerelleştirmeleri eksiksiz hale getirildi.
-- **Toplu Oturum Transkripti Kopyalama Seçeneği**: Toplu transkripsiyon yapıldığında hem başlık çubuğunda hem kuyruk araç çubuğunda doğrudan 'Toplu Transkripti Kopyala' butonu eklendi. Tekil kopyalama tuşuna tıklandığında artık 'Bu videonun transkriptini mi yoksa toplu transkripti mi kopyalamak istiyorsunuz?' seçeneği sunulur.
-- **Zaten Deşifre Edilmiş Öğeler İçin Yeniden Transkript Onayı**: Daha önce işlenmiş bir video veya ses dosyası geldiğinde sistem otomatik sormakta: 'Daha önce transkript edilmiş. Yeniden transkript edilsin mi, yoksa mevcut önbellek mi kullanılsın?'. 'Yeniden Transkript Et' seçildiğinde önbellek atlanır ve modelle sıfırdan deşifre işlemi başlatılır.
-- **Akıllı Önbellek Güncelleme (Cache Overwrite)**: Yeniden transkript edilen dosyaların güncellenmiş metinleri veritabanı önbelleğine anında işlenir.
+### ✨ Impeccable v4.8.0 Tasarım ve Deneyim Geliştirmeleri
+- **Etkileşimli Boş Kuyruk & Hızlı Başlangıç Güvertesi (Empty-State Quick-Start Deck)**: Kuyruk boşken artık kullanıcıyı yönlendiren, klavye kısayollarını (\`⌘V\` Bağlantı Yapıştır, \`⌘O\` Ses/Video Seç, \`⌘R\` Canlı Kayıt) tek tıkla çalıştıran ve desteklenen formatları (\`YouTube\`, \`MP4 · MOV · MKV\`, \`MP3 · M4A · WAV\`, \`Sesli Notlar\`) gösteren interaktif bir stüdyo alanı karşılar.
+- **Tablosal Rakamlar (Tabular Numerals / \`monospacedDigit\`)**: Kuyruk sayaçları, canlı transkripsiyon yüzdeleri, ses süreleri, dalga formu (waveform) zaman kodları ve kelime/karakter sayaçlarına \`monospacedDigit()\` eklendi; canlı ilerleme ve sarma (scrubbing) sırasında rakam titremeleri tamamen giderildi.
+- **Taktil Basım Etkileşimi (\`StudioPressableButtonStyle\`)**: Tüm kapsül butonlara, kuyruk satırı aksiyonlarına ve ses oynatıcı kontrollerine \`accessibilityReduceMotion\` duyarlı yaylanma (spring) ve basım geri bildirimi eklendi.
+- **Tipografik Okuma Konforu & Renk Harmonizasyonu**: Transkript okuyucusunda dinamik satır aralığı (\`lineSpacing\`) ve okuma marjları optimize edildi; Karaoke ve detay görünümündeki tüm ham renkler \`Color.Premium\` mineral/metalik tasarım tokenları ile bütünleştirildi.
+- **Erişilebilirlik ve Yerelleştirme İyileştirmeleri**: İkon butonlarına eksiksiz VoiceOver \`accessibilityLabel\` tanımları, 22x22pt+ tıklama hedefleri ve çok dilli Geri Al (\`Undo\`) bildirimi eklendi; \`PRODUCT.md\` tasarım bağlamı oluşturuldu.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."

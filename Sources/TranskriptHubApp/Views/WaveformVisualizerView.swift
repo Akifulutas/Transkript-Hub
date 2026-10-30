@@ -166,6 +166,7 @@ public struct WaveformVisualizerView: View {
                 // Current Time Monospace
                 Text(AudioPlayerController.formatTimeWithMilliseconds(displayTime))
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .monospacedDigit()
                     .foregroundColor(.primary)
                     .frame(minWidth: 64, alignment: .leading)
                 
@@ -179,11 +180,14 @@ public struct WaveformVisualizerView: View {
                     }) {
                         Image(systemName: "gobackward.5")
                             .font(.system(size: 14, weight: .medium))
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.90)
                     .foregroundColor(.primary)
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                     .help("5 saniye geri (⌘←)")
+                    .accessibilityLabel("5 saniye geri")
                     
                     // Circular Play / Pause
                     Button(action: {
@@ -201,8 +205,9 @@ public struct WaveformVisualizerView: View {
                                 .offset(x: player.isPlaying ? 0 : 1)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.92)
                     .help("Oynat / Duraklat (Space)")
+                    .accessibilityLabel(player.isPlaying ? "Duraklat" : "Oynat")
                     
                     // Jump +5s
                     Button(action: {
@@ -210,11 +215,14 @@ public struct WaveformVisualizerView: View {
                     }) {
                         Image(systemName: "goforward.5")
                             .font(.system(size: 14, weight: .medium))
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .studioPressable(scale: 0.90)
                     .foregroundColor(.primary)
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                     .help("5 saniye ileri (⌘→)")
+                    .accessibilityLabel("5 saniye ileri")
                 }
                 
                 Spacer()
@@ -236,6 +244,7 @@ public struct WaveformVisualizerView: View {
                 } label: {
                     Text("\(player.playbackRate, specifier: "%.2f")x")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .monospacedDigit()
                         .foregroundColor(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
@@ -247,6 +256,7 @@ public struct WaveformVisualizerView: View {
                 // Total Duration Monospace
                 Text(AudioPlayerController.formatTime(player.duration))
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
                     .foregroundColor(.secondary)
                     .frame(minWidth: 44, alignment: .trailing)
             }

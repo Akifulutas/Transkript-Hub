@@ -16,6 +16,7 @@ public struct SessionSaveModeSheet: View {
     let onCancel: () -> Void
     
     @State private var selectedMode: SessionSaveMode = .both
+    @State private var hoveredMode: SessionSaveMode? = nil
     
     public init(
         viewModel: AppViewModel,
@@ -56,6 +57,7 @@ public struct SessionSaveModeSheet: View {
                     
                     Text(String(format: viewModel.t("sheet_save_mode_desc"), itemCount))
                         .font(.system(size: 12))
+                        .monospacedDigit()
                         .foregroundColor(.secondary)
                 }
                 
@@ -138,52 +140,64 @@ public struct SessionSaveModeSheet: View {
         badge: String? = nil
     ) -> some View {
         let isSelected = selectedMode == mode
-        return HStack(spacing: 12) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(isSelected ? .accentColor : .secondary.opacity(0.5))
-                .font(.system(size: 16))
-            
-            Image(systemName: icon)
-                .font(.system(size: 15))
-                .foregroundColor(isSelected ? .accentColor : .secondary)
-                .frame(width: 20)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(title)
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                        .foregroundColor(.primary)
-                    
-                    if let b = badge {
-                        Text(b)
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Color.Premium.emeraldMineral.opacity(0.18))
-                            .foregroundColor(Color.Premium.emeraldMineral)
-                            .clipShape(Capsule())
+        let isHovered = hoveredMode == mode
+        return Button(action: {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) {
+                selectedMode = mode
+            }
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .accentColor : .secondary.opacity(isHovered ? 0.75 : 0.5))
+                    .font(.system(size: 16))
+                
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .frame(width: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                            .foregroundColor(.primary)
+                        
+                        if let b = badge {
+                            Text(b)
+                                .font(.system(size: 9, weight: .bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(Color.Premium.emeraldMineral.opacity(0.18))
+                                .foregroundColor(Color.Premium.emeraldMineral)
+                                .clipShape(Capsule())
+                        }
                     }
+                    
+                    Text(description)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
                 }
                 
-                Text(description)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                Spacer()
             }
-            
-            Spacer()
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.white.opacity(isHovered ? 0.07 : 0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.55) : Color.white.opacity(isHovered ? 0.18 : 0.1), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            selectedMode = mode
+        .studioPressable(scale: 0.985)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                hoveredMode = hovering ? mode : nil
+            }
         }
     }
 }
