@@ -123,18 +123,30 @@ public struct TranscriptionOptions: Sendable {
     public var threads: Int             // default: performance core count
     public var initialPrompt: String?   // optional terms list
     public var tokenTimestamps: Bool    // default: true
+    public var noContext: Bool          // condition_on_previous_text = false (stops hallucination loops)
+    public var suppressBlank: Bool      // default: true
+    public var suppressNonSpeech: Bool  // default: true
+    public var noSpeechThreshold: Float // default: 0.60
     
     public init(
         language: String? = nil,
         useVAD: Bool = true,
         threads: Int = min(ProcessInfo.processInfo.activeProcessorCount, 6),
         initialPrompt: String? = nil,
-        tokenTimestamps: Bool = true
+        tokenTimestamps: Bool = true,
+        noContext: Bool = true,
+        suppressBlank: Bool = true,
+        suppressNonSpeech: Bool = true,
+        noSpeechThreshold: Float = 0.60
     ) {
         self.language = language
         self.useVAD = useVAD
         self.threads = max(1, threads)
         self.initialPrompt = initialPrompt
         self.tokenTimestamps = tokenTimestamps
+        self.noContext = noContext
+        self.suppressBlank = suppressBlank
+        self.suppressNonSpeech = suppressNonSpeech
+        self.noSpeechThreshold = noSpeechThreshold
     }
 }

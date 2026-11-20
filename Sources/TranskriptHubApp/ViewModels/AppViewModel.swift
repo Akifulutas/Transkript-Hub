@@ -203,6 +203,13 @@ public final class AppViewModel: ObservableObject {
     @Published public var searchQuery: String = ""
     @Published public var transcriptFontSize: Double = 13.0
     
+    // Anti-Hallucination Loop Protection (condition_on_previous_text = false)
+    @Published public var antiHallucinationEnabled: Bool = UserDefaults.standard.object(forKey: "antiHallucinationEnabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(antiHallucinationEnabled, forKey: "antiHallucinationEnabled")
+        }
+    }
+    
     // Density Mode (Standard / Compact)
     @Published public var densityMode: DensityMode = .standard
     
@@ -2312,7 +2319,10 @@ public final class AppViewModel: ObservableObject {
                             let itemId = current.id
                             let result = try await whisperEngine.transcribe(
                                 prepared,
-                                options: TranscriptionOptions(language: lang),
+                                options: TranscriptionOptions(
+                                    language: lang,
+                                    noContext: self.antiHallucinationEnabled
+                                ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
                                         guard let self = self, !self.isCancelRequested else { return }
@@ -2500,7 +2510,10 @@ public final class AppViewModel: ObservableObject {
                             let itemId = current.id
                             let result = try await whisperEngine.transcribe(
                                 prepared,
-                                options: TranscriptionOptions(language: lang),
+                                options: TranscriptionOptions(
+                                    language: lang,
+                                    noContext: self.antiHallucinationEnabled
+                                ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
                                         guard let self = self, !self.isCancelRequested else { return }

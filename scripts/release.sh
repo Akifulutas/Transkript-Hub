@@ -65,12 +65,12 @@ REPO="Akifulutas/Transkript-Hub"
 RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
-### ✨ Impeccable v4.8.0 Tasarım ve Deneyim Geliştirmeleri
-- **Etkileşimli Boş Kuyruk & Hızlı Başlangıç Güvertesi (Empty-State Quick-Start Deck)**: Kuyruk boşken artık kullanıcıyı yönlendiren, klavye kısayollarını (\`⌘V\` Bağlantı Yapıştır, \`⌘O\` Ses/Video Seç, \`⌘R\` Canlı Kayıt) tek tıkla çalıştıran ve desteklenen formatları (\`YouTube\`, \`MP4 · MOV · MKV\`, \`MP3 · M4A · WAV\`, \`Sesli Notlar\`) gösteren interaktif bir stüdyo alanı karşılar.
-- **Tablosal Rakamlar (Tabular Numerals / \`monospacedDigit\`)**: Kuyruk sayaçları, canlı transkripsiyon yüzdeleri, ses süreleri, dalga formu (waveform) zaman kodları ve kelime/karakter sayaçlarına \`monospacedDigit()\` eklendi; canlı ilerleme ve sarma (scrubbing) sırasında rakam titremeleri tamamen giderildi.
-- **Taktil Basım Etkileşimi (\`StudioPressableButtonStyle\`)**: Tüm kapsül butonlara, kuyruk satırı aksiyonlarına ve ses oynatıcı kontrollerine \`accessibilityReduceMotion\` duyarlı yaylanma (spring) ve basım geri bildirimi eklendi.
-- **Tipografik Okuma Konforu & Renk Harmonizasyonu**: Transkript okuyucusunda dinamik satır aralığı (\`lineSpacing\`) ve okuma marjları optimize edildi; Karaoke ve detay görünümündeki tüm ham renkler \`Color.Premium\` mineral/metalik tasarım tokenları ile bütünleştirildi.
-- **Erişilebilirlik ve Yerelleştirme İyileştirmeleri**: İkon butonlarına eksiksiz VoiceOver \`accessibilityLabel\` tanımları, 22x22pt+ tıklama hedefleri ve çok dilli Geri Al (\`Undo\`) bildirimi eklendi; \`PRODUCT.md\` tasarım bağlamı oluşturuldu.
+### 🛡️ Whisper Large V3 Halüsinasyon ve Tekrar Döngüsü Koruması (Anti-Hallucination Loop Defense)
+- **Pencere İzolasyonu (\`condition_on_previous_text = false\` / \`no_context = true\`)**: Uzun kayıtlarda veya duraklamalarda bir pencerede üretilen hatalı metnin sonraki 30 saniyelik pencerelere bağlam olarak aktarılması ve zincirleme tekrar döngüsü oluşturması tamamen engellendi.
+- **Sessizlik & Sıcaklık Artış Filtresi (\`temperature_inc = 0.0\`)**: Sessizlik ve arka plan gürültüsü anlarında Whisper'ın rastgele yüksek sıcaklıkta örnekleme yapması kapatıldı; \`entropy_thold = 2.40\`, \`logprob_thold = -1.00\`, \`no_speech_thold = 0.60\`, \`suppress_blank\` ve \`suppress_nst\` parametreleri devreye alındı.
+- **Cümle İçi ve Segmentler Arası Tekrar Tekilleştirme (Intra-Segment Deduplication)**: Modelin aynı cümle içinde 3+ kez arka arkaya tekrarladığı kalıplar (\`was ich das mal so gut machen kann...\`, \`Das ist ja im Grunde Parameter...\`) ve konuşma onayları (\`Ja. Ja.\`) dil kurallarına uygun biçimde tekilleştirildi.
+- **Whisper Sessizlik Kalıntıları Filtresi**: Whisper modellerinin Almanca, Türkçe ve İngilizce sessizlik anlarında ezberden ürettiği bilinen kalıp halüsinasyonlar (\`es heilt die göttliche Kraft\`, \`Thank you for watching\`, \`Altyazı\`) filtrelendi.
+- **Kullanıcı Denetimi**: Ayarlar menüsüne 'Halüsinasyon Döngüsü Koruması' anahtarı eklendi.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."

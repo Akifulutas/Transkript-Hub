@@ -135,6 +135,18 @@ public struct FloatingSettingsSheet: View {
                 
                 Divider()
                 
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(viewModel.t("settings_anti_hallucination_title"), isOn: $viewModel.antiHallucinationEnabled)
+                        .toggleStyle(.switch)
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(viewModel.t("settings_anti_hallucination_desc"))
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                Divider()
+                
                 HStack {
                     Toggle(viewModel.t("settings_auto_check_updates"), isOn: $viewModel.autoCheckUpdates)
                         .toggleStyle(.switch)
