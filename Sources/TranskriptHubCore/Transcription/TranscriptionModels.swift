@@ -30,19 +30,22 @@ public struct Segment: Sendable, Codable, Equatable, Hashable, Identifiable {
     public var text: String
     public var speaker: String?
     public var words: [Word]
+    public var noSpeechProb: Float?
 
     public init(
         start: Double,
         end: Double,
         text: String,
         speaker: String? = nil,
-        words: [Word] = []
+        words: [Word] = [],
+        noSpeechProb: Float? = nil
     ) {
         self.start = start
         self.end = end
         self.text = text
         self.speaker = speaker
         self.words = words
+        self.noSpeechProb = noSpeechProb
     }
     
     enum CodingKeys: String, CodingKey {
@@ -51,6 +54,7 @@ public struct Segment: Sendable, Codable, Equatable, Hashable, Identifiable {
         case text
         case speaker
         case words
+        case noSpeechProb
     }
     
     public init(from decoder: Decoder) throws {
@@ -60,6 +64,7 @@ public struct Segment: Sendable, Codable, Equatable, Hashable, Identifiable {
         self.text = try container.decode(String.self, forKey: .text)
         self.speaker = try container.decodeIfPresent(String.self, forKey: .speaker)
         self.words = try container.decodeIfPresent([Word].self, forKey: .words) ?? []
+        self.noSpeechProb = try container.decodeIfPresent(Float.self, forKey: .noSpeechProb)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -69,6 +74,7 @@ public struct Segment: Sendable, Codable, Equatable, Hashable, Identifiable {
         try container.encode(text, forKey: .text)
         try container.encodeIfPresent(speaker, forKey: .speaker)
         try container.encode(words, forKey: .words)
+        try container.encodeIfPresent(noSpeechProb, forKey: .noSpeechProb)
     }
     
     public var duration: Double {
@@ -127,6 +133,10 @@ public struct TranscriptionOptions: Sendable {
     public var suppressBlank: Bool      // default: true
     public var suppressNonSpeech: Bool  // default: true
     public var noSpeechThreshold: Float // default: 0.60
+    public var entropyThreshold: Float  // default: 2.4
+    public var temperature: Float       // default: 0.0
+    public var temperatureInc: Float    // default: 0.2
+    public var beamSize: Int            // default: 5 (beam search for higher accuracy & loop suppression)
     
     public init(
         language: String? = nil,
@@ -134,10 +144,14 @@ public struct TranscriptionOptions: Sendable {
         threads: Int = min(ProcessInfo.processInfo.activeProcessorCount, 6),
         initialPrompt: String? = nil,
         tokenTimestamps: Bool = true,
-        noContext: Bool = false,
+        noContext: Bool = true,
         suppressBlank: Bool = true,
         suppressNonSpeech: Bool = true,
-        noSpeechThreshold: Float = 0.60
+        noSpeechThreshold: Float = 0.60,
+        entropyThreshold: Float = 2.4,
+        temperature: Float = 0.0,
+        temperatureInc: Float = 0.2,
+        beamSize: Int = 5
     ) {
         self.language = language
         self.useVAD = useVAD
@@ -148,5 +162,9 @@ public struct TranscriptionOptions: Sendable {
         self.suppressBlank = suppressBlank
         self.suppressNonSpeech = suppressNonSpeech
         self.noSpeechThreshold = noSpeechThreshold
+        self.entropyThreshold = entropyThreshold
+        self.temperature = temperature
+        self.temperatureInc = temperatureInc
+        self.beamSize = max(1, beamSize)
     }
 }

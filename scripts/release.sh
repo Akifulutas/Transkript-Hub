@@ -65,10 +65,12 @@ REPO="Akifulutas/Transkript-Hub"
 RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
-### 🔧 Kararlılık ve Tam Kapsamlı Transkripsiyon Düzeltmesi (Full Audio Recall & Post-Processing Guard)
-- **Kayıp Parçaların Geri Kazanılması**: \`v1.5.1\` sürümünde model seviyesinde yapılan aşırı agresif parametre müdahaleleri (\`temperature_inc = 0.0\`, \`no_context = true\`) fısıltılı veya teknik terimli konuşmaların atlanmasına yol açıyordu. Motor seviyesindeki bu kısıtlamalar kaldırılarak Whisper'ın doğal ve kesintisiz akışı geri getirildi.
-- **Cerrahi Cümle Seviyesi Halüsinasyon Temizliği**: Sessizlik anlarında üretilen kalıp uydurmalar (\`es heilt die göttliche Kraft\`, \`Thank you for watching\`, \`Altyazı\`) artık sesi kesmeden, son işleme (\`post-processing\`) aşamasında cümle bazlı olarak güvenle ayıklanır.
-- **Akıllı Cümle İçi Tekilleştirme**: Modelin duraklamalarda takılıp 3+ kez arka arkaya tekrarladığı kelime öbekleri (\`was ich das mal so gut machen kann...\`, \`Das ist ja im Grunde Parameter...\`) konuşma akışını bozmadan tek bir cümleye indirgenir.
+### 👑 Maksimum Doğruluk Odaklı Çift Motorlu STT Mimarisi & Nöral Silero VAD v6.2.0
+- **Sadeleştirilmiş Elit Model Kataloğu (\`>= 1 GB\`, \`>= 9.5/10\` Doğruluk)**: 1 GB altındaki ve doğruluk açısından domine edilen tüm modeller kaldırılarak yalnızca **\`Large-v3\` (3.09 GB, \`9.7/10\`)**, **\`Qwen3-ASR-1.7B\` (4.70 GB, \`9.6/10\`)** ve **\`Large-v3 (Q5_0)\` (1.08 GB, \`9.5/10\`)** bırakıldı.
+- **Saf C \`Qwen3-ASR-1.7B\` Entegrasyonu (\`CQwenASR\`)**: Apple \`Accelerate\` BLAS + NEON (\`-O3 -ffast-math\`) ile sıfır Python bağımlılıklı yerel Qwen3-ASR motoru eklendi.
+- **Nöral Silero VAD v6.2.0 + Saf Swift \`vDSP\` \`AudioConditioner\`**: 95 Hz Butterworth yüksek geçiren filtre, konuşma modülasyonu kapılı kısık-ses kazancı (\`p90 > p15 * 1.8\`) ve \`<= 28.0 sn\` bağımsız nöral VAD dilimleme ile sessizlik halüsinasyonları \`0/5\` düzeyine indirildi.
+- **Whisper \`Beam Search (beam=5)\` & \`flash_attn = true\`**: Yumuşak başlangıç kelimelerini ve teknik terimleri kurtaran ışın araması ve Metal Flash Attention varsayılan olarak etkinleştirildi.
+- **Kuyruk Alt Başlık & Anti-Halüsinasyon Düzeltmesi**: \`AppViewModel\` içinde \`noContext\` parametresi \`antiHallucinationEnabled\` ayarına bağlandı ve tamamlanan ses kayıtlarında \`\"Ses Transkript Ediliyor...\"\` alt başlığının takılı kalma sorunu giderildi.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."

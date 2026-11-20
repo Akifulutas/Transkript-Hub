@@ -243,6 +243,8 @@ final class FolderWatcherTests: XCTestCase {
         }
         XCTAssertEqual(WhisperModel.largeV3Turbo.displayName, "Large-v3-Turbo")
         XCTAssertEqual(WhisperModel.largeV3TurboQ5.displayName, "Large-v3-Turbo (Q5_0)")
+        XCTAssertEqual(WhisperModel.largeV3.displayName, "Large-v3 (Full 32-Layer)")
+        XCTAssertEqual(WhisperModel.largeV3Q5.displayName, "Large-v3 (Q5_0)")
         XCTAssertEqual(WhisperModel.small.displayName, "Small")
         XCTAssertEqual(WhisperModel.base.displayName, "Base")
         XCTAssertEqual(WhisperModel.tiny.displayName, "Tiny")
@@ -251,7 +253,7 @@ final class FolderWatcherTests: XCTestCase {
     
     func testWhisperModelCatalogSortedBySizeBytesAscending() {
         let models = WhisperModelCatalog.availableModels
-        XCTAssertEqual(models.count, 6)
+        XCTAssertEqual(models.count, 3)
         for i in 0..<(models.count - 1) {
             XCTAssertLessThanOrEqual(
                 models[i].sizeBytes,
@@ -259,11 +261,12 @@ final class FolderWatcherTests: XCTestCase {
                 "Model \(models[i].displayName) sizeBytes (\(models[i].sizeBytes)) must be <= next model \(models[i+1].displayName) sizeBytes (\(models[i+1].sizeBytes))"
             )
         }
-        XCTAssertEqual(models.first?.model, .tiny)
-        XCTAssertEqual(models.last?.model, .largeV3Turbo)
+        XCTAssertEqual(models.first?.model, .largeV3Q5)
+        XCTAssertEqual(models.last?.model, .qwen3ASR17B)
         
-        // Verify model descriptions are concise
+        // Verify all catalog models are >= 1 GB and descriptions are concise
         for spec in models {
+            XCTAssertGreaterThanOrEqual(spec.sizeBytes, 1_000_000_000, "Catalog must exclude < 1 GB models")
             XCTAssertFalse(spec.summary.isEmpty)
             XCTAssertLessThanOrEqual(spec.summary.count, 40, "Model summary '\(spec.summary)' should be concise")
         }
@@ -272,39 +275,27 @@ final class FolderWatcherTests: XCTestCase {
     func testWhisperModelBenchmarkTenPointScaleRatings() {
         let models = WhisperModelCatalog.availableModels
         
-        guard let tiny = models.first(where: { $0.model == .tiny }),
-              let base = models.first(where: { $0.model == .base }),
-              let small = models.first(where: { $0.model == .small }),
-              let turboQ5 = models.first(where: { $0.model == .largeV3TurboQ5 }),
-              let medium = models.first(where: { $0.model == .medium }),
-              let turbo = models.first(where: { $0.model == .largeV3Turbo }) else {
-            XCTFail("Missing expected models in catalog")
+        guard let largeQ5 = models.first(where: { $0.model == .largeV3Q5 }),
+              let large = models.first(where: { $0.model == .largeV3 }),
+              let qwen17 = models.first(where: { $0.model == .qwen3ASR17B }) else {
+            XCTFail("Missing expected curated high-accuracy models in catalog")
             return
         }
         
-        // Verified Empirical Benchmark Scale (out of 10)
-        XCTAssertEqual(tiny.speedScore, 10.0, accuracy: 0.01)
-        XCTAssertEqual(tiny.accuracyScore, 4.0, accuracy: 0.01)
+        // Verified Empirical Apple Silicon M1 Pro Benchmark Scale (out of 10)
+        XCTAssertEqual(largeQ5.speedScore, 6.0, accuracy: 0.01)
+        XCTAssertEqual(largeQ5.accuracyScore, 9.5, accuracy: 0.01)
         
-        XCTAssertEqual(base.speedScore, 9.0, accuracy: 0.01)
-        XCTAssertEqual(base.accuracyScore, 5.5, accuracy: 0.01)
+        XCTAssertEqual(large.speedScore, 6.8, accuracy: 0.01)
+        XCTAssertEqual(large.accuracyScore, 9.7, accuracy: 0.01)
         
-        XCTAssertEqual(small.speedScore, 7.0, accuracy: 0.01)
-        XCTAssertEqual(small.accuracyScore, 7.5, accuracy: 0.01)
-        
-        XCTAssertEqual(turboQ5.speedScore, 9.0, accuracy: 0.01)
-        XCTAssertEqual(turboQ5.accuracyScore, 9.0, accuracy: 0.01)
-        
-        XCTAssertEqual(medium.speedScore, 5.0, accuracy: 0.01)
-        XCTAssertEqual(medium.accuracyScore, 8.5, accuracy: 0.01)
-        
-        XCTAssertEqual(turbo.speedScore, 8.5, accuracy: 0.01)
-        XCTAssertEqual(turbo.accuracyScore, 9.5, accuracy: 0.01)
+        XCTAssertEqual(qwen17.speedScore, 5.0, accuracy: 0.01)
+        XCTAssertEqual(qwen17.accuracyScore, 9.6, accuracy: 0.01)
         
         for spec in models {
             XCTAssertGreaterThanOrEqual(spec.speedScore, 1.0)
             XCTAssertLessThanOrEqual(spec.speedScore, 10.0)
-            XCTAssertGreaterThanOrEqual(spec.accuracyScore, 1.0)
+            XCTAssertGreaterThanOrEqual(spec.accuracyScore, 9.5)
             XCTAssertLessThanOrEqual(spec.accuracyScore, 10.0)
         }
     }
@@ -317,8 +308,8 @@ final class FolderWatcherTests: XCTestCase {
             isTurbo: true,
             isQuantized: false
         )
-        XCTAssertEqual(newCustomTurbo.speed, 8.5, accuracy: 0.01)
-        XCTAssertEqual(newCustomTurbo.accuracy, 9.5, accuracy: 0.01)
+        XCTAssertEqual(newCustomTurbo.speed, 9.0, accuracy: 0.01)
+        XCTAssertEqual(newCustomTurbo.accuracy, 8.8, accuracy: 0.01)
         
         let newCustomQuantized = WhisperModelCatalog.evaluateBenchmarkScores(
             modelName: "whisper-turbo-q4_k",
@@ -326,8 +317,8 @@ final class FolderWatcherTests: XCTestCase {
             isTurbo: true,
             isQuantized: true
         )
-        XCTAssertEqual(newCustomQuantized.speed, 9.0, accuracy: 0.01)
-        XCTAssertEqual(newCustomQuantized.accuracy, 9.0, accuracy: 0.01)
+        XCTAssertEqual(newCustomQuantized.speed, 8.6, accuracy: 0.01)
+        XCTAssertEqual(newCustomQuantized.accuracy, 8.5, accuracy: 0.01)
         
         let newUnknownCompact = WhisperModelCatalog.evaluateBenchmarkScores(
             modelName: "distil-whisper-mini",

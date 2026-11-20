@@ -387,6 +387,10 @@ public struct ContentView: View {
         case .medium: return "Medium (1.5 GB)"
         case .largeV3Turbo: return "Large-v3-Turbo (1.6 GB - \(viewModel.t("model_speed_best")))"
         case .largeV3TurboQ5: return "Large-v3-Turbo Q5 (547 MB)"
+        case .largeV3: return "Large-v3 (3.09 GB)"
+        case .largeV3Q5: return "Large-v3 Q5 (1.08 GB)"
+        case .qwen3ASR06B: return "Qwen3-ASR-0.6B (1.88 GB)"
+        case .qwen3ASR17B: return "Qwen3-ASR-1.7B (4.70 GB)"
         }
     }
     
@@ -396,7 +400,9 @@ public struct ContentView: View {
         case .base: return "hare.fill"
         case .small: return "sparkles"
         case .medium: return "waveform"
-        case .largeV3Turbo, .largeV3TurboQ5: return "crown.fill"
+        case .largeV3, .largeV3Q5, .largeV3Turbo, .largeV3TurboQ5: return "crown.fill"
+        case .qwen3ASR06B: return "shield.checkered"
+        case .qwen3ASR17B: return "cpu.fill"
         }
     }
     

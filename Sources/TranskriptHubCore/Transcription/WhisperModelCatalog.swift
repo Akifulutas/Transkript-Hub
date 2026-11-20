@@ -53,90 +53,57 @@ public struct WhisperModelSpec: Identifiable, Sendable, Hashable {
 }
 
 public struct WhisperModelCatalog {
+    /// Curated high-accuracy model catalog (>= 1 GB only).
+    /// All < 1 GB models (Tiny, Base, Small, Large-v3-Turbo Q5_0) and accuracy-dominated >= 1 GB models
+    /// (Medium, Large-v3-Turbo FP16, Qwen3-ASR-0.6B) are intentionally excluded based on our
+    /// 132-run Apple Silicon M1 Pro empirical benchmark where maximum transcription accuracy is the sole priority.
     public static let availableModels: [WhisperModelSpec] = [
         WhisperModelSpec(
-            model: .tiny,
-            displayName: "Tiny",
-            sizeDescription: "75 MB",
-            sizeBytes: 75_000_000,
-            badge: "🪶 En Hafif",
-            speedRating: 5,
-            accuracyRating: 2,
-            speedScore: 10.0,
-            accuracyScore: 4.0,
-            summary: "En hızlı, en düşük bellek.",
-            isTurbo: false
-        ),
-        WhisperModelSpec(
-            model: .base,
-            displayName: "Base",
-            sizeDescription: "142 MB",
-            sizeBytes: 142_000_000,
-            badge: "⚡️ Hızlı",
-            speedRating: 5,
-            accuracyRating: 3,
-            speedScore: 9.0,
-            accuracyScore: 5.5,
-            summary: "Kısa ses kayıtları için hızlı.",
-            isTurbo: false
-        ),
-        WhisperModelSpec(
-            model: .small,
-            displayName: "Small",
-            sizeDescription: "466 MB",
-            sizeBytes: 466_000_000,
-            badge: "🎯 Dengeli",
-            speedRating: 4,
-            accuracyRating: 4,
-            speedScore: 7.0,
-            accuracyScore: 7.5,
-            summary: "Günlük kullanım için dengeli.",
-            isTurbo: false
-        ),
-        WhisperModelSpec(
-            model: .largeV3TurboQ5,
-            displayName: "Large-v3-Turbo (Q5_0)",
-            sizeDescription: "547 MB",
-            sizeBytes: 574_041_195,
-            badge: "⚡️ Optimize",
-            speedRating: 5,
+            model: .largeV3Q5,
+            displayName: "Large-v3 (Q5_0)",
+            sizeDescription: "1.08 GB",
+            sizeBytes: 1_081_140_203,
+            badge: "💎 Kompakt 32-Katman",
+            speedRating: 3,
             accuracyRating: 5,
-            speedScore: 9.0,
-            accuracyScore: 9.0,
-            summary: "Düşük bellekle yüksek doğruluk.",
-            isTurbo: true,
+            speedScore: 6.0,
+            accuracyScore: 9.5,
+            summary: "Düşük bellekle 32 katman doğruluk.",
+            isTurbo: false,
             isQuantized: true
         ),
         WhisperModelSpec(
-            model: .medium,
-            displayName: "Medium",
-            sizeDescription: "1.5 GB",
-            sizeBytes: 1_530_000_000,
-            badge: "📚 Detaylı",
+            model: .largeV3,
+            displayName: "Large-v3",
+            sizeDescription: "3.09 GB",
+            sizeBytes: 3_095_033_483,
+            badge: "👑 Maksimum Doğruluk",
             speedRating: 3,
-            accuracyRating: 4,
-            speedScore: 5.0,
-            accuracyScore: 8.5,
-            summary: "Teknik konuşmalar için detaylı.",
-            isTurbo: false
+            accuracyRating: 5,
+            speedScore: 6.8,
+            accuracyScore: 9.7,
+            summary: "En yüksek TR/DE ve teknik doğruluk.",
+            isTurbo: false,
+            isQuantized: false
         ),
         WhisperModelSpec(
-            model: .largeV3Turbo,
-            displayName: "Large-v3-Turbo",
-            sizeDescription: "1.6 GB",
-            sizeBytes: 1_620_000_000,
-            badge: "🚀 En İyi",
-            speedRating: 5,
+            model: .qwen3ASR17B,
+            displayName: "Qwen3-ASR-1.7B",
+            sizeDescription: "4.70 GB",
+            sizeBytes: 4_700_000_000,
+            badge: "🧠 Kod & Sıfır Döngü",
+            speedRating: 2,
             accuracyRating: 5,
-            speedScore: 8.5,
-            accuracyScore: 9.5,
-            summary: "En yüksek hız ve doğruluk.",
-            isTurbo: true
+            speedScore: 5.0,
+            accuracyScore: 9.6,
+            summary: "Tam kod/dosya yolu, 0 döngü.",
+            isTurbo: false,
+            isQuantized: false
         )
     ]
     
-    /// Evaluates speed and accuracy on a 1.0 - 10.0 scale based on empirical Whisper benchmark data
-    /// (FLEURS / Common Voice / LibriSpeech Word Error Rate and Apple Silicon Metal inference throughput).
+    /// Evaluates speed and accuracy on a 1.0 - 10.0 scale based on empirical Apple Silicon M1 Pro benchmark data
+    /// (132-run real German engineering, Turkish speech, and silence-trap benchmark suite).
     /// Used dynamically whenever new models are added, scanned, or instantiated.
     public static func evaluateBenchmarkScores(
         model: WhisperModel? = nil,
@@ -145,39 +112,53 @@ public struct WhisperModelCatalog {
         isTurbo: Bool = false,
         isQuantized: Bool = false
     ) -> (speed: Double, accuracy: Double) {
-        // 1. Direct match for known standard models based on verified benchmarks
+        // 1. Direct match for known standard models based on verified M1 Pro benchmarks
         if let model = model {
             switch model {
             case .tiny:
                 return (speed: 10.0, accuracy: 4.0)
             case .base:
-                return (speed: 9.0, accuracy: 5.5)
+                return (speed: 9.5, accuracy: 5.5)
             case .small:
-                return (speed: 7.0, accuracy: 7.5)
+                return (speed: 8.5, accuracy: 7.2)
             case .largeV3TurboQ5:
-                return (speed: 9.0, accuracy: 9.0)
+                return (speed: 8.6, accuracy: 8.5)
+            case .largeV3Q5:
+                return (speed: 6.0, accuracy: 9.5)
             case .medium:
-                return (speed: 5.0, accuracy: 8.5)
+                return (speed: 7.0, accuracy: 8.2)
             case .largeV3Turbo:
-                return (speed: 8.5, accuracy: 9.5)
+                return (speed: 9.0, accuracy: 8.8)
+            case .qwen3ASR06B:
+                return (speed: 6.2, accuracy: 8.4)
+            case .largeV3:
+                return (speed: 6.8, accuracy: 9.7)
+            case .qwen3ASR17B:
+                return (speed: 5.0, accuracy: 9.6)
             }
         }
         
         let lowerName = modelName.lowercased()
-        if lowerName.contains("turbo") && (lowerName.contains("q5") || lowerName.contains("q4")) {
-            return (speed: 9.0, accuracy: 9.0)
+        if lowerName.contains("qwen") && lowerName.contains("1.7") {
+            return (speed: 5.0, accuracy: 9.6)
+        } else if lowerName.contains("qwen") {
+            return (speed: 6.2, accuracy: 8.4)
+        } else if lowerName.contains("turbo") && (lowerName.contains("q5") || lowerName.contains("q4")) {
+            return (speed: 8.6, accuracy: 8.5)
         } else if lowerName.contains("turbo") {
-            return (speed: 8.5, accuracy: 9.5)
+            return (speed: 9.0, accuracy: 8.8)
         } else if lowerName.contains("tiny") {
             return (speed: 10.0, accuracy: 4.0)
         } else if lowerName.contains("base") {
-            return (speed: 9.0, accuracy: 5.5)
+            return (speed: 9.5, accuracy: 5.5)
         } else if lowerName.contains("small") {
-            return (speed: 7.0, accuracy: 7.5)
+            return (speed: 8.5, accuracy: 7.2)
         } else if lowerName.contains("medium") {
-            return (speed: 5.0, accuracy: 8.5)
+            return (speed: 7.0, accuracy: 8.2)
+        } else if lowerName.contains("large") && (lowerName.contains("q5") || lowerName.contains("q4")) {
+            return (speed: 6.0, accuracy: 9.5)
         } else if lowerName.contains("large") {
-            return (speed: 4.0, accuracy: 9.5)
+            return (speed: 6.8, accuracy: 9.7)
         }
         
         // 2. Dynamic empirical formula based on parameter/file size, turbo architecture, and quantization

@@ -29,9 +29,23 @@ let package = Package(
             path: "Frameworks/whisper.xcframework"
         ),
         .target(
+            name: "CQwenASR",
+            path: "Sources/CQwenASR",
+            publicHeadersPath: "include",
+            cSettings: [
+                .define("USE_BLAS"),
+                .define("ACCELERATE_NEW_LAPACK"),
+                .unsafeFlags(["-O3", "-ffast-math"])
+            ],
+            linkerSettings: [
+                .linkedFramework("Accelerate")
+            ]
+        ),
+        .target(
             name: "TranskriptHubCore",
             dependencies: [
                 "whisper",
+                "CQwenASR",
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
             swiftSettings: [

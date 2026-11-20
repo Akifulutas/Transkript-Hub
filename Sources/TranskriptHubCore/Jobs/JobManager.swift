@@ -90,7 +90,7 @@ public actor JobManager {
             modelURL = modelManager.localURL(for: model)
         }
         
-        let whisperEngine = try WhisperCppEngine(modelPath: modelURL.path)
+        let whisperEngine = try TranscriptionEngineFactory.makeEngine(model: model, modelPath: modelURL.path)
         let audioDecoder = AudioDecoder()
         let ytdlp = YTDLPClient(toolManager: toolManager)
         let postProcessor = TranscriptPostProcessor()

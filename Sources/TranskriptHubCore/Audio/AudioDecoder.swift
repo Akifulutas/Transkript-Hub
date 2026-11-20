@@ -33,6 +33,9 @@ public final class AudioDecoder: Sendable {
         do {
             audioFile = try AVAudioFile(forReading: fileURL)
         } catch {
+            if let fallback = try? decodeViaFFmpeg(fileURL: fileURL) {
+                return fallback
+            }
             throw AudioDecoderError.unsupportedMedia(error.localizedDescription)
         }
         
@@ -47,8 +50,12 @@ public final class AudioDecoder: Sendable {
         }
         
         guard let converter = AVAudioConverter(from: sourceFormat, to: targetFormat) else {
+            if let fallback = try? decodeViaFFmpeg(fileURL: fileURL) {
+                return fallback
+            }
             throw AudioDecoderError.conversionFailed("AVAudioConverter başlatılamadı.")
         }
+        converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue
         
         guard audioFile.length > 0 && audioFile.length <= Int64(UInt32.max) else {
             throw AudioDecoderError.unsupportedMedia("Ses dosyası geçersiz uzunlukta veya boş (\(audioFile.length) frame).")
@@ -126,5 +133,46 @@ public final class AudioDecoder: Sendable {
         let duration = Double(actualFrames) / Self.targetSampleRate
         
         return PreparedAudio(samples: samples, duration: duration)
+    }
+    
+    /// Fallback decoder via FFmpeg for containers/codecs not natively opened by AVAudioFile (e.g. OGG, Opus, WMA, WebM).
+    private func decodeViaFFmpeg(fileURL: URL) throws -> PreparedAudio {
+        guard let ffmpeg = VideoAudioExtractor.findFFmpeg() else {
+            throw AudioDecoderError.unsupportedMedia("FFmpeg bulunamadı.")
+        }
+        let tempWAV = FileManager.default.temporaryDirectory
+            .appendingPathComponent("th_dec_\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: tempWAV) }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ffmpeg)
+        process.arguments = [
+            "-y", "-v", "error",
+            "-i", fileURL.path,
+            "-vn",
+            "-ar", "16000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            tempWAV.path
+        ]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0,
+              FileManager.default.fileExists(atPath: tempWAV.path) else {
+            throw AudioDecoderError.conversionFailed("FFmpeg ses dönüştürme başarısız oldu.")
+        }
+        let wavFile = try AVAudioFile(forReading: tempWAV)
+        let frameCount = AVAudioFrameCount(wavFile.length)
+        guard frameCount > 0,
+              let buf = AVAudioPCMBuffer(pcmFormat: wavFile.processingFormat, frameCapacity: frameCount) else {
+            throw AudioDecoderError.unsupportedMedia("Dönüştürülen WAV dosyası boş.")
+        }
+        try wavFile.read(into: buf)
+        guard let ch = buf.floatChannelData, buf.frameLength > 0 else {
+            throw AudioDecoderError.conversionFailed("WAV PCM verisi okunamadı.")
+        }
+        let count = Int(buf.frameLength)
+        let samples = Array(UnsafeBufferPointer(start: ch[0], count: count))
+        return PreparedAudio(samples: samples, duration: Double(count) / Self.targetSampleRate)
     }
 }

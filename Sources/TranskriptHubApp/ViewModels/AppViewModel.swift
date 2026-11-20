@@ -297,7 +297,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var isDropTargetActive: Bool = false
     
     // Model & Language Selection
-    @Published public var selectedModel: WhisperModel = .largeV3Turbo {
+    @Published public var selectedModel: WhisperModel = .largeV3 {
         didSet {
             UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedWhisperModel")
         }
@@ -1248,15 +1248,19 @@ public final class AppViewModel: ObservableObject {
         self.statusMessage = L10n.tr("status_ready", lang: initialLang)
         self.outputDirectoryURL = self.outputWriter.defaultOutputDirectory
         
+        let catalogModels = Set(WhisperModelCatalog.availableModels.map(\.model))
         if let savedModelRaw = UserDefaults.standard.string(forKey: "selectedWhisperModel"),
            let savedModel = WhisperModel(rawValue: savedModelRaw),
+           catalogModels.contains(savedModel),
            self.modelManager.isModelDownloaded(savedModel) {
             self.selectedModel = savedModel
-        } else if self.modelManager.isModelDownloaded(.largeV3Turbo) {
-            self.selectedModel = .largeV3Turbo
-        } else if self.modelManager.isModelDownloaded(.largeV3TurboQ5) {
-            self.selectedModel = .largeV3TurboQ5
-        } else if let bestDownloaded = self.modelManager.downloadedModels().first {
+        } else if self.modelManager.isModelDownloaded(.largeV3) {
+            self.selectedModel = .largeV3
+        } else if self.modelManager.isModelDownloaded(.qwen3ASR17B) {
+            self.selectedModel = .qwen3ASR17B
+        } else if self.modelManager.isModelDownloaded(.largeV3Q5) {
+            self.selectedModel = .largeV3Q5
+        } else if let bestDownloaded = self.modelManager.downloadedModels().first(where: { catalogModels.contains($0) }) {
             self.selectedModel = bestDownloaded
         }
         
@@ -2120,8 +2124,8 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Whisper Engine Background Cache
-    private var cachedWhisperEngine: (modelPath: String, engine: WhisperCppEngine)? = nil
+    // MARK: - Whisper / Qwen ASR Engine Background Cache
+    private var cachedWhisperEngine: (modelPath: String, engine: any TranscriptionEngine)? = nil
     private var currentProcessingTask: Task<Void, Never>? = nil
     private var activeCancellationToken: TranscriptionCancellationToken? = nil
     private var isCancelRequested: Bool = false
@@ -2141,6 +2145,9 @@ public final class AppViewModel: ObservableObject {
                 queueItems[i].autoProcess = false
                 queueItems[i].transcript = nil
                 queueItems[i].errorMessage = nil
+                if queueItems[i].subtitle.contains("Transkript Ediliyor") || queueItems[i].subtitle.contains("Ayıklanıyor") {
+                    queueItems[i].subtitle = queueItems[i].isVideo ? "Video Dosyası • Sırada" : "Ses Dosyası • Sırada"
+                }
             } else if queueItems[i].state == .queued {
                 queueItems[i].autoProcess = false
             }
@@ -2153,13 +2160,13 @@ public final class AppViewModel: ObservableObject {
         objectWillChange.send()
     }
     
-    private func getOrInitializeWhisperEngine(for modelURL: URL) async throws -> WhisperCppEngine {
+    private func getOrInitializeWhisperEngine(for modelURL: URL) async throws -> any TranscriptionEngine {
         let path = modelURL.path
         if let cached = cachedWhisperEngine, cached.modelPath == path {
             return cached.engine
         }
         let engine = try await Task.detached(priority: .userInitiated) {
-            try WhisperCppEngine(modelPath: path)
+            try TranscriptionEngineFactory.makeEngine(modelPath: path)
         }.value
         self.cachedWhisperEngine = (path, engine)
         return engine
@@ -2322,7 +2329,7 @@ public final class AppViewModel: ObservableObject {
                                 prepared,
                                 options: TranscriptionOptions(
                                     language: lang,
-                                    noContext: false
+                                    noContext: antiHallucination
                                 ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
@@ -2516,7 +2523,7 @@ public final class AppViewModel: ObservableObject {
                                 prepared,
                                 options: TranscriptionOptions(
                                     language: lang,
-                                    noContext: false
+                                    noContext: antiHallucination
                                 ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
@@ -2548,6 +2555,9 @@ public final class AppViewModel: ObservableObject {
                             current.state = .completed
                             current.progress = 1.0
                             current.forceReTranscribe = false
+                            current.subtitle = isVideo
+                                ? "Video Transkripti • Dosyanın Yanına Kaydedildi"
+                                : (current.isWatchedFolderItem ? "Sesli Not / Klasör • Transkript Tamamlandı" : "Ses Transkripti • Tamamlandı")
                             
                             // 3. Write Transcript: Next to source video ("videoyu nereden aldıysak onun yanına transkriptini vermiş ol")
                             var targetURLPath: String? = nil
@@ -2569,6 +2579,8 @@ public final class AppViewModel: ObservableObject {
                                 if isVideo {
                                     current.subtitle = "Video Transkripti • Dosyanın Yanına Kaydedildi"
                                     self.statusMessage = "Transkript videonun yanına kaydedildi: \(targetURL.lastPathComponent)"
+                                } else {
+                                    self.statusMessage = "Transkript tamamlandı: \(targetURL.lastPathComponent)"
                                 }
                             } catch {
                                 Log.warning("Could not write next to media file (\(error.localizedDescription)), falling back to default output directory.")
@@ -2696,9 +2708,19 @@ public final class AppViewModel: ObservableObject {
     
     private func updateItem(_ item: QueueItem) {
         if let idx = queueItems.firstIndex(where: { $0.id == item.id }) {
-            queueItems[idx] = item
-            if item.state == .completed {
-                checkedQueueItemIDs.remove(item.id)
+            var sanitized = item
+            if sanitized.state == .completed && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+                sanitized.subtitle = sanitized.isVideo
+                    ? "Video Transkripti • Dosyanın Yanına Kaydedildi"
+                    : (sanitized.isWatchedFolderItem ? "Sesli Not / Klasör • Transkript Tamamlandı" : "Ses Transkripti • Tamamlandı")
+            } else if sanitized.state == .queued && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+                sanitized.subtitle = sanitized.isVideo ? "Video Dosyası • Sırada" : "Ses Dosyası • Sırada"
+            } else if sanitized.state == .failed && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+                sanitized.subtitle = "Transkript Başarısız Oldu"
+            }
+            queueItems[idx] = sanitized
+            if sanitized.state == .completed {
+                checkedQueueItemIDs.remove(sanitized.id)
                 sortQueue(by: currentSortOrder)
             }
         }
@@ -3170,7 +3192,7 @@ public final class AppViewModel: ObservableObject {
         
         // If the user already has Large-v3-Turbo, they are running the flagship model.
         // Never suggest smaller or quantized models (like Large-v3-Turbo Q5_0 or Base) as an update.
-        if downloaded.contains(.largeV3Turbo) {
+        if downloaded.contains(.largeV3) || downloaded.contains(.qwen3ASR17B) || downloaded.contains(.largeV3Q5) {
             return nil
         }
         
@@ -3180,8 +3202,8 @@ public final class AppViewModel: ObservableObject {
             return nil
         }
         
-        // Fresh install with zero downloaded models: propose Large-v3-Turbo
-        return WhisperModelCatalog.availableModels.first(where: { $0.model == .largeV3Turbo })
+        // Fresh install with zero downloaded models: propose Large-v3 (maximum accuracy default)
+        return WhisperModelCatalog.availableModels.first(where: { $0.model == .largeV3 })
     }
     
     public func downloadModelInUpdateDialog(_ model: WhisperModel) {

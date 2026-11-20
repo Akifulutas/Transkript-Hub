@@ -47,10 +47,17 @@ struct TranskriptHubCLI {
           transkripthub-cli models [download <model_name> | list]
           transkripthub-cli version
         
-        Batch Options:
+        Batch & Transcribe Options:
           --file <file>     Text file containing YouTube links
-          --model <name>    Model (tiny, base, small, medium, large-v3-turbo, large-v3-turbo-q5_0) [Default: tiny]
+          --model <name>    Model (tiny, base, small, medium, large-v3, large-v3-q5_0, large-v3-turbo, large-v3-turbo-q5_0, qwen3-asr-0.6b, qwen3-asr-1.7b) [Default: tiny]
           --lang <code>     Language code (en, de, tr or auto) [Default: auto]
+          --output <path>   Custom output transcript file path
+          --prompt <text>   Initial domain prompt / glossary terms
+          --no-context      Isolate 30s context windows (condition_on_previous_text = false)
+          --context         Enable cross-window context conditioning
+          --no-vad          Disable Voice Activity Detection pre-filtering
+          --srt             Also export SubRip (.srt) subtitle file
+          --timestamps      Include timestamps in plain text output
         """)
     }
     
@@ -282,7 +289,7 @@ struct TranskriptHubCLI {
                 modelURL = modelManager.localURL(for: selectedModel)
             }
             
-            let engine = try WhisperCppEngine(modelPath: modelURL.path)
+            let engine = try TranscriptionEngineFactory.makeEngine(model: selectedModel, modelPath: modelURL.path)
             let options = TranscriptionOptions(language: language)
             
             let startTime = CFAbsoluteTimeGetCurrent()
@@ -356,37 +363,70 @@ struct TranskriptHubCLI {
     }
     
     static func handleTranscribe(arguments: [String]) async {
-        guard let firstArg = arguments.first, !firstArg.hasPrefix("-") else {
+        var audioFilePath: String? = nil
+        var modelName = "tiny"
+        var language: String? = nil
+        var outputPath: String? = nil
+        var initialPrompt: String? = nil
+        var noContext: Bool = true
+        var useVAD: Bool = true
+        var exportSRT: Bool = false
+        var insertTimestamps = false
+        
+        let valueOptions: Set<String> = ["--model", "--lang", "--output", "--prompt"]
+        var i = 0
+        while i < arguments.count {
+            let arg = arguments[i]
+            if valueOptions.contains(arg) {
+                guard i + 1 < arguments.count, !arguments[i + 1].hasPrefix("-") else {
+                    print("Error: Missing value for option \(arg).")
+                    return
+                }
+                let val = arguments[i + 1]
+                switch arg {
+                case "--model": modelName = val
+                case "--lang": language = val
+                case "--output": outputPath = val
+                case "--prompt": initialPrompt = val
+                default: break
+                }
+                i += 2
+            } else if arg == "--no-context" {
+                noContext = true
+                i += 1
+            } else if arg == "--context" {
+                noContext = false
+                i += 1
+            } else if arg == "--no-vad" {
+                useVAD = false
+                i += 1
+            } else if arg == "--srt" {
+                exportSRT = true
+                i += 1
+            } else if arg == "--timestamps" {
+                insertTimestamps = true
+                i += 1
+            } else if arg.hasPrefix("-") {
+                print("Error: Unknown option: \(arg)")
+                return
+            } else {
+                if audioFilePath == nil {
+                    audioFilePath = arg
+                } else {
+                    print("Error: Unexpected positional argument: \(arg)")
+                    return
+                }
+                i += 1
+            }
+        }
+        
+        guard let firstArg = audioFilePath, !firstArg.isEmpty else {
             print("Error: No audio file specified to transcribe.")
             printUsage()
             return
         }
         
         let fileURL = URL(fileURLWithPath: firstArg)
-        var modelName = "tiny"
-        var language: String? = nil
-        var outputPath: String? = nil
-        var insertTimestamps = false
-        
-        var i = 1
-        while i < arguments.count {
-            let arg = arguments[i]
-            if arg == "--model", i + 1 < arguments.count {
-                modelName = arguments[i + 1]
-                i += 2
-            } else if arg == "--lang", i + 1 < arguments.count {
-                language = arguments[i + 1]
-                i += 2
-            } else if arg == "--output", i + 1 < arguments.count {
-                outputPath = arguments[i + 1]
-                i += 2
-            } else if arg == "--timestamps" {
-                insertTimestamps = true
-                i += 1
-            } else {
-                i += 1
-            }
-        }
         
         guard let selectedModel = WhisperModel(rawValue: modelName) else {
             print("Invalid model: \(modelName).")
@@ -427,17 +467,28 @@ struct TranskriptHubCLI {
         }
         
         // 3. Transcription
-        print("\n[3/3] Transcribing with Metal GPU acceleration...")
+        print("\n[3/3] Transcribing with Apple Silicon acceleration...")
         do {
-            let engine = try WhisperCppEngine(modelPath: modelURL.path)
-            let options = TranscriptionOptions(language: language)
+            let engine = try TranscriptionEngineFactory.makeEngine(model: selectedModel, modelPath: modelURL.path)
+            let options = TranscriptionOptions(
+                language: language,
+                useVAD: useVAD,
+                initialPrompt: initialPrompt,
+                noContext: noContext
+            )
             
             let startTime = CFAbsoluteTimeGetCurrent()
-            let result = try await engine.transcribe(preparedAudio, options: options) { progress in
-                let percent = Int(progress * 100)
-                print("\rTranscription Progress: \(percent)%", terminator: "")
-                fflush(stdout)
-            }
+            let result = try await engine.transcribe(
+                preparedAudio,
+                options: options,
+                progress: { progress in
+                    let percent = Int(progress * 100)
+                    print("\rTranscription Progress: \(percent)%", terminator: "")
+                    fflush(stdout)
+                },
+                onSegment: nil,
+                cancellationToken: nil
+            )
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             print(String(format: "\nTranscription completed in %.2f seconds.", elapsed))
             
@@ -465,6 +516,14 @@ struct TranskriptHubCLI {
             
             try outputWriter.write(content: formattedText, to: targetURL)
             print("Output saved successfully: \(targetURL.path)")
+            
+            if exportSRT {
+                let cleanedSegments = postProcessor.processSegments(segments: result.segments, options: postOptions)
+                let srtContent = SRTFormatter.format(segments: cleanedSegments)
+                let srtURL = targetURL.deletingPathExtension().appendingPathExtension("srt")
+                try outputWriter.write(content: srtContent, to: srtURL)
+                print("SRT saved successfully: \(srtURL.path)")
+            }
             
         } catch {
             print("\nTranscription error: \(error.localizedDescription)")

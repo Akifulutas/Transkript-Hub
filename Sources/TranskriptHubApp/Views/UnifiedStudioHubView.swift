@@ -926,6 +926,10 @@ public struct UnifiedStudioHubView: View {
     
     private func modelSpecVisuals(_ spec: WhisperModelSpec) -> (icon: String, color: Color) {
         switch spec.model {
+        case .largeV3:
+            return ("crown.fill", Color.Premium.cashmereViolet)
+        case .largeV3Q5:
+            return ("diamond.fill", Color.Premium.obsidianTeal)
         case .largeV3Turbo:
             return ("flame.fill", Color.Premium.cashmereViolet)
         case .largeV3TurboQ5:
@@ -938,6 +942,10 @@ public struct UnifiedStudioHubView: View {
             return ("leaf.fill", Color.Premium.emeraldMineral)
         case .medium:
             return ("books.vertical.fill", Color.Premium.slateAzure)
+        case .qwen3ASR06B:
+            return ("shield.checkered", Color.Premium.emeraldMineral)
+        case .qwen3ASR17B:
+            return ("cpu.fill", Color.Premium.champagneBronze)
         }
     }
     
@@ -1679,6 +1687,10 @@ public struct UnifiedStudioHubView: View {
         case .medium: return "Medium (1.5 GB)"
         case .largeV3Turbo: return "Large-v3-Turbo (1.6 GB)"
         case .largeV3TurboQ5: return "Large-v3-Turbo Q5 (547 MB)"
+        case .largeV3: return "Large-v3 (3.09 GB)"
+        case .largeV3Q5: return "Large-v3 Q5 (1.08 GB)"
+        case .qwen3ASR06B: return "Qwen3-ASR-0.6B (1.88 GB)"
+        case .qwen3ASR17B: return "Qwen3-ASR-1.7B (4.70 GB)"
         }
     }
     
@@ -1688,7 +1700,9 @@ public struct UnifiedStudioHubView: View {
         case .base: return "hare.fill"
         case .small: return "sparkles"
         case .medium: return "waveform"
-        case .largeV3Turbo, .largeV3TurboQ5: return "crown.fill"
+        case .largeV3, .largeV3Q5, .largeV3Turbo, .largeV3TurboQ5: return "crown.fill"
+        case .qwen3ASR06B: return "shield.checkered"
+        case .qwen3ASR17B: return "cpu.fill"
         }
     }
     
@@ -1790,7 +1804,11 @@ struct StudioQueueItemRow: View {
                             .lineLimit(1)
                         
                         HStack(spacing: 6) {
-                            Text(item.subtitle)
+                            Text(
+                                (item.state == .completed && (item.subtitle.contains("Transkript Ediliyor") || item.subtitle.contains("Ayıklanıyor")))
+                                    ? (item.isVideo ? "Video Transkripti • Dosyanın Yanına Kaydedildi" : "Ses Transkripti • Tamamlandı")
+                                    : item.subtitle
+                            )
                                 .font(.system(size: 10))
                                 .foregroundStyle(Color.secondary)
                             

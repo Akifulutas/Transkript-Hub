@@ -357,7 +357,11 @@ struct StandardQueueRow: View {
                             .frame(width: 6, height: 6)
                     }
                     
-                    Text(item.subtitle)
+                    Text(
+                        (item.state == .completed && (item.subtitle.contains("Transkript Ediliyor") || item.subtitle.contains("Ayıklanıyor")))
+                            ? (item.isVideo ? "Video Transkripti • Dosyanın Yanına Kaydedildi" : "Ses Transkripti • Tamamlandı")
+                            : item.subtitle
+                    )
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)

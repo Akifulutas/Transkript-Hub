@@ -15,3 +15,5 @@ Tests/Fixtures/*.txt
 .cursor/
 .claude/
 *.log
+benchmark_recordings/
+

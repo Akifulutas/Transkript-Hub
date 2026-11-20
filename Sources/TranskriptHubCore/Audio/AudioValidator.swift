@@ -23,7 +23,7 @@ public enum AudioValidationError: Error, LocalizedError {
 
 public enum AudioValidator {
     public static let allowedAudioExtensions: Set<String> = [
-        "m4a", "mp3", "wav", "aac", "caf", "aiff", "flac", "ogg", "wma", "alac"
+        "m4a", "mp3", "wav", "aac", "caf", "aiff", "flac", "ogg", "opus", "wma", "alac"
     ]
     
     public static let allowedVideoExtensions: Set<String> = [
