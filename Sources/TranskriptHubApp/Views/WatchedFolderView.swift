@@ -610,9 +610,9 @@ struct WatchedFolderView: View {
                 .buttonStyle(.plain)
                 .help("Yeni izlenecek klasör ekle")
             } else {
-                // Active Multi-Folder Pod with prominent (+) button and colored emitter dots per folder
+                // Active Multi-Folder Pod with top-right "+ Ekle" button and colored emitter dots per folder
                 VStack(spacing: 8) {
-                    // Header Row: Icon & Prominent (+) Add Button
+                    // Header Row: Icon & Top-Right "+ Ekle" Button
                     HStack {
                         ZStack {
                             Circle()
@@ -628,14 +628,16 @@ struct WatchedFolderView: View {
                         Button(action: {
                             viewModel.selectCustomWatchedFolder()
                         }) {
-                            ZStack {
-                                Circle()
-                                    .fill(accent.opacity(0.18))
-                                    .frame(width: 24, height: 24)
+                            HStack(spacing: 3) {
                                 Image(systemName: "plus")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(accent)
+                                    .font(.system(size: 9.5, weight: .bold))
+                                Text("Ekle")
+                                    .font(.system(size: 10, weight: .semibold))
                             }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3.5)
+                            .background(Capsule().fill(accent.opacity(0.18)))
+                            .foregroundStyle(accent)
                         }
                         .buttonStyle(.plain)
                         .help("Yeni klasör ekle (+)")
@@ -656,24 +658,11 @@ struct WatchedFolderView: View {
                     
                     Spacer(minLength: 4)
                     
-                    // Action / Toggle
+                    // Status Text & Toggle (Matches Voice Memos & iCloud Pods)
                     HStack(spacing: 6) {
-                        Button(action: {
-                            viewModel.selectCustomWatchedFolder()
-                        }) {
-                            HStack(spacing: 3) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 9, weight: .bold))
-                                Text("Klasör Ekle")
-                                    .font(.system(size: 9.5, weight: .semibold))
-                            }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(accent.opacity(0.15)))
-                            .foregroundStyle(accent)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Birden fazla izlenecek klasör ekle")
+                        Text(isCustomActive ? "Bağlı" : "Devre Dışı")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(isCustomActive ? accent : Color.secondary)
                         
                         Spacer()
                         
