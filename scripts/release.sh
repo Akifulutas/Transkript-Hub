@@ -65,12 +65,10 @@ REPO="Akifulutas/Transkript-Hub"
 RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
-### 🛡️ Whisper Large V3 Halüsinasyon ve Tekrar Döngüsü Koruması (Anti-Hallucination Loop Defense)
-- **Pencere İzolasyonu (\`condition_on_previous_text = false\` / \`no_context = true\`)**: Uzun kayıtlarda veya duraklamalarda bir pencerede üretilen hatalı metnin sonraki 30 saniyelik pencerelere bağlam olarak aktarılması ve zincirleme tekrar döngüsü oluşturması tamamen engellendi.
-- **Sessizlik & Sıcaklık Artış Filtresi (\`temperature_inc = 0.0\`)**: Sessizlik ve arka plan gürültüsü anlarında Whisper'ın rastgele yüksek sıcaklıkta örnekleme yapması kapatıldı; \`entropy_thold = 2.40\`, \`logprob_thold = -1.00\`, \`no_speech_thold = 0.60\`, \`suppress_blank\` ve \`suppress_nst\` parametreleri devreye alındı.
-- **Cümle İçi ve Segmentler Arası Tekrar Tekilleştirme (Intra-Segment Deduplication)**: Modelin aynı cümle içinde 3+ kez arka arkaya tekrarladığı kalıplar (\`was ich das mal so gut machen kann...\`, \`Das ist ja im Grunde Parameter...\`) ve konuşma onayları (\`Ja. Ja.\`) dil kurallarına uygun biçimde tekilleştirildi.
-- **Whisper Sessizlik Kalıntıları Filtresi**: Whisper modellerinin Almanca, Türkçe ve İngilizce sessizlik anlarında ezberden ürettiği bilinen kalıp halüsinasyonlar (\`es heilt die göttliche Kraft\`, \`Thank you for watching\`, \`Altyazı\`) filtrelendi.
-- **Kullanıcı Denetimi**: Ayarlar menüsüne 'Halüsinasyon Döngüsü Koruması' anahtarı eklendi.
+### 🔧 Kararlılık ve Tam Kapsamlı Transkripsiyon Düzeltmesi (Full Audio Recall & Post-Processing Guard)
+- **Kayıp Parçaların Geri Kazanılması**: \`v1.5.1\` sürümünde model seviyesinde yapılan aşırı agresif parametre müdahaleleri (\`temperature_inc = 0.0\`, \`no_context = true\`) fısıltılı veya teknik terimli konuşmaların atlanmasına yol açıyordu. Motor seviyesindeki bu kısıtlamalar kaldırılarak Whisper'ın doğal ve kesintisiz akışı geri getirildi.
+- **Cerrahi Cümle Seviyesi Halüsinasyon Temizliği**: Sessizlik anlarında üretilen kalıp uydurmalar (\`es heilt die göttliche Kraft\`, \`Thank you for watching\`, \`Altyazı\`) artık sesi kesmeden, son işleme (\`post-processing\`) aşamasında cümle bazlı olarak güvenle ayıklanır.
+- **Akıllı Cümle İçi Tekilleştirme**: Modelin duraklamalarda takılıp 3+ kez arka arkaya tekrarladığı kelime öbekleri (\`was ich das mal so gut machen kann...\`, \`Das ist ja im Grunde Parameter...\`) konuşma akışını bozmadan tek bir cümleye indirgenir.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."

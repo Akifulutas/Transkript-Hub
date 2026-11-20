@@ -134,7 +134,7 @@ public struct TranscriptionOptions: Sendable {
         threads: Int = min(ProcessInfo.processInfo.activeProcessorCount, 6),
         initialPrompt: String? = nil,
         tokenTimestamps: Bool = true,
-        noContext: Bool = true,
+        noContext: Bool = false,
         suppressBlank: Bool = true,
         suppressNonSpeech: Bool = true,
         noSpeechThreshold: Float = 0.60

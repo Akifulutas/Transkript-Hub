@@ -2317,11 +2317,12 @@ public final class AppViewModel: ObservableObject {
                             }.value
                             let collector = SegmentCollector()
                             let itemId = current.id
+                            let antiHallucination = self.antiHallucinationEnabled
                             let result = try await whisperEngine.transcribe(
                                 prepared,
                                 options: TranscriptionOptions(
                                     language: lang,
-                                    noContext: self.antiHallucinationEnabled
+                                    noContext: false
                                 ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
@@ -2333,7 +2334,8 @@ public final class AppViewModel: ObservableObject {
                                 onSegment: { [weak self] seg in
                                     guard !cancelToken.isCancelled else { return }
                                     let currentSegments = collector.append(seg)
-                                    let liveText = postProcessor.process(segments: currentSegments)
+                                    let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                                    let liveText = postProcessor.process(segments: currentSegments, options: postOpts)
                                     Task { @MainActor [weak self] in
                                         guard let self = self, !self.isCancelRequested else { return }
                                         self.updateItemLiveTranscript(id: itemId, transcript: liveText)
@@ -2341,7 +2343,8 @@ public final class AppViewModel: ObservableObject {
                                 },
                                 cancellationToken: cancelToken
                             )
-                            let formatted = postProcessor.process(segments: result.segments)
+                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                            let formatted = postProcessor.process(segments: result.segments, options: postOpts)
                             
                             current.transcript = formatted
                             
@@ -2508,11 +2511,12 @@ public final class AppViewModel: ObservableObject {
                             }.value
                             let collector = SegmentCollector()
                             let itemId = current.id
+                            let antiHallucination = self.antiHallucinationEnabled
                             let result = try await whisperEngine.transcribe(
                                 prepared,
                                 options: TranscriptionOptions(
                                     language: lang,
-                                    noContext: self.antiHallucinationEnabled
+                                    noContext: false
                                 ),
                                 progress: { [weak self] p in
                                     Task { @MainActor in
@@ -2524,7 +2528,8 @@ public final class AppViewModel: ObservableObject {
                                 onSegment: { [weak self] seg in
                                     guard !cancelToken.isCancelled else { return }
                                     let currentSegments = collector.append(seg)
-                                    let liveText = postProcessor.process(segments: currentSegments)
+                                    let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                                    let liveText = postProcessor.process(segments: currentSegments, options: postOpts)
                                     Task { @MainActor [weak self] in
                                         guard let self = self, !self.isCancelRequested else { return }
                                         self.updateItemLiveTranscript(id: itemId, transcript: liveText)
@@ -2532,7 +2537,8 @@ public final class AppViewModel: ObservableObject {
                                 },
                                 cancellationToken: cancelToken
                             )
-                            let formatted = postProcessor.process(segments: result.segments)
+                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                            let formatted = postProcessor.process(segments: result.segments, options: postOpts)
                             
                             current.transcript = formatted
                             current.audioURL = effectiveAudioURL

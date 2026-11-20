@@ -78,17 +78,7 @@ public actor WhisperCppEngine: TranscriptionEngine {
         wparams.translate = false
         wparams.no_timestamps = false
         wparams.token_timestamps = options.tokenTimestamps
-        
-        // Anti-Hallucination & Repetition Loop Prevention
-        wparams.no_context = options.noContext // condition_on_previous_text = false
-        wparams.suppress_blank = options.suppressBlank
-        wparams.suppress_nst = options.suppressNonSpeech
-        wparams.no_speech_thold = options.noSpeechThreshold
-        wparams.entropy_thold = 2.40
-        wparams.logprob_thold = -1.00
-        if options.noContext {
-            wparams.temperature_inc = 0.0 // Disable random fallback sampling on silent/low-confidence audio
-        }
+        wparams.no_context = options.noContext
         
         // Stream callback wrapper for progress, live segments and cancellation
         final class StreamCallbackBox: @unchecked Sendable {

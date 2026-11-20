@@ -78,12 +78,31 @@ public final class TranscriptPostProcessor: Sendable {
     private static func isKnownHallucination(_ normalized: String) -> Bool {
         if isPureHallucination(normalized) { return true }
         if knownHallucinationPhrases.contains(normalized) { return true }
-        for phrase in knownHallucinationPhrases {
-            if normalized.hasPrefix(phrase) || normalized.hasSuffix(phrase) {
-                return true
+        if normalized.count < 45 {
+            for phrase in knownHallucinationPhrases {
+                if normalized == phrase || normalized.hasPrefix(phrase + " ") || normalized.hasSuffix(" " + phrase) {
+                    return true
+                }
             }
         }
         return false
+    }
+    
+    private func filterHallucinations(from text: String) -> String {
+        let norm = normalizeForLoopDetection(text)
+        if Self.isPureHallucination(norm) {
+            return ""
+        }
+        
+        let sentences = text.components(separatedBy: ". ")
+        if sentences.count <= 1 {
+            return text
+        }
+        let filtered = sentences.filter { s in
+            let sNorm = normalizeForLoopDetection(s)
+            return !Self.isPureHallucination(sNorm)
+        }
+        return filtered.joined(separator: ". ")
     }
     
     private func normalizeForLoopDetection(_ text: String) -> String {
@@ -185,13 +204,9 @@ public final class TranscriptPostProcessor: Sendable {
             
             guard !text.isEmpty else { continue }
             
-            let normalized = normalizeForLoopDetection(text)
-            
-            // 2. Pure Hallucination Filter: Drop segments that are known pure silence artifacts
-            if Self.isPureHallucination(normalized) {
-                Log.warning("Pure hallucination dropped: '\(text)' (time: \(segment.start))")
-                continue
-            }
+            // 2. Pure Hallucination Filter: Filter out known pure silence artifacts
+            text = filterHallucinations(from: text)
+            guard !text.isEmpty else { continue }
             
             // 3. Intra-segment phrase-level deduplication
             if options.deduplicateRepetitions {
