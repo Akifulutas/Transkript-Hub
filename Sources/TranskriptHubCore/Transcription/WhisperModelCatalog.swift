@@ -53,11 +53,12 @@ public struct WhisperModelSpec: Identifiable, Sendable, Hashable {
 }
 
 public struct WhisperModelCatalog {
-    /// Curated high-accuracy model catalog (>= 1 GB only).
+    /// Curated high-accuracy model catalog (>= 1 GB only), strictly ordered by `accuracyScore` ascending
+    /// so that the highest-accuracy model (`Large-v3`, `9.7/10`) always appears at the bottom of the list.
     /// All < 1 GB models (Tiny, Base, Small, Large-v3-Turbo Q5_0) and accuracy-dominated >= 1 GB models
     /// (Medium, Large-v3-Turbo FP16, Qwen3-ASR-0.6B) are intentionally excluded based on our
     /// 132-run Apple Silicon M1 Pro empirical benchmark where maximum transcription accuracy is the sole priority.
-    public static let availableModels: [WhisperModelSpec] = [
+    private static let catalogEntries: [WhisperModelSpec] = [
         WhisperModelSpec(
             model: .largeV3Q5,
             displayName: "Large-v3 (Q5_0)",
@@ -73,20 +74,6 @@ public struct WhisperModelCatalog {
             isQuantized: true
         ),
         WhisperModelSpec(
-            model: .largeV3,
-            displayName: "Large-v3",
-            sizeDescription: "3.09 GB",
-            sizeBytes: 3_095_033_483,
-            badge: "👑 Maksimum Doğruluk",
-            speedRating: 3,
-            accuracyRating: 5,
-            speedScore: 6.8,
-            accuracyScore: 9.7,
-            summary: "En yüksek TR/DE ve teknik doğruluk.",
-            isTurbo: false,
-            isQuantized: false
-        ),
-        WhisperModelSpec(
             model: .qwen3ASR17B,
             displayName: "Qwen3-ASR-1.7B",
             sizeDescription: "4.70 GB",
@@ -99,8 +86,30 @@ public struct WhisperModelCatalog {
             summary: "Tam kod/dosya yolu, 0 döngü.",
             isTurbo: false,
             isQuantized: false
+        ),
+        WhisperModelSpec(
+            model: .largeV3,
+            displayName: "Large-v3",
+            sizeDescription: "3.09 GB",
+            sizeBytes: 3_095_033_483,
+            badge: "👑 Maksimum Doğruluk",
+            speedRating: 3,
+            accuracyRating: 5,
+            speedScore: 6.8,
+            accuracyScore: 9.7,
+            summary: "En yüksek TR/DE ve teknik doğruluk.",
+            isTurbo: false,
+            isQuantized: false
         )
     ]
+
+    /// Available models sorted strictly by `accuracyScore` ascending (highest accuracy at the bottom).
+    public static let availableModels: [WhisperModelSpec] = catalogEntries.sorted { lhs, rhs in
+        if lhs.accuracyScore != rhs.accuracyScore {
+            return lhs.accuracyScore < rhs.accuracyScore
+        }
+        return lhs.speedScore < rhs.speedScore
+    }
     
     /// Evaluates speed and accuracy on a 1.0 - 10.0 scale based on empirical Apple Silicon M1 Pro benchmark data
     /// (132-run real German engineering, Turkish speech, and silence-trap benchmark suite).

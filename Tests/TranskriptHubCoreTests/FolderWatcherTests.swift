@@ -251,18 +251,19 @@ final class FolderWatcherTests: XCTestCase {
         XCTAssertEqual(WhisperModel.medium.displayName, "Medium")
     }
     
-    func testWhisperModelCatalogSortedBySizeBytesAscending() {
+    func testWhisperModelCatalogSortedByAccuracyScoreAscending() {
         let models = WhisperModelCatalog.availableModels
         XCTAssertEqual(models.count, 3)
         for i in 0..<(models.count - 1) {
             XCTAssertLessThanOrEqual(
-                models[i].sizeBytes,
-                models[i + 1].sizeBytes,
-                "Model \(models[i].displayName) sizeBytes (\(models[i].sizeBytes)) must be <= next model \(models[i+1].displayName) sizeBytes (\(models[i+1].sizeBytes))"
+                models[i].accuracyScore,
+                models[i + 1].accuracyScore,
+                "Model \(models[i].displayName) accuracyScore (\(models[i].accuracyScore)) must be <= next model \(models[i+1].displayName) accuracyScore (\(models[i+1].accuracyScore)) so the highest-accuracy model is at the bottom"
             )
         }
-        XCTAssertEqual(models.first?.model, .largeV3Q5)
-        XCTAssertEqual(models.last?.model, .qwen3ASR17B)
+        XCTAssertEqual(models[0].model, .largeV3Q5)
+        XCTAssertEqual(models[1].model, .qwen3ASR17B)
+        XCTAssertEqual(models.last?.model, .largeV3)
         
         // Verify all catalog models are >= 1 GB and descriptions are concise
         for spec in models {
