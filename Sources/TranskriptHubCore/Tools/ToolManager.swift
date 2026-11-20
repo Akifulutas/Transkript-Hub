@@ -81,7 +81,10 @@ public final class ToolManager: Sendable {
         return FileManager.default.isExecutableFile(atPath: path)
     }
     
-    public func ensureToolsReady(progress: (@Sendable (String, Double) -> Void)? = nil) async throws {
+    public func ensureToolsReady(
+        includeDeno: Bool = false,
+        progress: (@Sendable (String, Double) -> Void)? = nil
+    ) async throws {
         try ensureDirectoryExists()
         
         if !isYTDLPReady() {
@@ -92,12 +95,14 @@ public final class ToolManager: Sendable {
             progress?("yt-dlp hazır", 1.0)
         }
         
-        if !isDenoReady() {
-            try await installDeno(progress: { ratio in
-                progress?("deno indiriliyor", ratio)
-            })
-        } else {
-            progress?("deno hazır", 1.0)
+        if includeDeno {
+            if !isDenoReady() {
+                try await installDeno(progress: { ratio in
+                    progress?("deno indiriliyor", ratio)
+                })
+            } else {
+                progress?("deno hazır", 1.0)
+            }
         }
     }
     

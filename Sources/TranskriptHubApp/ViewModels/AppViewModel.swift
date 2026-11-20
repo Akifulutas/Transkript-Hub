@@ -300,6 +300,9 @@ public final class AppViewModel: ObservableObject {
     @Published public var selectedModel: WhisperModel = .largeV3 {
         didSet {
             UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedWhisperModel")
+            if !isProcessing {
+                prewarmSelectedModelInBackground()
+            }
         }
     }
     @Published public var selectedLanguage: String = "auto"
@@ -1352,6 +1355,7 @@ public final class AppViewModel: ObservableObject {
                 await self.resolvePendingVideoTitles()
                 await MainActor.run {
                     self.sortQueue(by: self.currentSortOrder)
+                    self.prewarmSelectedModelInBackground()
                 }
             } catch {
                 self.errorMessage = "Veritabanı kurtarma hatası: \(error.localizedDescription)"
@@ -2124,11 +2128,39 @@ public final class AppViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Whisper / Qwen ASR Engine Background Cache
+    // MARK: - Whisper / Qwen ASR Engine Background Cache & Pre-Warming
     private var cachedWhisperEngine: (modelPath: String, engine: any TranscriptionEngine)? = nil
+    private var engineWarmupTask: (modelPath: String, task: Task<any TranscriptionEngine, Error>)? = nil
     private var currentProcessingTask: Task<Void, Never>? = nil
     private var activeCancellationToken: TranscriptionCancellationToken? = nil
     private var isCancelRequested: Bool = false
+
+    /// Pre-loads the active model into Metal GPU / Unified Memory in the background so that
+    /// the first transcription request starts with zero cold-load latency.
+    public func prewarmSelectedModelInBackground() {
+        let model = selectedModel
+        guard modelManager.isModelDownloaded(model) else { return }
+        let modelURL = modelManager.localURL(for: model)
+        let path = modelURL.path
+        if cachedWhisperEngine?.modelPath == path || engineWarmupTask?.modelPath == path {
+            return
+        }
+        let task = Task.detached(priority: .utility) { () throws -> any TranscriptionEngine in
+            try TranscriptionEngineFactory.makeEngine(model: model, modelPath: path)
+        }
+        engineWarmupTask = (path, task)
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            if let engine = try? await task.value {
+                if self.cachedWhisperEngine?.modelPath != path {
+                    self.cachedWhisperEngine = (path, engine)
+                }
+            }
+            if self.engineWarmupTask?.modelPath == path {
+                self.engineWarmupTask = nil
+            }
+        }
+    }
     
     // MARK: - Queue Processing Cancellation
     public func cancelProcessing() {
@@ -2164,6 +2196,12 @@ public final class AppViewModel: ObservableObject {
         let path = modelURL.path
         if let cached = cachedWhisperEngine, cached.modelPath == path {
             return cached.engine
+        }
+        if let warmup = engineWarmupTask, warmup.modelPath == path {
+            let engine = try await warmup.task.value
+            self.cachedWhisperEngine = (path, engine)
+            self.engineWarmupTask = nil
+            return engine
         }
         let engine = try await Task.detached(priority: .userInitiated) {
             try TranscriptionEngineFactory.makeEngine(modelPath: path)
@@ -2213,6 +2251,9 @@ public final class AppViewModel: ObservableObject {
                 
                 let whisperEngine = try await self.getOrInitializeWhisperEngine(for: modelURL)
                 let pipelineCoordinator = TranscriptionPipelineCoordinator()
+                let prefetchDecoder = AudioDecoder()
+                var prefetchedAudioTask: (urlPath: String, task: Task<PreparedAudio, Error>)? = nil
+                defer { prefetchedAudioTask?.task.cancel() }
                 var ytdlpClient: YTDLPClient? = nil
                 
                 var processedCount = 0
@@ -2507,7 +2548,7 @@ public final class AppViewModel: ObservableObject {
                                 break
                             }
                             
-                            // 2. Transcription
+                            // 2. Transcription (with lookahead audio decode prefetch for next queued local audio file)
                             current.state = .transcribing
                             current.subtitle = isVideo ? "Video Transkript Ediliyor..." : "Ses Transkript Ediliyor..."
                             current.transcript = ""
@@ -2516,11 +2557,41 @@ public final class AppViewModel: ObservableObject {
                                 ? "Video sesi çözümleniyor ve transkript ediliyor..."
                                 : "Yerel ses çözümleniyor ve transkript ediliyor..."
                             
+                            // Resolve or decode current audio file
+                            let currentAudio: PreparedAudio
+                            if let prefetched = prefetchedAudioTask, prefetched.urlPath == effectiveAudioURL.path {
+                                prefetchedAudioTask = nil
+                                if let decoded = try? await prefetched.task.value {
+                                    currentAudio = decoded
+                                } else {
+                                    currentAudio = try await Task.detached(priority: .userInitiated) {
+                                        try prefetchDecoder.decode(fileURL: effectiveAudioURL)
+                                    }.value
+                                }
+                            } else {
+                                currentAudio = try await Task.detached(priority: .userInitiated) {
+                                    try prefetchDecoder.decode(fileURL: effectiveAudioURL)
+                                }.value
+                            }
+                            
+                            // Look ahead and start decoding the next queued non-video audio file in parallel while GPU/ANE runs
+                            if let nextAudioItem = self.queueItems.first(where: {
+                                $0.id != current.id && $0.state == .queued && $0.autoProcess && !$0.isYouTube && !$0.isVideo
+                            }), case .audioFile(let nextURL) = nextAudioItem.kind {
+                                if prefetchedAudioTask?.urlPath != nextURL.path {
+                                    prefetchedAudioTask?.task.cancel()
+                                    let task = Task.detached(priority: .utility) {
+                                        try prefetchDecoder.decode(fileURL: nextURL)
+                                    }
+                                    prefetchedAudioTask = (nextURL.path, task)
+                                }
+                            }
+                            
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
                             let pipelineResult = try await pipelineCoordinator.execute(
-                                audioFileURL: effectiveAudioURL,
+                                preparedAudio: currentAudio,
                                 engine: whisperEngine,
                                 transcriptionOptions: TranscriptionOptions(
                                     language: lang,

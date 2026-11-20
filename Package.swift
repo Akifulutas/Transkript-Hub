@@ -35,7 +35,7 @@ let package = Package(
             cSettings: [
                 .define("USE_BLAS"),
                 .define("ACCELERATE_NEW_LAPACK"),
-                .unsafeFlags(["-O3", "-ffast-math"])
+                .unsafeFlags(["-O3", "-ffast-math", "-mcpu=apple-m1", "-funroll-loops"])
             ],
             linkerSettings: [
                 .linkedFramework("Accelerate")
@@ -49,7 +49,8 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
             swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
+                .enableExperimentalFeature("StrictConcurrency"),
+                .unsafeFlags(["-cross-module-optimization"], .when(configuration: .release))
             ]
         ),
         .executableTarget(
@@ -58,7 +59,11 @@ let package = Package(
                 "TranskriptHubCore"
             ],
             swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
+                .enableExperimentalFeature("StrictConcurrency"),
+                .unsafeFlags(["-cross-module-optimization"], .when(configuration: .release))
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-dead_strip"], .when(configuration: .release))
             ]
         ),
         .executableTarget(
@@ -67,7 +72,11 @@ let package = Package(
                 "TranskriptHubCore"
             ],
             swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
+                .enableExperimentalFeature("StrictConcurrency"),
+                .unsafeFlags(["-cross-module-optimization"], .when(configuration: .release))
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-dead_strip"], .when(configuration: .release))
             ]
         ),
         .testTarget(

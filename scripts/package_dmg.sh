@@ -29,6 +29,21 @@ if [ -f "$PROJECT_DIR/Resources/PrivacyInfo.xcprivacy" ]; then
     cp "$PROJECT_DIR/Resources/PrivacyInfo.xcprivacy" "$APP_DIR/Contents/Resources/PrivacyInfo.xcprivacy"
 fi
 
+echo "3b. Thinning universal framework to arm64 & stripping local debug symbols..."
+WHISPER_BIN="$APP_DIR/Contents/Frameworks/whisper.framework/Versions/A/whisper"
+if [ -f "$WHISPER_BIN" ]; then
+    if lipo -info "$WHISPER_BIN" 2>/dev/null | grep -q "x86_64"; then
+        lipo -thin arm64 "$WHISPER_BIN" -output "${WHISPER_BIN}.arm64"
+        mv "${WHISPER_BIN}.arm64" "$WHISPER_BIN"
+    fi
+    strip -x "$WHISPER_BIN" 2>/dev/null || true
+fi
+# Remove static headers inside packaged app bundle (not needed at runtime)
+rm -rf "$APP_DIR/Contents/Frameworks/whisper.framework/Versions/A/Headers" "$APP_DIR/Contents/Frameworks/whisper.framework/Headers" 2>/dev/null || true
+
+# Strip local debug symbols from main Mach-O executable
+strip -x "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
+
 echo "4. Configuring RPATH and dynamic linker..."
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/TranskriptHub" 2>/dev/null || true
 
@@ -99,9 +114,9 @@ mkdir -p "$DMG_STAGING"
 cp -R "$APP_DIR" "$DMG_STAGING/"
 ln -s /Applications "$DMG_STAGING/Applications"
 
-echo "8. Creating DMG archive (hdiutil)..."
+echo "8. Creating DMG archive (hdiutil LZMA / ULMO high-ratio compression)..."
 rm -f "$DMG_PATH"
-hdiutil create -volname "Transkript Hub" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
+hdiutil create -volname "Transkript Hub" -srcfolder "$DMG_STAGING" -ov -format ULMO "$DMG_PATH" || hdiutil create -volname "Transkript Hub" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
 rm -rf "$DMG_STAGING"
 
 echo "✅ Success! DMG file ready:"

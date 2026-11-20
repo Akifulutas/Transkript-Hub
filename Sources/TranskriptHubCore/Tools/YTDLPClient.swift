@@ -81,9 +81,11 @@ public final class YTDLPClient: Sendable {
             "--no-simulate",
             "--print", "%(.{id,title,channel,duration,ext})#j",
             "--progress",
-            "--progress-template", "download:%(progress._percent_str)s",
-            "--js-runtimes", "deno:\(denoURL.path)"
+            "--progress-template", "download:%(progress._percent_str)s"
         ]
+        if toolManager.isDenoReady() {
+            arguments.append(contentsOf: ["--js-runtimes", "deno:\(denoURL.path)"])
+        }
         
         if forceIPv4 {
             arguments.append("-4")
