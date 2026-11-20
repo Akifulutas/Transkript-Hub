@@ -91,9 +91,8 @@ public actor JobManager {
         }
         
         let whisperEngine = try TranscriptionEngineFactory.makeEngine(model: model, modelPath: modelURL.path)
-        let audioDecoder = AudioDecoder()
+        let pipelineCoordinator = TranscriptionPipelineCoordinator()
         let ytdlp = YTDLPClient(toolManager: toolManager)
-        let postProcessor = TranscriptPostProcessor()
         
         // Fetch jobs for batch
         let jobs = try await database.dbQueue.read { db -> [JobRecord] in
@@ -169,9 +168,13 @@ public actor JobManager {
                         throw AudioDecoderError.fileNotFound(URL(fileURLWithPath: currentJob.sourcePath ?? ""))
                     }
                     
-                    let prepared = try audioDecoder.decode(fileURL: URL(fileURLWithPath: sourcePath))
-                    let result = try await whisperEngine.transcribe(prepared, options: TranscriptionOptions())
-                    let formatted = postProcessor.process(segments: result.segments)
+                    let pipelineResult = try await pipelineCoordinator.execute(
+                        audioFileURL: URL(fileURLWithPath: sourcePath),
+                        engine: whisperEngine,
+                        transcriptionOptions: TranscriptionOptions()
+                    )
+                    let result = pipelineResult.transcriptResult
+                    let formatted = pipelineResult.formattedText
                     
                     let jobID = currentJob.id
                     let detectedLang = result.detectedLanguage

@@ -98,4 +98,47 @@ struct Qwen3ASREngineTests {
         #expect(maxAfter > maxBeforeAC * 1.5, "Quiet modulated speech should receive linear boost")
         #expect(maxAfter <= 0.96, "Soft-knee limiter must prevent clipping")
     }
+
+    @Test("TranscriptionPipelineCoordinator executes engine, cleans repetitions, and produces SRT output")
+    func testTranscriptionPipelineCoordinator() async throws {
+        struct MockASREngine: TranscriptionEngine {
+            func transcribe(
+                _ audio: PreparedAudio,
+                options: TranscriptionOptions,
+                progress: (@Sendable (Double) -> Void)?,
+                onSegment: (@Sendable (Segment) -> Void)?,
+                cancellationToken: TranscriptionCancellationToken?
+            ) async throws -> TranscriptResult {
+                let s1 = Segment(start: 0.0, end: 2.5, text: "Das ist ein wichtiger Test.")
+                let s2 = Segment(start: 2.5, end: 5.0, text: "Und das zweite Segment.")
+                onSegment?(s1)
+                progress?(0.5)
+                onSegment?(s2)
+                progress?(1.0)
+                return TranscriptResult(segments: [s1, s2], detectedLanguage: options.language ?? "de")
+            }
+        }
+
+        let coordinator = TranscriptionPipelineCoordinator()
+        let audio = PreparedAudio(samples: [Float](repeating: 0.05, count: 16000), duration: 1.0)
+        let collector = PipelineSegmentCollector()
+
+        let res = try await coordinator.execute(
+            preparedAudio: audio,
+            engine: MockASREngine(),
+            transcriptionOptions: TranscriptionOptions(language: "de", noContext: true),
+            postProcessorOptions: PostProcessorOptions(deduplicateRepetitions: true),
+            progress: nil,
+            onLiveTranscript: { live, seg in
+                _ = collector.append(seg)
+                #expect(!live.isEmpty)
+            },
+            cancellationToken: nil
+        )
+
+        #expect(res.cleanedSegments.count == 2)
+        #expect(res.formattedText.contains("Das ist ein wichtiger Test."))
+        #expect(res.formattedText.contains("Und das zweite Segment."))
+        #expect(res.srtText.contains("00:00:00,000 --> 00:00:02,500"))
+    }
 }

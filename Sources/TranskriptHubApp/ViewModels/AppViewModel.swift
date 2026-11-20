@@ -2212,8 +2212,7 @@ public final class AppViewModel: ObservableObject {
                 }
                 
                 let whisperEngine = try await self.getOrInitializeWhisperEngine(for: modelURL)
-                let audioDecoder = AudioDecoder()
-                let postProcessor = TranscriptPostProcessor()
+                let pipelineCoordinator = TranscriptionPipelineCoordinator()
                 var ytdlpClient: YTDLPClient? = nil
                 
                 var processedCount = 0
@@ -2245,7 +2244,9 @@ public final class AppViewModel: ObservableObject {
                         if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                             title: current.title,
                             durationSec: current.durationSec,
-                            externalID: video.videoID
+                            externalID: video.videoID,
+                            modelID: model.rawValue,
+                            languageCode: lang
                         ) {
                             Log.info("YouTube video loaded from cache: \(current.title)")
                             current.transcript = cached.transcriptText
@@ -2288,7 +2289,9 @@ public final class AppViewModel: ObservableObject {
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: media.metadata.title,
                                 durationSec: media.metadata.duration,
-                                externalID: video.videoID
+                                externalID: video.videoID,
+                                modelID: model.rawValue,
+                                languageCode: lang
                             ) {
                                 Log.info("YouTube video loaded from cache: \(media.metadata.title)")
                                 current.transcript = cached.transcriptText
@@ -2319,18 +2322,17 @@ public final class AppViewModel: ObservableObject {
                             self.currentOperation = self.t("status_metal_active")
                             
                             let localAudioURL = media.localAudioURL
-                            let prepared = try await Task.detached(priority: .userInitiated) {
-                                try audioDecoder.decode(fileURL: localAudioURL)
-                            }.value
-                            let collector = SegmentCollector()
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
-                            let result = try await whisperEngine.transcribe(
-                                prepared,
-                                options: TranscriptionOptions(
+                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                            let pipelineResult = try await pipelineCoordinator.execute(
+                                audioFileURL: localAudioURL,
+                                engine: whisperEngine,
+                                transcriptionOptions: TranscriptionOptions(
                                     language: lang,
                                     noContext: antiHallucination
                                 ),
+                                postProcessorOptions: postOpts,
                                 progress: { [weak self] p in
                                     Task { @MainActor in
                                         guard let self = self, !self.isCancelRequested else { return }
@@ -2338,11 +2340,7 @@ public final class AppViewModel: ObservableObject {
                                         self.updateItemProgress(id: itemId, progress: p)
                                     }
                                 },
-                                onSegment: { [weak self] seg in
-                                    guard !cancelToken.isCancelled else { return }
-                                    let currentSegments = collector.append(seg)
-                                    let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
-                                    let liveText = postProcessor.process(segments: currentSegments, options: postOpts)
+                                onLiveTranscript: { [weak self] liveText, _ in
                                     Task { @MainActor [weak self] in
                                         guard let self = self, !self.isCancelRequested else { return }
                                         self.updateItemLiveTranscript(id: itemId, transcript: liveText)
@@ -2350,8 +2348,9 @@ public final class AppViewModel: ObservableObject {
                                 },
                                 cancellationToken: cancelToken
                             )
-                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
-                            let formatted = postProcessor.process(segments: result.segments, options: postOpts)
+                            let prepared = pipelineResult.preparedAudio
+                            let result = pipelineResult.transcriptResult
+                            let formatted = pipelineResult.formattedText
                             
                             current.transcript = formatted
                             
@@ -2400,6 +2399,8 @@ public final class AppViewModel: ObservableObject {
                                 durationSec: media.metadata.duration,
                                 sourcePath: video.canonicalURL,
                                 outputPath: targetURLPath,
+                                modelID: model.rawValue,
+                                languageCode: lang,
                                 transcriptText: formatted
                             )
                             
@@ -2432,12 +2433,14 @@ public final class AppViewModel: ObservableObject {
                             let duration = try AudioValidator.validate(fileURL: fileURL)
                             current.durationSec = duration
                             
-                            // Check cache using both name and exact duration!
+                            // Check cache using content hash, name, exact duration, and active model!
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: current.title,
                                 durationSec: duration,
                                 sourcePath: fileURL.path,
-                                externalID: fileURL.path
+                                externalID: fileURL.path,
+                                modelID: model.rawValue,
+                                languageCode: lang
                             ) {
                                 Log.info("Media file loaded from cache (skipping duplicate transcription): \(current.title) (\(duration)s)")
                                 current.transcript = cached.transcriptText
@@ -2513,18 +2516,17 @@ public final class AppViewModel: ObservableObject {
                                 ? "Video sesi çözümleniyor ve transkript ediliyor..."
                                 : "Yerel ses çözümleniyor ve transkript ediliyor..."
                             
-                            let prepared = try await Task.detached(priority: .userInitiated) {
-                                try audioDecoder.decode(fileURL: effectiveAudioURL)
-                            }.value
-                            let collector = SegmentCollector()
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
-                            let result = try await whisperEngine.transcribe(
-                                prepared,
-                                options: TranscriptionOptions(
+                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                            let pipelineResult = try await pipelineCoordinator.execute(
+                                audioFileURL: effectiveAudioURL,
+                                engine: whisperEngine,
+                                transcriptionOptions: TranscriptionOptions(
                                     language: lang,
                                     noContext: antiHallucination
                                 ),
+                                postProcessorOptions: postOpts,
                                 progress: { [weak self] p in
                                     Task { @MainActor in
                                         guard let self = self, !self.isCancelRequested else { return }
@@ -2532,11 +2534,7 @@ public final class AppViewModel: ObservableObject {
                                         self.updateItemProgress(id: itemId, progress: p)
                                     }
                                 },
-                                onSegment: { [weak self] seg in
-                                    guard !cancelToken.isCancelled else { return }
-                                    let currentSegments = collector.append(seg)
-                                    let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
-                                    let liveText = postProcessor.process(segments: currentSegments, options: postOpts)
+                                onLiveTranscript: { [weak self] liveText, _ in
                                     Task { @MainActor [weak self] in
                                         guard let self = self, !self.isCancelRequested else { return }
                                         self.updateItemLiveTranscript(id: itemId, transcript: liveText)
@@ -2544,8 +2542,9 @@ public final class AppViewModel: ObservableObject {
                                 },
                                 cancellationToken: cancelToken
                             )
-                            let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
-                            let formatted = postProcessor.process(segments: result.segments, options: postOpts)
+                            let prepared = pipelineResult.preparedAudio
+                            let result = pipelineResult.transcriptResult
+                            let formatted = pipelineResult.formattedText
                             
                             current.transcript = formatted
                             current.audioURL = effectiveAudioURL
@@ -2610,6 +2609,8 @@ public final class AppViewModel: ObservableObject {
                                 durationSec: duration,
                                 sourcePath: fileURL.path,
                                 outputPath: targetURLPath,
+                                modelID: model.rawValue,
+                                languageCode: lang,
                                 transcriptText: formatted
                             )
                             

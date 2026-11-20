@@ -147,6 +147,7 @@ public final class AudioDecoder: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: ffmpeg)
         process.arguments = [
+            "-nostdin",
             "-y", "-v", "error",
             "-i", fileURL.path,
             "-vn",
@@ -155,11 +156,18 @@ public final class AudioDecoder: Sendable {
             "-c:a", "pcm_s16le",
             tempWAV.path
         ]
+        let stderrPipe = Pipe()
+        process.standardError = stderrPipe
+        process.standardOutput = FileHandle.nullDevice
+        
         try process.run()
+        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
+        
         guard process.terminationStatus == 0,
               FileManager.default.fileExists(atPath: tempWAV.path) else {
-            throw AudioDecoderError.conversionFailed("FFmpeg ses dönüştürme başarısız oldu.")
+            let errStr = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            throw AudioDecoderError.conversionFailed("FFmpeg ses dönüştürme başarısız oldu\(errStr.isEmpty ? "." : ": \(errStr)")")
         }
         let wavFile = try AVAudioFile(forReading: tempWAV)
         let frameCount = AVAudioFrameCount(wavFile.length)

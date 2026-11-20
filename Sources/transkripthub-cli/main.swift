@@ -476,26 +476,27 @@ struct TranskriptHubCLI {
                 initialPrompt: initialPrompt,
                 noContext: noContext
             )
+            let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps)
+            let pipelineCoordinator = TranscriptionPipelineCoordinator()
             
             let startTime = CFAbsoluteTimeGetCurrent()
-            let result = try await engine.transcribe(
-                preparedAudio,
-                options: options,
+            let pipelineResult = try await pipelineCoordinator.execute(
+                preparedAudio: preparedAudio,
+                engine: engine,
+                transcriptionOptions: options,
+                postProcessorOptions: postOptions,
                 progress: { progress in
                     let percent = Int(progress * 100)
                     print("\rTranscription Progress: \(percent)%", terminator: "")
                     fflush(stdout)
                 },
-                onSegment: nil,
+                onLiveTranscript: nil,
                 cancellationToken: nil
             )
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             print(String(format: "\nTranscription completed in %.2f seconds.", elapsed))
             
-            // Post-processing
-            let postProcessor = TranscriptPostProcessor()
-            let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps)
-            let formattedText = postProcessor.process(segments: result.segments, options: postOptions)
+            let formattedText = pipelineResult.formattedText
             
             print("\n----------------- TRANSCRIPT OUTPUT -----------------")
             print(formattedText)
@@ -518,10 +519,8 @@ struct TranskriptHubCLI {
             print("Output saved successfully: \(targetURL.path)")
             
             if exportSRT {
-                let cleanedSegments = postProcessor.processSegments(segments: result.segments, options: postOptions)
-                let srtContent = SRTFormatter.format(segments: cleanedSegments)
                 let srtURL = targetURL.deletingPathExtension().appendingPathExtension("srt")
-                try outputWriter.write(content: srtContent, to: srtURL)
+                try outputWriter.write(content: pipelineResult.srtText, to: srtURL)
                 print("SRT saved successfully: \(srtURL.path)")
             }
             

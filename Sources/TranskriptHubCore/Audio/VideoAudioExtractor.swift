@@ -95,7 +95,9 @@ public actor VideoAudioExtractor {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ffmpeg)
             process.arguments = [
+                "-nostdin",
                 "-y",
+                "-v", "error",
                 "-i", fileURL.path,
                 "-vn",
                 "-acodec", "libmp3lame",
@@ -104,10 +106,24 @@ public actor VideoAudioExtractor {
             ]
             let errPipe = Pipe()
             process.standardError = errPipe
+            process.standardOutput = FileHandle.nullDevice
             
             do {
-                try process.run()
-                process.waitUntilExit()
+                try await withTaskCancellationHandler {
+                    try process.run()
+                    // Drain stderr BEFORE waitUntilExit() to prevent 64 KB pipe buffer deadlock
+                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                    process.waitUntilExit()
+                    if process.terminationStatus != 0,
+                       let errStr = String(data: errData, encoding: .utf8),
+                       !errStr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Log.error("FFmpeg extraction stderr: \(errStr)")
+                    }
+                } onCancel: {
+                    if process.isRunning {
+                        process.terminate()
+                    }
+                }
                 
                 if process.terminationStatus == 0 && fm.fileExists(atPath: outputMP3.path),
                    let attrs = try? fm.attributesOfItem(atPath: outputMP3.path),

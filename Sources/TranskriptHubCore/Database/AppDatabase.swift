@@ -127,6 +127,15 @@ public final class AppDatabase: Sendable {
             try db.create(index: "idx_cache_external_id", on: "transcript_cache", columns: ["external_id"])
         }
         
+        migrator.registerMigration("v3_transcript_cache_fingerprint_and_model") { db in
+            try db.alter(table: "transcript_cache") { t in
+                t.add(column: "content_hash", .text)
+                t.add(column: "model_id", .text)
+                t.add(column: "language_code", .text)
+            }
+            try db.create(index: "idx_cache_content_hash", on: "transcript_cache", columns: ["content_hash"])
+        }
+        
         return migrator
     }
 }

@@ -24,6 +24,9 @@ public enum Qwen3ASRError: Error, LocalizedError, Equatable {
 public actor Qwen3ASREngine: TranscriptionEngine {
     public static let maxChunkSeconds: Double = 28.0
 
+    /// Process-wide serialization lock protecting `CQwenASR` global thread pool (`qwen_set_threads` / `parallel_for`).
+    private static let cBackendExecutionLock = NSLock()
+
     private let modelPath: String
     private nonisolated(unsafe) var context: UnsafeMutablePointer<qwen_ctx_t>?
 
@@ -174,22 +177,24 @@ public actor Qwen3ASREngine: TranscriptionEngine {
 
         // 3. Configure Qwen3-ASR context parameters
         let threads = Int32(max(1, options.threads))
-        qwen_set_threads(threads)
-        ctx.pointee.past_text_conditioning = options.noContext ? 0 : 1
-        ctx.pointee.segment_sec = 0.0
-        ctx.pointee.skip_silence = 0
+        Self.cBackendExecutionLock.withLock {
+            qwen_set_threads(threads)
+            ctx.pointee.past_text_conditioning = options.noContext ? 0 : 1
+            ctx.pointee.segment_sec = 0.0
+            ctx.pointee.skip_silence = 0
 
-        if let mappedLang = Self.mapLanguageCode(options.language) {
-            _ = mappedLang.withCString { qwen_set_force_language(ctx, $0) }
-        } else {
-            _ = qwen_set_force_language(ctx, nil)
-        }
+            if let mappedLang = Self.mapLanguageCode(options.language) {
+                _ = mappedLang.withCString { qwen_set_force_language(ctx, $0) }
+            } else {
+                _ = qwen_set_force_language(ctx, nil)
+            }
 
-        let trimmedPrompt = options.initialPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let prompt = trimmedPrompt, !prompt.isEmpty {
-            _ = prompt.withCString { qwen_set_prompt(ctx, $0) }
-        } else {
-            _ = qwen_set_prompt(ctx, nil)
+            let trimmedPrompt = options.initialPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let prompt = trimmedPrompt, !prompt.isEmpty {
+                _ = prompt.withCString { qwen_set_prompt(ctx, $0) }
+            } else {
+                _ = qwen_set_prompt(ctx, nil)
+            }
         }
 
         var slices: [(range: Range<Int>, startSec: Double, endSec: Double)] = []
@@ -219,12 +224,15 @@ public actor Qwen3ASREngine: TranscriptionEngine {
 
             let sliceCount = slice.range.count
             let rawText: String = conditioned[slice.range].withUnsafeBufferPointer { buf in
-                guard let base = buf.baseAddress,
-                      let cStr = qwen_transcribe_audio(ctx, base, Int32(sliceCount)) else {
-                    return ""
+                Self.cBackendExecutionLock.withLock {
+                    qwen_set_threads(threads)
+                    guard let base = buf.baseAddress,
+                          let cStr = qwen_transcribe_audio(ctx, base, Int32(sliceCount)) else {
+                        return ""
+                    }
+                    defer { free(cStr) }
+                    return String(cString: cStr)
                 }
-                defer { free(cStr) }
-                return String(cString: cStr)
             }
 
             if cancellationToken?.isCancelled == true || Task.isCancelled {

@@ -159,4 +159,103 @@ struct TranscriptCacheTests {
         )
         #expect(updated?.transcriptText == "New improved re-transcribed text.")
     }
+    
+    @Test("Bidirectional substring titles (e.g. Recording 2 vs Recording 20) do NOT collide in cache")
+    func testNoFalsePositiveSubstringTitleCollision() async throws {
+        let db = try makeTestDatabase()
+        let cache = TranscriptCacheManager(database: db)
+        
+        await cache.save(
+            externalID: "/Users/test/Recording 2.m4a",
+            title: "Recording 2",
+            durationSec: 60.0,
+            sourcePath: "/Users/test/Recording 2.m4a",
+            outputPath: "/Users/test/Transkript/Recording 2.txt",
+            modelID: "large-v3-q5_0",
+            languageCode: "de",
+            transcriptText: "Transcript for Recording 2."
+        )
+        
+        // "Recording 20" contains "Recording 2" as a prefix and has the same duration (60.0s),
+        // but is a distinct recording and must NOT hit the cache for "Recording 2"!
+        let falseHit1 = await cache.findCached(
+            title: "Recording 20",
+            durationSec: 60.0,
+            sourcePath: "/Users/test/Recording 20.m4a",
+            modelID: "large-v3-q5_0",
+            languageCode: "de"
+        )
+        #expect(falseHit1 == nil)
+        
+        // "Recording" is a substring of "Recording 2", must also NOT collide!
+        let falseHit2 = await cache.findCached(
+            title: "Recording",
+            durationSec: 60.0,
+            sourcePath: "/Users/test/Recording.m4a",
+            modelID: "large-v3-q5_0",
+            languageCode: "de"
+        )
+        #expect(falseHit2 == nil)
+    }
+    
+    @Test("Model-aware and content-hash-aware cache lookup prevents stale cross-model hits")
+    func testModelAndContentHashAwareCache() async throws {
+        let db = try makeTestDatabase()
+        let cache = TranscriptCacheManager(database: db)
+        
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("cache_hash_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let fileA = tempDir.appendingPathComponent("lecture.m4a")
+        try Data("audio-content-alpha-12345".utf8).write(to: fileA)
+        let hashA = TranscriptCacheManager.computeFastContentHash(forPath: fileA.path)
+        #expect(hashA != nil)
+        
+        await cache.save(
+            externalID: fileA.path,
+            title: "lecture",
+            durationSec: 90.0,
+            sourcePath: fileA.path,
+            outputPath: tempDir.appendingPathComponent("lecture.txt").path,
+            modelID: "large-v3-q5_0",
+            languageCode: "de",
+            transcriptText: "Transcript from Large-v3 Q5_0."
+        )
+        
+        // Same file, same model -> HIT
+        let hitSameModel = await cache.findCached(
+            title: "lecture",
+            durationSec: 90.0,
+            sourcePath: fileA.path,
+            externalID: fileA.path,
+            modelID: "large-v3-q5_0",
+            languageCode: "de"
+        )
+        #expect(hitSameModel?.transcriptText == "Transcript from Large-v3 Q5_0.")
+        #expect(hitSameModel?.contentHash == hashA)
+        
+        // Same file, different model (qwen3-asr-1.7b) -> MISS (must re-transcribe with new model)
+        let missDifferentModel = await cache.findCached(
+            title: "lecture",
+            durationSec: 90.0,
+            sourcePath: fileA.path,
+            externalID: fileA.path,
+            modelID: "qwen3-asr-1.7b",
+            languageCode: "de"
+        )
+        #expect(missDifferentModel == nil)
+        
+        // Overwrite fileA with completely different audio bytes but same path, title, and duration -> MISS
+        try Data("completely-different-audio-bytes-99999".utf8).write(to: fileA)
+        let missModifiedFile = await cache.findCached(
+            title: "lecture",
+            durationSec: 90.0,
+            sourcePath: fileA.path,
+            externalID: fileA.path,
+            modelID: "large-v3-q5_0",
+            languageCode: "de"
+        )
+        #expect(missModifiedFile == nil)
+    }
 }

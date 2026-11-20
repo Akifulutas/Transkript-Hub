@@ -89,9 +89,19 @@ static void *worker_loop(void *arg) {
     }
 }
 
+static pthread_mutex_t tp_lifecycle_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void qwen_set_threads(int n) {
     if (n < 1) n = 1;
     if (n > QWEN_MAX_THREADS) n = QWEN_MAX_THREADS;
+
+    pthread_mutex_lock(&tp_lifecycle_mutex);
+
+    /* Fast no-op when pool is already configured with the requested thread count */
+    if (tp.n_threads == n && !tp.shutdown) {
+        pthread_mutex_unlock(&tp_lifecycle_mutex);
+        return;
+    }
 
     /* Shutdown existing workers */
     if (tp.n_threads > 1) {
@@ -101,12 +111,19 @@ void qwen_set_threads(int n) {
         pthread_mutex_unlock(&tp.mutex);
         for (int i = 0; i < tp.n_threads - 1; i++)
             pthread_join(tp.threads[i], NULL);
-        tp.shutdown = 0;
-        tp.generation = 0;
     }
 
+    pthread_mutex_lock(&tp.mutex);
+    tp.shutdown = 0;
+    tp.generation = 0;
+    tp.n_done = 0;
     tp.n_threads = n;
-    if (n <= 1) return;
+    pthread_mutex_unlock(&tp.mutex);
+
+    if (n <= 1) {
+        pthread_mutex_unlock(&tp_lifecycle_mutex);
+        return;
+    }
 
     for (int i = 0; i < n - 1; i++) {
         tp.tids[i] = i + 1;
@@ -115,6 +132,8 @@ void qwen_set_threads(int n) {
 
     if (qwen_verbose >= 2)
         fprintf(stderr, "Thread pool: %d threads\n", n);
+
+    pthread_mutex_unlock(&tp_lifecycle_mutex);
 }
 
 int qwen_get_num_cpus(void) {

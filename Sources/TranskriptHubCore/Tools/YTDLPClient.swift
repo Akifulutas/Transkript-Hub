@@ -103,6 +103,7 @@ public final class YTDLPClient: Sendable {
         final class ProgressTracker: @unchecked Sendable {
             private let lock = NSLock()
             private var _fullStdout: String = ""
+            private var _fullStderr: String = ""
             private var _metadata: YouTubeMetadata?
             let onProgress: (@Sendable (Double) -> Void)?
             
@@ -119,6 +120,18 @@ public final class YTDLPClient: Sendable {
             func appendStdout(_ str: String) {
                 lock.lock()
                 _fullStdout.append(str)
+                lock.unlock()
+            }
+            
+            var fullStderr: String {
+                lock.lock()
+                defer { lock.unlock() }
+                return _fullStderr
+            }
+            
+            func appendStderr(_ str: String) {
+                lock.lock()
+                _fullStderr.append(str)
                 lock.unlock()
             }
             
@@ -158,17 +171,60 @@ public final class YTDLPClient: Sendable {
             }
         }
         
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
+            tracker.appendStderr(str)
+        }
+        
         do {
-            try process.run()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    process.terminationHandler = { _ in
+                        continuation.resume()
+                    }
+                    do {
+                        try process.run()
+                    } catch {
+                        process.terminationHandler = nil
+                        continuation.resume(throwing: error)
+                    }
+                }
+            } onCancel: {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+        } catch is CancellationError {
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+            if process.isRunning {
+                process.terminate()
+            }
+            throw CancellationError()
         } catch {
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
             throw YTDLPError(kind: .unknown, message: "yt-dlp süreci başlatılamadı: \(error.localizedDescription)")
         }
         
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
         stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
         
-        let stderrText = String(data: stderrData, encoding: .utf8) ?? ""
+        if let remOut = try? stdoutPipe.fileHandleForReading.readToEnd(),
+           let str = String(data: remOut, encoding: .utf8), !str.isEmpty {
+            tracker.appendStdout(str)
+        }
+        if let remErr = try? stderrPipe.fileHandleForReading.readToEnd(),
+           let str = String(data: remErr, encoding: .utf8), !str.isEmpty {
+            tracker.appendStderr(str)
+        }
+        
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+        
+        let stderrText = tracker.fullStderr
         
         guard process.terminationStatus == 0 else {
             let errorKind = classifyError(stderr: stderrText, exitCode: process.terminationStatus)
