@@ -1,5 +1,23 @@
 import Foundation
 
+public struct YouTubeChapter: Codable, Sendable, Hashable {
+    public let startTime: Double
+    public let endTime: Double?
+    public let title: String
+    
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case title
+    }
+    
+    public init(startTime: Double, endTime: Double? = nil, title: String) {
+        self.startTime = startTime
+        self.endTime = endTime
+        self.title = title
+    }
+}
+
 public struct YouTubeMetadata: Codable, Sendable {
     public let id: String
     public let title: String
@@ -7,6 +25,7 @@ public struct YouTubeMetadata: Codable, Sendable {
     public let duration: Double?
     public let ext: String?
     public let description: String?
+    public let chapters: [YouTubeChapter]?
     
     public init(
         id: String,
@@ -14,7 +33,8 @@ public struct YouTubeMetadata: Codable, Sendable {
         channel: String?,
         duration: Double?,
         ext: String?,
-        description: String? = nil
+        description: String? = nil,
+        chapters: [YouTubeChapter]? = nil
     ) {
         self.id = id
         self.title = title
@@ -22,6 +42,7 @@ public struct YouTubeMetadata: Codable, Sendable {
         self.duration = duration
         self.ext = ext
         self.description = description
+        self.chapters = chapters
     }
 }
 
@@ -96,7 +117,7 @@ public final class YTDLPClient: Sendable {
             "-f", "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/18",
             "-o", outputTemplate,
             "--no-simulate",
-            "--print", "%(.{id,title,channel,duration,ext,description})j",
+            "--print", "%(.{id,title,channel,duration,ext,description,chapters})j",
             "--progress",
             "--progress-template", "download:%(progress._percent_str)s"
         ]

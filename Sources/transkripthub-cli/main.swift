@@ -301,12 +301,21 @@ struct TranskriptHubCLI {
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             print(String(format: "\nTranscription completed (%.2fs)", elapsed))
             
-            // Post-processing
+            // Post-processing (with automatic YouTube chapter headings + description when present)
             let postProcessor = TranscriptPostProcessor()
-            let rawFormattedText = postProcessor.process(
-                segments: result.segments,
-                options: PostProcessorOptions(insertTimestamps: insertTimestamps)
+            let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps)
+            let chapters = OutputFormatter.resolveChapters(
+                nativeChapters: fetchedMedia.metadata.chapters,
+                description: fetchedMedia.metadata.description
             )
+            let rawFormattedText = chapters.isEmpty
+                ? postProcessor.process(segments: result.segments, options: postOptions)
+                : OutputFormatter.formatChapteredTranscript(
+                    segments: postProcessor.processSegments(segments: result.segments, options: postOptions),
+                    chapters: chapters,
+                    postProcessor: postProcessor,
+                    options: postOptions
+                )
             let formattedText = OutputFormatter.formatYouTubeTranscript(
                 transcript: rawFormattedText,
                 description: fetchedMedia.metadata.description

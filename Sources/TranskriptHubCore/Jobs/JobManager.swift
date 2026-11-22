@@ -103,6 +103,7 @@ public actor JobManager {
             guard let state = JobState(rawValue: job.state), !state.isTerminal else { continue }
             
             var currentJob = job
+            var fetchedChapters: [YouTubeChapter] = []
             let workspaceURL = URL(fileURLWithPath: job.workspacePath ?? "/tmp/\(job.id)")
             
             // Step 1: Fetching
@@ -122,6 +123,10 @@ public actor JobManager {
                     let title = media.metadata.title
                     let creator = media.metadata.channel
                     let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    fetchedChapters = OutputFormatter.resolveChapters(
+                        nativeChapters: media.metadata.chapters,
+                        description: videoDescription
+                    )
                     let duration = media.metadata.duration
                     let sourcePath = media.localAudioURL.path
                     let now = ISO8601DateFormatter().string(from: Date())
@@ -177,7 +182,15 @@ public actor JobManager {
                         transcriptionOptions: TranscriptionOptions()
                     )
                     let result = pipelineResult.transcriptResult
-                    let formatted = pipelineResult.formattedText
+                    let resolvedChapters = fetchedChapters.isEmpty
+                        ? OutputFormatter.resolveChapters(nativeChapters: nil, description: currentJob.videoDescription)
+                        : fetchedChapters
+                    let formatted = resolvedChapters.isEmpty
+                        ? pipelineResult.formattedText
+                        : OutputFormatter.formatChapteredTranscript(
+                            segments: pipelineResult.cleanedSegments,
+                            chapters: resolvedChapters
+                        )
                     
                     let jobID = currentJob.id
                     let detectedLang = result.detectedLanguage

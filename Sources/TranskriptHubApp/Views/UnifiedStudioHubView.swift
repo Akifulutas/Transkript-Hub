@@ -1275,6 +1275,49 @@ public struct UnifiedStudioHubView: View {
                                 width: 240
                             )
                         }
+                        
+                        // AI / NotebookLM Prompt Template Copy Pill (works for single or multi completed items)
+                        if viewModel.completedCount >= 1 {
+                            Menu {
+                                ForEach(LLMPromptTemplate.allCases) { template in
+                                    Button(action: {
+                                        if viewModel.completedCount == 1,
+                                           let onlyItem = viewModel.completedItems.first {
+                                            viewModel.copyForLLM(template: template, item: onlyItem)
+                                        } else {
+                                            viewModel.copyCombinedForLLM(template: template)
+                                        }
+                                    }) {
+                                        Label(
+                                            template.displayTitle(languageCode: viewModel.appLanguage.rawValue),
+                                            systemImage: template.systemImage
+                                        )
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: viewModel.copiedLLMToast != nil ? "checkmark" : "sparkles")
+                                        .font(.system(size: 10, weight: .bold))
+                                    Text(viewModel.copiedLLMToast != nil ? viewModel.t("action_copied") : viewModel.t("llm_copy_menu"))
+                                        .font(.system(size: 10.5, weight: .semibold))
+                                }
+                                .foregroundStyle(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral : Color.Premium.cashmereViolet)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.18) : Color.Premium.cashmereViolet.opacity(0.14))
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.35) : Color.Premium.cashmereViolet.opacity(0.32), lineWidth: 0.5)
+                                )
+                            }
+                            .menuStyle(.borderlessButton)
+                            .menuIndicator(.hidden)
+                            .fixedSize()
+                            .help(viewModel.t("llm_copy_menu_desc"))
+                        }
                     }
                 }
                 
@@ -1856,6 +1899,34 @@ struct StudioQueueItemRow: View {
                         placement: .topTrailing,
                         width: 220
                     )
+                    
+                    // Quick Copy for AI / NotebookLM Menu
+                    Menu {
+                        ForEach(LLMPromptTemplate.allCases) { template in
+                            Button(action: {
+                                viewModel.copyForLLM(template: template, item: item)
+                            }) {
+                                Label(
+                                    template.displayTitle(languageCode: viewModel.appLanguage.rawValue),
+                                    systemImage: template.systemImage
+                                )
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.Premium.cashmereViolet)
+                            .padding(5)
+                            .background(
+                                Circle()
+                                    .fill(Color.Premium.cashmereViolet.opacity(0.14))
+                            )
+                            .contentShape(Circle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help(viewModel.t("llm_copy_menu_desc"))
                     
                     // Show in Finder Button
                     Button(action: {

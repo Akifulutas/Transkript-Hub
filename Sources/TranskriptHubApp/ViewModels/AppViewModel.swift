@@ -357,6 +357,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var copyChoicePendingItem: QueueItem? = nil
     @Published public var isCopyChoicePresented: Bool = false
     @Published public var copiedCombinedToast: Bool = false
+    @Published public var copiedLLMToast: String? = nil
     
     // Already Transcribed Prompt State
     public struct AlreadyTranscribedPromptInfo: Identifiable, Sendable {
@@ -1142,7 +1143,9 @@ public final class AppViewModel: ObservableObject {
         let updatedSegments = diarizer.renameSpeaker(in: currentSegments, from: oldName, to: newName)
         
         queueItems[index].segments = updatedSegments
-        let joinedText = updatedSegments.map(\.text).joined(separator: "\n\n")
+        let joinedText = queueItems[index].chapters.isEmpty
+            ? updatedSegments.map(\.text).joined(separator: "\n\n")
+            : OutputFormatter.formatChapteredTranscript(segments: updatedSegments, chapters: queueItems[index].chapters)
         let newFullText = queueItems[index].isYouTube
             ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
             : joinedText
@@ -1169,7 +1172,9 @@ public final class AppViewModel: ObservableObject {
         currentSegments[segmentIndex].words = words
         
         queueItems[index].segments = currentSegments
-        let joinedText = currentSegments.map(\.text).joined(separator: "\n\n")
+        let joinedText = queueItems[index].chapters.isEmpty
+            ? currentSegments.map(\.text).joined(separator: "\n\n")
+            : OutputFormatter.formatChapteredTranscript(segments: currentSegments, chapters: queueItems[index].chapters)
         let newFullText = queueItems[index].isYouTube
             ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
             : joinedText
@@ -1515,8 +1520,10 @@ public final class AppViewModel: ObservableObject {
                 externalID: video.videoID
             ) {
                 if let idx = self?.queueItems.firstIndex(where: { $0.id == video.videoID }) {
+                    let cachedDesc = OutputFormatter.extractYouTubeDescription(from: cached.transcriptText)
                     self?.queueItems[idx].transcript = cached.transcriptText
-                    self?.queueItems[idx].videoDescription = OutputFormatter.extractYouTubeDescription(from: cached.transcriptText)
+                    self?.queueItems[idx].videoDescription = cachedDesc
+                    self?.queueItems[idx].chapters = OutputFormatter.resolveChapters(nativeChapters: nil, description: cachedDesc)
                     self?.queueItems[idx].state = .completed
                     self?.queueItems[idx].progress = 1.0
                     self?.queueItems[idx].subtitle = "\(source) • Önbellekten Yüklendi (Zaten İşlenmiş)"
@@ -2334,10 +2341,15 @@ public final class AppViewModel: ObservableObject {
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
                             let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let resolvedChapters = OutputFormatter.resolveChapters(
+                                nativeChapters: media.metadata.chapters,
+                                description: videoDescription
+                            )
                             current.title = media.metadata.title
                             current.subtitle = "\(channel) • \(Int(duration))s"
                             current.durationSec = media.metadata.duration
                             current.videoDescription = (videoDescription?.isEmpty == false) ? videoDescription : nil
+                            current.chapters = resolvedChapters
                             
                             // Check cache again with fetched metadata title
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
@@ -2354,6 +2366,9 @@ public final class AppViewModel: ObservableObject {
                                 )
                                 current.transcript = mergedCachedText
                                 current.videoDescription = current.videoDescription ?? OutputFormatter.extractYouTubeDescription(from: mergedCachedText)
+                                if current.chapters.isEmpty {
+                                    current.chapters = OutputFormatter.resolveChapters(nativeChapters: nil, description: current.videoDescription)
+                                }
                                 current.state = .completed
                                 current.progress = 1.0
                                 current.subtitle = "\(channel) • Loaded from Cache"
@@ -2384,6 +2399,7 @@ public final class AppViewModel: ObservableObject {
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
                             let capturedDescription = current.videoDescription
+                            let capturedChapters = current.chapters
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
                             let pipelineResult = try await pipelineCoordinator.execute(
                                 audioFileURL: localAudioURL,
@@ -2414,8 +2430,15 @@ public final class AppViewModel: ObservableObject {
                             )
                             let prepared = pipelineResult.preparedAudio
                             let result = pipelineResult.transcriptResult
+                            let chapteredBody = capturedChapters.isEmpty
+                                ? pipelineResult.formattedText
+                                : OutputFormatter.formatChapteredTranscript(
+                                    segments: pipelineResult.cleanedSegments,
+                                    chapters: capturedChapters,
+                                    options: postOpts
+                                )
                             let formatted = OutputFormatter.formatYouTubeTranscript(
-                                transcript: pipelineResult.formattedText,
+                                transcript: chapteredBody,
                                 description: capturedDescription
                             )
                             
@@ -2974,6 +2997,74 @@ public final class AppViewModel: ObservableObject {
             self?.copiedCombinedToast = false
         }
         statusMessage = String(format: t("status_combined_copied"), completedCount)
+    }
+    
+    // MARK: - LLM / NotebookLM Prompt Template Copy
+    public func copyForLLM(template: LLMPromptTemplate, item: QueueItem) {
+        var textToCopy: String? = item.transcript
+        if textToCopy == nil || textToCopy?.isEmpty == true {
+            if let outURL = item.outputURL, let fileText = try? String(contentsOf: outURL, encoding: .utf8), !fileText.isEmpty {
+                textToCopy = fileText
+            } else {
+                let candidate = outputDirectoryURL.appendingPathComponent("\(item.title).txt")
+                if let fileText = try? String(contentsOf: candidate, encoding: .utf8), !fileText.isEmpty {
+                    textToCopy = fileText
+                }
+            }
+        }
+        guard let transcript = textToCopy, !transcript.isEmpty else { return }
+        copyRawTextForLLM(
+            template: template,
+            title: item.title,
+            sourceURL: item.canonicalURL,
+            videoDescription: item.videoDescription,
+            transcript: transcript,
+            isBatch: false
+        )
+    }
+    
+    public func copyCombinedForLLM(template: LLMPromptTemplate) {
+        let text = combinedTranscript
+        guard !text.isEmpty else { return }
+        copyRawTextForLLM(
+            template: template,
+            title: "Transkript Hub (\(completedCount) Kaynak)",
+            sourceURL: nil,
+            videoDescription: nil,
+            transcript: text,
+            isBatch: true
+        )
+    }
+    
+    public func copyRawTextForLLM(
+        template: LLMPromptTemplate,
+        title: String? = nil,
+        sourceURL: String? = nil,
+        videoDescription: String? = nil,
+        transcript: String,
+        isBatch: Bool = false
+    ) {
+        guard !transcript.isEmpty else { return }
+        let payload = template.formatPayload(
+            title: title,
+            sourceURL: sourceURL,
+            videoDescription: videoDescription,
+            transcript: transcript,
+            isBatch: isBatch,
+            languageCode: appLanguage.rawValue
+        )
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(payload, forType: .string)
+        
+        let templateName = template.displayTitle(languageCode: appLanguage.rawValue)
+        copiedLLMToast = templateName
+        statusMessage = String(format: t("llm_copied_status"), templateName)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { [weak self] in
+            if self?.copiedLLMToast == templateName {
+                self?.copiedLLMToast = nil
+            }
+        }
     }
     
     public func copySelectedTranscript() {

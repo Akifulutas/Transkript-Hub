@@ -79,9 +79,16 @@ public struct TranscriptDetailView: View {
                     
                     // 2. Transcript Content (Karaoke / Plain Text)
                     if viewModel.isKaraokeMode {
-                        if let desc = item.videoDescription ?? OutputFormatter.extractYouTubeDescription(from: text),
-                           !desc.isEmpty {
+                        let resolvedDesc = item.videoDescription ?? OutputFormatter.extractYouTubeDescription(from: text)
+                        if let desc = resolvedDesc, !desc.isEmpty {
                             videoDescriptionBanner(description: desc)
+                            Divider()
+                        }
+                        let effectiveChapters = item.chapters.isEmpty
+                            ? OutputFormatter.resolveChapters(nativeChapters: nil, description: resolvedDesc)
+                            : item.chapters
+                        if !effectiveChapters.isEmpty {
+                            chapterJumpBar(chapters: effectiveChapters)
                             Divider()
                         }
                         let effectiveSegments: [Segment] = viewModel.segments(for: item)
@@ -164,6 +171,55 @@ public struct TranscriptDetailView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial.opacity(0.65))
+    }
+    
+    private func chapterJumpBar(chapters: [YouTubeChapter]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: "list.bullet.indent")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.Premium.cashmereViolet)
+                    Text(viewModel.t("detail_chapters"))
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.trailing, 4)
+                
+                ForEach(Array(chapters.enumerated()), id: \.offset) { _, chapter in
+                    Button(action: {
+                        viewModel.audioPlayer.seek(to: chapter.startTime)
+                        if !viewModel.audioPlayer.isPlaying {
+                            viewModel.audioPlayer.play()
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(OutputFormatter.formatChapterTimestamp(chapter.startTime))
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(Color.Premium.cashmereViolet)
+                            Text(chapter.title)
+                                .font(.system(size: 10.5, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.Premium.cashmereViolet.opacity(0.10))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.Premium.cashmereViolet.opacity(0.25), lineWidth: 0.6)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+        }
+        .background(.ultraThinMaterial.opacity(0.45))
     }
     
     private func effectiveTranscript(for item: QueueItem) -> String? {
@@ -447,6 +503,56 @@ public struct TranscriptDetailView: View {
                         placement: .bottomTrailing,
                         width: 220
                     )
+                    
+                    // LLM / NotebookLM Prompt Template Copy Menu
+                    Menu {
+                        ForEach(LLMPromptTemplate.allCases) { template in
+                            Button(action: {
+                                if viewModel.showCombinedSessionTranscript || viewModel.selectedItemIDs.count > 1 {
+                                    viewModel.copyCombinedForLLM(template: template)
+                                } else if let item = activeItem {
+                                    viewModel.copyForLLM(template: template, item: item)
+                                } else if let text = transcript, !text.isEmpty {
+                                    viewModel.copyRawTextForLLM(
+                                        template: template,
+                                        title: title,
+                                        sourceURL: browserURL,
+                                        videoDescription: nil,
+                                        transcript: text,
+                                        isBatch: false
+                                    )
+                                }
+                            }) {
+                                Label(
+                                    template.displayTitle(languageCode: viewModel.appLanguage.rawValue),
+                                    systemImage: template.systemImage
+                                )
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: viewModel.copiedLLMToast != nil ? "checkmark" : "sparkles")
+                                .font(.system(size: 10.5, weight: .bold))
+                            Text(viewModel.copiedLLMToast != nil ? viewModel.t("action_copied") : viewModel.t("llm_copy_menu"))
+                                .font(.system(size: 10.5, weight: .semibold))
+                        }
+                        .foregroundStyle(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral : Color.Premium.cashmereViolet)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4.5)
+                        .background(
+                            Capsule()
+                                .fill(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.18) : Color.Premium.cashmereViolet.opacity(0.14))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.35) : Color.Premium.cashmereViolet.opacity(0.32), lineWidth: 0.6)
+                        )
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .disabled(transcript == nil || transcript!.isEmpty)
+                    .help(viewModel.t("llm_copy_menu_desc"))
                     
                     // Finder
                     if let output = outputURL {

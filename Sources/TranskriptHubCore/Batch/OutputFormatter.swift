@@ -132,6 +132,144 @@ public enum OutputFormatter {
         return desc.isEmpty ? nil : desc
     }
     
+    /// Formats a chapter start timestamp cleanly as `MM:SS` or `H:MM:SS`.
+    public static func formatChapterTimestamp(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded(.down)))
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%02d:%02d", m, s)
+    }
+    
+    /// Fallback chapter extractor that parses timestamp lines (e.g. `00:00 Intro`, `1:05:20 - Architecture`)
+    /// from a YouTube video description when native `yt-dlp` chapters are absent.
+    public static func parseChaptersFromDescription(_ description: String?) -> [YouTubeChapter] {
+        guard let description = description, !description.isEmpty else { return [] }
+        let pattern = #"^\s*[\(\[]?(\d{1,2}:\d{2}(?::\d{2})?)[\)\]]?\s*[-–—:|•]?\s*(.+?)\s*$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        
+        var parsed: [YouTubeChapter] = []
+        for rawLine in description.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { continue }
+            let nsLine = line as NSString
+            let range = NSRange(location: 0, length: nsLine.length)
+            guard let match = regex.firstMatch(in: line, range: range),
+                  match.numberOfRanges >= 3 else { continue }
+            
+            let tsStr = nsLine.substring(with: match.range(at: 1))
+            let rawTitle = nsLine.substring(with: match.range(at: 2))
+                .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "-–—:|•")))
+            guard !rawTitle.isEmpty,
+                  let seconds = parseTimestampToSeconds(tsStr) else { continue }
+            
+            if let last = parsed.last, seconds <= last.startTime {
+                continue
+            }
+            parsed.append(YouTubeChapter(startTime: seconds, endTime: nil, title: rawTitle))
+        }
+        return parsed.count >= 2 ? parsed : []
+    }
+    
+    private static func parseTimestampToSeconds(_ ts: String) -> Double? {
+        let parts = ts.split(separator: ":").compactMap { Int($0) }
+        if parts.count == 2 {
+            let (m, s) = (parts[0], parts[1])
+            guard s >= 0 && s < 60 && m >= 0 else { return nil }
+            return Double(m * 60 + s)
+        } else if parts.count == 3 {
+            let (h, m, s) = (parts[0], parts[1], parts[2])
+            guard h >= 0 && m >= 0 && m < 60 && s >= 0 && s < 60 else { return nil }
+            return Double(h * 3600 + m * 60 + s)
+        }
+        return nil
+    }
+    
+    /// Resolves clean, deduplicated, ascending YouTube chapters from native `yt-dlp` metadata
+    /// or falls back to parsing chapter timestamps from the video description.
+    public static func resolveChapters(
+        nativeChapters: [YouTubeChapter]?,
+        description: String?
+    ) -> [YouTubeChapter] {
+        let rawList: [YouTubeChapter]
+        if let native = nativeChapters, !native.isEmpty {
+            rawList = native
+        } else {
+            rawList = parseChaptersFromDescription(description)
+        }
+        
+        var cleaned: [YouTubeChapter] = []
+        let sorted = rawList.sorted { $0.startTime < $1.startTime }
+        for ch in sorted {
+            let title = ch.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty, ch.startTime.isFinite, ch.startTime >= 0 else { continue }
+            if let last = cleaned.last, abs(last.startTime - ch.startTime) < 0.5 && last.title == title {
+                continue
+            }
+            cleaned.append(YouTubeChapter(startTime: ch.startTime, endTime: ch.endTime, title: title))
+        }
+        return cleaned
+    }
+    
+    /// Formats transcription segments into clean chapter-headed Markdown (`## 00:00 Intro`, `## 12:40 Architecture`)
+    /// while preserving all `TranscriptPostProcessor` rules within each chapter and never dropping any segment.
+    public static func formatChapteredTranscript(
+        segments: [Segment],
+        chapters: [YouTubeChapter],
+        postProcessor: TranscriptPostProcessor = TranscriptPostProcessor(),
+        options: PostProcessorOptions = PostProcessorOptions()
+    ) -> String {
+        let resolvedChapters = resolveChapters(nativeChapters: chapters, description: nil)
+        guard !resolvedChapters.isEmpty, !segments.isEmpty else {
+            return postProcessor.process(segments: segments, options: options)
+        }
+        
+        var prefaceSegments: [Segment] = []
+        var chapterBuckets: [[Segment]] = Array(repeating: [], count: resolvedChapters.count)
+        
+        for seg in segments {
+            if seg.start < resolvedChapters[0].startTime {
+                prefaceSegments.append(seg)
+                continue
+            }
+            var targetIdx = resolvedChapters.count - 1
+            for i in 0..<(resolvedChapters.count - 1) {
+                if seg.start >= resolvedChapters[i].startTime && seg.start < resolvedChapters[i + 1].startTime {
+                    targetIdx = i
+                    break
+                }
+            }
+            chapterBuckets[targetIdx].append(seg)
+        }
+        
+        var sections: [String] = []
+        if !prefaceSegments.isEmpty {
+            let text = postProcessor.process(segments: prefaceSegments, options: options)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+                sections.append(text)
+            }
+        }
+        
+        for (idx, chapter) in resolvedChapters.enumerated() {
+            let bucket = chapterBuckets[idx]
+            guard !bucket.isEmpty else { continue }
+            let text = postProcessor.process(segments: bucket, options: options)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            let heading = "## \(formatChapterTimestamp(chapter.startTime)) \(chapter.title)"
+            sections.append("\(heading)\n\n\(text)")
+        }
+        
+        if sections.isEmpty {
+            return postProcessor.process(segments: segments, options: options)
+        }
+        return sections.joined(separator: "\n\n")
+    }
+    
     public static func formatBatch(metadata: BatchExportMetadata, items: [BatchItemSection]) -> String {
         var lines: [String] = []
         
