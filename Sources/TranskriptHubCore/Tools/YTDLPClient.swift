@@ -18,31 +18,137 @@ public struct YouTubeChapter: Codable, Sendable, Hashable {
     }
 }
 
+public struct YouTubeHeatmapPoint: Codable, Sendable, Hashable {
+    public let startTime: Double
+    public let endTime: Double
+    public let value: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case value
+    }
+    
+    public init(startTime: Double, endTime: Double, value: Double) {
+        self.startTime = startTime
+        self.endTime = endTime
+        self.value = value
+    }
+}
+
+public struct YouTubeComment: Codable, Sendable, Hashable {
+    public let author: String?
+    public let text: String?
+    public let likeCount: Int?
+    public let isPinned: Bool?
+    public let isUploader: Bool?
+    public let isFavorited: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case author
+        case text
+        case likeCount = "like_count"
+        case isPinned = "is_pinned"
+        case isUploader = "is_uploader"
+        case isFavorited = "is_favorited"
+    }
+    
+    public init(
+        author: String? = nil,
+        text: String? = nil,
+        likeCount: Int? = nil,
+        isPinned: Bool? = nil,
+        isUploader: Bool? = nil,
+        isFavorited: Bool? = nil
+    ) {
+        self.author = author
+        self.text = text
+        self.likeCount = likeCount
+        self.isPinned = isPinned
+        self.isUploader = isUploader
+        self.isFavorited = isFavorited
+    }
+}
+
 public struct YouTubeMetadata: Codable, Sendable {
     public let id: String
     public let title: String
     public let channel: String?
+    public let channelURL: String?
+    public let channelFollowerCount: Int?
+    public let uploadDate: String?
     public let duration: Double?
+    public let viewCount: Int?
+    public let likeCount: Int?
+    public let commentCount: Int?
+    public let liveStatus: String?
+    public let categories: [String]?
+    public let tags: [String]?
     public let ext: String?
     public let description: String?
     public let chapters: [YouTubeChapter]?
+    public let heatmap: [YouTubeHeatmapPoint]?
+    public let comments: [YouTubeComment]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case channel
+        case channelURL = "channel_url"
+        case channelFollowerCount = "channel_follower_count"
+        case uploadDate = "upload_date"
+        case duration
+        case viewCount = "view_count"
+        case likeCount = "like_count"
+        case commentCount = "comment_count"
+        case liveStatus = "live_status"
+        case categories
+        case tags
+        case ext
+        case description
+        case chapters
+        case heatmap
+        case comments
+    }
     
     public init(
         id: String,
         title: String,
         channel: String?,
+        channelURL: String? = nil,
+        channelFollowerCount: Int? = nil,
+        uploadDate: String? = nil,
         duration: Double?,
+        viewCount: Int? = nil,
+        likeCount: Int? = nil,
+        commentCount: Int? = nil,
+        liveStatus: String? = nil,
+        categories: [String]? = nil,
+        tags: [String]? = nil,
         ext: String?,
         description: String? = nil,
-        chapters: [YouTubeChapter]? = nil
+        chapters: [YouTubeChapter]? = nil,
+        heatmap: [YouTubeHeatmapPoint]? = nil,
+        comments: [YouTubeComment]? = nil
     ) {
         self.id = id
         self.title = title
         self.channel = channel
+        self.channelURL = channelURL
+        self.channelFollowerCount = channelFollowerCount
+        self.uploadDate = uploadDate
         self.duration = duration
+        self.viewCount = viewCount
+        self.likeCount = likeCount
+        self.commentCount = commentCount
+        self.liveStatus = liveStatus
+        self.categories = categories
+        self.tags = tags
         self.ext = ext
         self.description = description
         self.chapters = chapters
+        self.heatmap = heatmap
+        self.comments = comments
     }
 }
 
@@ -117,7 +223,9 @@ public final class YTDLPClient: Sendable {
             "-f", "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/18",
             "-o", outputTemplate,
             "--no-simulate",
-            "--print", "%(.{id,title,channel,duration,ext,description,chapters})j",
+            "--write-comments",
+            "--extractor-args", "youtube:max_comments=15,all,0,0;comment_sort=top",
+            "--print", "%(.{id,title,channel,channel_url,channel_follower_count,upload_date,duration,view_count,like_count,comment_count,live_status,categories,tags,ext,description,chapters,heatmap,comments})j",
             "--progress",
             "--progress-template", "download:%(progress._percent_str)s"
         ]
@@ -271,15 +379,23 @@ public final class YTDLPClient: Sendable {
             throw YTDLPError(kind: errorKind, message: stderrText.isEmpty ? "Çıkış kodu: \(process.terminationStatus)" : stderrText)
         }
         
-        // Extract JSON metadata from accumulated stdout
+        // Look for the downloaded audio file in workspace (strictly excluding .info.json & sidecar files)
+        let items = try fm.contentsOfDirectory(at: workspace, includingPropertiesForKeys: nil)
+        let nonAudioExts: Set<String> = ["json", "part", "ytdl", "txt", "description", "vtt", "srt", "jpg", "jpeg", "png", "webp"]
+        
+        // Extract JSON metadata from accumulated stdout, or fall back to sidecar input.info.json if present
         let fullOutput = tracker.fullStdout
         if let meta = Self.parseMetadata(from: fullOutput) {
             tracker.metadata = meta
+        } else if let infoJSONURL = items.first(where: { $0.lastPathComponent.hasSuffix(".info.json") }),
+                  let data = try? Data(contentsOf: infoJSONURL),
+                  let meta = try? JSONDecoder().decode(YouTubeMetadata.self, from: data) {
+            tracker.metadata = meta
         }
         
-        // Look for the downloaded file in workspace
-        let items = try fm.contentsOfDirectory(at: workspace, includingPropertiesForKeys: nil)
-        guard let audioFile = items.first(where: { $0.lastPathComponent.hasPrefix("input.") }) else {
+        guard let audioFile = items.first(where: {
+            $0.lastPathComponent.hasPrefix("input.") && !nonAudioExts.contains($0.pathExtension.lowercased())
+        }) else {
             throw YTDLPError(kind: .noAudioFormat, message: "İndirilen ses dosyası çalışma alanında bulunamadı.")
         }
         

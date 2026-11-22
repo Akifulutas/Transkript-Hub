@@ -165,53 +165,104 @@ import Testing
     #expect(chaptered.contains("Özetle bu yaklaşım oldukça kararlı."))
 }
 
-@Test func testLLMPromptTemplatesSingleAndBatchPayloads() throws {
-    let description = "00:00 Giriş\n05:00 Demo"
-    let baseTranscript = OutputFormatter.formatYouTubeTranscript(
-        transcript: "## 00:00 Giriş\n\nMerhaba dünya.",
-        description: description
+@Test func testRichMaximumDataYouTubeDocumentFormatting() throws {
+    let metadata = YouTubeMetadata(
+        id: "abc12345678",
+        title: "Apple Silicon Whisper & Qwen3 Deep Dive",
+        channel: "Tech Engineering",
+        channelURL: "https://www.youtube.com/channel/UC12345",
+        channelFollowerCount: 1_250_000,
+        uploadDate: "20261118",
+        duration: 1200,
+        viewCount: 84_500,
+        likeCount: 4_200,
+        commentCount: 312,
+        liveStatus: "was_live",
+        categories: ["Science & Technology"],
+        tags: ["whisper.cpp", "Metal GPU", "Qwen3-ASR"],
+        ext: "m4a",
+        description: "Repo: https://github.com/example/asr-bench\nDocs: https://swift.org/documentation/\n\n00:00 Giriş\n04:00 Sponsor\n05:30 Mimari",
+        chapters: [
+            YouTubeChapter(startTime: 0, endTime: 240, title: "Giriş"),
+            YouTubeChapter(startTime: 240, endTime: 330, title: "Sponsor"),
+            YouTubeChapter(startTime: 330, endTime: 1200, title: "Mimari")
+        ],
+        heatmap: [
+            YouTubeHeatmapPoint(startTime: 10, endTime: 22, value: 0.2),
+            YouTubeHeatmapPoint(startTime: 340, endTime: 352, value: 0.92),
+            YouTubeHeatmapPoint(startTime: 352, endTime: 364, value: 1.0),
+            YouTubeHeatmapPoint(startTime: 900, endTime: 912, value: 0.78)
+        ],
+        comments: [
+            YouTubeComment(author: "@CommunityFan", text: "Harika analiz! https://arxiv.org/abs/2501.00001", likeCount: 1850, isPinned: false, isUploader: false),
+            YouTubeComment(author: "@TechEngineering", text: "Düzeltme: 05:30'daki benchmark M1 Pro üzerinde alındı.", likeCount: 420, isPinned: true, isUploader: true),
+            YouTubeComment(author: "@TechEngineering", text: "Kodları güncelledim: https://github.com/example/asr-bench", likeCount: 120, isPinned: false, isUploader: true)
+        ]
     )
     
-    // Study notes template (TR) includes prompt and does NOT duplicate VİDEO AÇIKLAMASI:
-    let studyPayload = LLMPromptTemplate.studyNotes.formatPayload(
-        title: "Swift 6 Dersi",
-        sourceURL: "https://www.youtube.com/watch?v=abc12345678",
-        videoDescription: description,
-        transcript: baseTranscript,
-        isBatch: false,
-        languageCode: "tr"
-    )
-    #expect(studyPayload.contains("Ders Notu"))
-    #expect(studyPayload.contains("# Swift 6 Dersi"))
-    #expect(studyPayload.contains("Merhaba dünya."))
-    let descOccurrences = studyPayload.components(separatedBy: OutputFormatter.youtubeDescriptionHeader).count - 1
-    #expect(descOccurrences == 1, "Video description header must never be duplicated in LLM payload")
+    let sponsorSegments = [
+        SponsorBlockSegment(category: "sponsor", actionType: "skip", segment: [240.0, 325.0]),
+        SponsorBlockSegment(category: "poi_highlight", actionType: "poi", segment: [345.0, 345.0])
+    ]
     
-    // Action items & Technical summary (EN/DE)
-    let actionPayload = LLMPromptTemplate.actionItems.formatPayload(
-        title: "Sprint Sync",
-        transcript: "We decided to ship v1.6.",
-        languageCode: "en"
-    )
-    #expect(actionPayload.contains("Action Items"))
-    #expect(actionPayload.contains("We decided to ship v1.6."))
+    let segments = [
+        Segment(start: 2.0, end: 12.0, text: "Merhaba arkadaşlar, bugün Apple Silicon üzerinde ses modellerini inceliyoruz."),
+        Segment(start: 250.0, end: 270.0, text: "Bu bölüm bugünkü sponsorumuz tarafından desteklenmektedir."),
+        Segment(start: 342.0, end: 360.0, text: "Mimari farklara baktığımızda Flash Attention hızı ikiye katlıyor.")
+    ]
     
-    let techPayload = LLMPromptTemplate.technicalSummary.formatPayload(
-        title: "Architektur",
-        transcript: "Wir nutzen Metal GPU.",
-        languageCode: "de"
+    let doc = OutputFormatter.formatRichYouTubeDocument(
+        metadata: metadata,
+        segments: segments,
+        canonicalURL: "https://www.youtube.com/watch?v=abc12345678",
+        sponsorSegments: sponsorSegments
     )
-    #expect(techPayload.contains("technische Zusammenfassung"))
-    #expect(techPayload.contains("Wir nutzen Metal GPU."))
     
-    // NotebookLM source pack outputs clean Markdown source header
-    let notebookPayload = LLMPromptTemplate.notebookLM.formatPayload(
-        title: "Multi Session",
-        transcript: baseTranscript,
-        isBatch: true,
-        languageCode: "tr"
-    )
-    #expect(notebookPayload.contains("NotebookLM"))
-    #expect(notebookPayload.contains("# Multi Session"))
-    #expect(notebookPayload.contains("## 00:00 Giriş"))
+    // 1. Video Identity & Metadata
+    #expect(doc.contains("VİDEO BİLGİLERİ"))
+    #expect(doc.contains("Başlık: Apple Silicon Whisper & Qwen3 Deep Dive"))
+    #expect(doc.contains("Kanal: Tech Engineering (1.25M abone) — https://www.youtube.com/channel/UC12345"))
+    #expect(doc.contains("Yayın Tarihi: 2026-11-18"))
+    #expect(doc.contains("Tür: Canlı Yayın Tekrarı"))
+    #expect(doc.contains("84.5K izlenme • 4.2K beğeni • 312 yorum"))
+    #expect(doc.contains("Etiketler: whisper.cpp, Metal GPU, Qwen3-ASR"))
+    
+    // 2. Chapters TOC & Chaptered Headings
+    #expect(doc.contains("İÇİNDEKİLER (BÖLÜMLER)"))
+    #expect(doc.contains("- 00:00 Giriş"))
+    #expect(doc.contains("- 05:30 Mimari"))
+    #expect(doc.contains("## 00:00 Giriş"))
+    #expect(doc.contains("## 05:30 Mimari"))
+    
+    // 3. Heatmap Most Replayed Peaks with spoken excerpt
+    #expect(doc.contains("🔥 EN ÇOK TEKRAR İZLENEN ANLAR (HEATMAP)"))
+    #expect(doc.contains("Yoğunluk: %100"))
+    #expect(doc.contains("Flash Attention hızı ikiye katlıyor"))
+    
+    // 4. SponsorBlock summary + inline [SPONSOR] tag in transcript
+    #expect(doc.contains("🏷️ SPONSOR / REKLAM & KİLİT ANLAR (SPONSORBLOCK)"))
+    #expect(doc.contains("⭐ Kilit An (Highlight): [05:45]"))
+    #expect(doc.contains("[SPONSOR: 04:00 - 05:25]"))
+    #expect(doc.contains("[SPONSOR] Bu bölüm bugünkü sponsorumuz"))
+    
+    // 5. Deduplicated Resource URL Index (from both description and comments)
+    #expect(doc.contains("🔗 KAYNAKLAR & LİNKLER (URL DİZİNİ)"))
+    #expect(doc.contains("https://github.com/example/asr-bench"))
+    #expect(doc.contains("https://swift.org/documentation/"))
+    #expect(doc.contains("https://arxiv.org/abs/2501.00001"))
+    let repoOccurrencesInLinks = doc.components(separatedBy: "1. https://github.com/example/asr-bench").count - 1
+    #expect(repoOccurrencesInLinks == 1)
+    
+    // 6. Curated Comments (Pinned first, then Uploader, then Community)
+    #expect(doc.contains("📌 SABİTLENMİŞ & EN ÇOK BEĞENİLEN YORUMLAR"))
+    #expect(doc.contains("[📌 SABİTLENMİŞ] @TechEngineering (420 beğeni):"))
+    #expect(doc.contains("[👤 KANAL SAHİBİ] @TechEngineering (120 beğeni):"))
+    #expect(doc.contains("1. @CommunityFan (1.9K beğeni):"))
+    
+    // 7. Timestamped Transcript & Idempotent/Extractable Description
+    #expect(doc.contains("[00:02]"))
+    #expect(doc.contains("[05:42]"))
+    let extractedDesc = OutputFormatter.extractYouTubeDescription(from: doc)
+    #expect(extractedDesc?.contains("https://github.com/example/asr-bench") == true)
+    #expect(OutputFormatter.ensureYouTubeDescriptionIncluded(transcript: doc, description: metadata.description) == doc)
 }

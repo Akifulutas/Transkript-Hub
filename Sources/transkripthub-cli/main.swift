@@ -293,32 +293,27 @@ struct TranskriptHubCLI {
             let options = TranscriptionOptions(language: language)
             
             let startTime = CFAbsoluteTimeGetCurrent()
+            async let sponsorSegmentsTask = SponsorBlockClient.fetchSegments(videoID: parsed.videoID)
             let result = try await engine.transcribe(preparedAudio, options: options) { ratio in
                 let percent = Int(ratio * 100)
                 print("\rTranscription Progress: \(percent)%", terminator: "")
                 fflush(stdout)
             }
+            let sponsorSegments = await sponsorSegmentsTask
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             print(String(format: "\nTranscription completed (%.2fs)", elapsed))
             
-            // Post-processing (with automatic YouTube chapter headings + description when present)
+            // Post-processing (maximum-data YouTube document: metadata, chapters TOC, heatmap, SponsorBlock, links, description, comments & timestamped chaptered transcript)
             let postProcessor = TranscriptPostProcessor()
-            let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps)
-            let chapters = OutputFormatter.resolveChapters(
-                nativeChapters: fetchedMedia.metadata.chapters,
-                description: fetchedMedia.metadata.description
-            )
-            let rawFormattedText = chapters.isEmpty
-                ? postProcessor.process(segments: result.segments, options: postOptions)
-                : OutputFormatter.formatChapteredTranscript(
-                    segments: postProcessor.processSegments(segments: result.segments, options: postOptions),
-                    chapters: chapters,
-                    postProcessor: postProcessor,
-                    options: postOptions
-                )
-            let formattedText = OutputFormatter.formatYouTubeTranscript(
-                transcript: rawFormattedText,
-                description: fetchedMedia.metadata.description
+            let postOptions = PostProcessorOptions(insertTimestamps: insertTimestamps || true)
+            let cleanedSegments = postProcessor.processSegments(segments: result.segments, options: postOptions)
+            let formattedText = OutputFormatter.formatRichYouTubeDocument(
+                metadata: fetchedMedia.metadata,
+                segments: cleanedSegments,
+                canonicalURL: parsed.canonicalURL,
+                sponsorSegments: sponsorSegments,
+                postProcessor: postProcessor,
+                options: postOptions
             )
             
             // Save Output using OutputWriter (Title.txt)

@@ -357,7 +357,6 @@ public final class AppViewModel: ObservableObject {
     @Published public var copyChoicePendingItem: QueueItem? = nil
     @Published public var isCopyChoicePresented: Bool = false
     @Published public var copiedCombinedToast: Bool = false
-    @Published public var copiedLLMToast: String? = nil
     
     // Already Transcribed Prompt State
     public struct AlreadyTranscribedPromptInfo: Identifiable, Sendable {
@@ -2399,8 +2398,11 @@ public final class AppViewModel: ObservableObject {
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
                             let capturedDescription = current.videoDescription
-                            let capturedChapters = current.chapters
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
+                            
+                            // Fetch SponsorBlock community tags in parallel with ASR transcription (0 ms added latency)
+                            async let sponsorSegmentsTask = SponsorBlockClient.fetchSegments(videoID: video.videoID)
+                            
                             let pipelineResult = try await pipelineCoordinator.execute(
                                 audioFileURL: localAudioURL,
                                 engine: whisperEngine,
@@ -2428,18 +2430,15 @@ public final class AppViewModel: ObservableObject {
                                 },
                                 cancellationToken: cancelToken
                             )
+                            let sponsorSegments = await sponsorSegmentsTask
                             let prepared = pipelineResult.preparedAudio
                             let result = pipelineResult.transcriptResult
-                            let chapteredBody = capturedChapters.isEmpty
-                                ? pipelineResult.formattedText
-                                : OutputFormatter.formatChapteredTranscript(
-                                    segments: pipelineResult.cleanedSegments,
-                                    chapters: capturedChapters,
-                                    options: postOpts
-                                )
-                            let formatted = OutputFormatter.formatYouTubeTranscript(
-                                transcript: chapteredBody,
-                                description: capturedDescription
+                            let formatted = OutputFormatter.formatRichYouTubeDocument(
+                                metadata: media.metadata,
+                                segments: pipelineResult.cleanedSegments,
+                                canonicalURL: video.canonicalURL,
+                                sponsorSegments: sponsorSegments,
+                                options: postOpts
                             )
                             
                             current.transcript = formatted
@@ -2997,74 +2996,6 @@ public final class AppViewModel: ObservableObject {
             self?.copiedCombinedToast = false
         }
         statusMessage = String(format: t("status_combined_copied"), completedCount)
-    }
-    
-    // MARK: - LLM / NotebookLM Prompt Template Copy
-    public func copyForLLM(template: LLMPromptTemplate, item: QueueItem) {
-        var textToCopy: String? = item.transcript
-        if textToCopy == nil || textToCopy?.isEmpty == true {
-            if let outURL = item.outputURL, let fileText = try? String(contentsOf: outURL, encoding: .utf8), !fileText.isEmpty {
-                textToCopy = fileText
-            } else {
-                let candidate = outputDirectoryURL.appendingPathComponent("\(item.title).txt")
-                if let fileText = try? String(contentsOf: candidate, encoding: .utf8), !fileText.isEmpty {
-                    textToCopy = fileText
-                }
-            }
-        }
-        guard let transcript = textToCopy, !transcript.isEmpty else { return }
-        copyRawTextForLLM(
-            template: template,
-            title: item.title,
-            sourceURL: item.canonicalURL,
-            videoDescription: item.videoDescription,
-            transcript: transcript,
-            isBatch: false
-        )
-    }
-    
-    public func copyCombinedForLLM(template: LLMPromptTemplate) {
-        let text = combinedTranscript
-        guard !text.isEmpty else { return }
-        copyRawTextForLLM(
-            template: template,
-            title: "Transkript Hub (\(completedCount) Kaynak)",
-            sourceURL: nil,
-            videoDescription: nil,
-            transcript: text,
-            isBatch: true
-        )
-    }
-    
-    public func copyRawTextForLLM(
-        template: LLMPromptTemplate,
-        title: String? = nil,
-        sourceURL: String? = nil,
-        videoDescription: String? = nil,
-        transcript: String,
-        isBatch: Bool = false
-    ) {
-        guard !transcript.isEmpty else { return }
-        let payload = template.formatPayload(
-            title: title,
-            sourceURL: sourceURL,
-            videoDescription: videoDescription,
-            transcript: transcript,
-            isBatch: isBatch,
-            languageCode: appLanguage.rawValue
-        )
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(payload, forType: .string)
-        
-        let templateName = template.displayTitle(languageCode: appLanguage.rawValue)
-        copiedLLMToast = templateName
-        statusMessage = String(format: t("llm_copied_status"), templateName)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { [weak self] in
-            if self?.copiedLLMToast == templateName {
-                self?.copiedLLMToast = nil
-            }
-        }
     }
     
     public func copySelectedTranscript() {

@@ -504,56 +504,6 @@ public struct TranscriptDetailView: View {
                         width: 220
                     )
                     
-                    // LLM / NotebookLM Prompt Template Copy Menu
-                    Menu {
-                        ForEach(LLMPromptTemplate.allCases) { template in
-                            Button(action: {
-                                if viewModel.showCombinedSessionTranscript || viewModel.selectedItemIDs.count > 1 {
-                                    viewModel.copyCombinedForLLM(template: template)
-                                } else if let item = activeItem {
-                                    viewModel.copyForLLM(template: template, item: item)
-                                } else if let text = transcript, !text.isEmpty {
-                                    viewModel.copyRawTextForLLM(
-                                        template: template,
-                                        title: title,
-                                        sourceURL: browserURL,
-                                        videoDescription: nil,
-                                        transcript: text,
-                                        isBatch: false
-                                    )
-                                }
-                            }) {
-                                Label(
-                                    template.displayTitle(languageCode: viewModel.appLanguage.rawValue),
-                                    systemImage: template.systemImage
-                                )
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: viewModel.copiedLLMToast != nil ? "checkmark" : "sparkles")
-                                .font(.system(size: 10.5, weight: .bold))
-                            Text(viewModel.copiedLLMToast != nil ? viewModel.t("action_copied") : viewModel.t("llm_copy_menu"))
-                                .font(.system(size: 10.5, weight: .semibold))
-                        }
-                        .foregroundStyle(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral : Color.Premium.cashmereViolet)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4.5)
-                        .background(
-                            Capsule()
-                                .fill(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.18) : Color.Premium.cashmereViolet.opacity(0.14))
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(viewModel.copiedLLMToast != nil ? Color.Premium.emeraldMineral.opacity(0.35) : Color.Premium.cashmereViolet.opacity(0.32), lineWidth: 0.6)
-                        )
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .disabled(transcript == nil || transcript!.isEmpty)
-                    .help(viewModel.t("llm_copy_menu_desc"))
-                    
                     // Finder
                     if let output = outputURL {
                         Button(action: { viewModel.openInFinder(path: output.path) }) {

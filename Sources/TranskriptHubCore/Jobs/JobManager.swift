@@ -103,7 +103,7 @@ public actor JobManager {
             guard let state = JobState(rawValue: job.state), !state.isTerminal else { continue }
             
             var currentJob = job
-            var fetchedChapters: [YouTubeChapter] = []
+            var fetchedMetadata: YouTubeMetadata? = nil
             let workspaceURL = URL(fileURLWithPath: job.workspacePath ?? "/tmp/\(job.id)")
             
             // Step 1: Fetching
@@ -118,15 +118,12 @@ public actor JobManager {
                     }
                     
                     let media = try await ytdlp.fetch(url: url, into: workspaceURL)
+                    fetchedMetadata = media.metadata
                     
                     let jobID = currentJob.id
                     let title = media.metadata.title
                     let creator = media.metadata.channel
                     let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
-                    fetchedChapters = OutputFormatter.resolveChapters(
-                        nativeChapters: media.metadata.chapters,
-                        description: videoDescription
-                    )
                     let duration = media.metadata.duration
                     let sourcePath = media.localAudioURL.path
                     let now = ISO8601DateFormatter().string(from: Date())
@@ -176,21 +173,36 @@ public actor JobManager {
                         throw AudioDecoderError.fileNotFound(URL(fileURLWithPath: currentJob.sourcePath ?? ""))
                     }
                     
+                    let videoID = currentJob.externalID ?? fetchedMetadata?.id ?? ""
+                    async let sponsorSegmentsTask: [SponsorBlockSegment] = videoID.isEmpty
+                        ? []
+                        : SponsorBlockClient.fetchSegments(videoID: videoID)
+                    
                     let pipelineResult = try await pipelineCoordinator.execute(
                         audioFileURL: URL(fileURLWithPath: sourcePath),
                         engine: whisperEngine,
                         transcriptionOptions: TranscriptionOptions()
                     )
+                    let sponsorSegments = await sponsorSegmentsTask
                     let result = pipelineResult.transcriptResult
-                    let resolvedChapters = fetchedChapters.isEmpty
-                        ? OutputFormatter.resolveChapters(nativeChapters: nil, description: currentJob.videoDescription)
-                        : fetchedChapters
-                    let formatted = resolvedChapters.isEmpty
-                        ? pipelineResult.formattedText
-                        : OutputFormatter.formatChapteredTranscript(
+                    let formatted: String
+                    if let meta = fetchedMetadata {
+                        formatted = OutputFormatter.formatRichYouTubeDocument(
+                            metadata: meta,
                             segments: pipelineResult.cleanedSegments,
-                            chapters: resolvedChapters
+                            canonicalURL: currentJob.sourceURL,
+                            sponsorSegments: sponsorSegments
                         )
+                    } else {
+                        let fallbackChapters = OutputFormatter.resolveChapters(nativeChapters: nil, description: currentJob.videoDescription)
+                        formatted = fallbackChapters.isEmpty
+                            ? pipelineResult.formattedText
+                            : OutputFormatter.formatChapteredTranscript(
+                                segments: pipelineResult.cleanedSegments,
+                                chapters: fallbackChapters,
+                                options: PostProcessorOptions(insertTimestamps: true)
+                            )
+                    }
                     
                     let jobID = currentJob.id
                     let detectedLang = result.detectedLanguage
