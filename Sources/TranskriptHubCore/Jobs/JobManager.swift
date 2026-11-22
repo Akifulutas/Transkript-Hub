@@ -121,6 +121,7 @@ public actor JobManager {
                     let jobID = currentJob.id
                     let title = media.metadata.title
                     let creator = media.metadata.channel
+                    let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
                     let duration = media.metadata.duration
                     let sourcePath = media.localAudioURL.path
                     let now = ISO8601DateFormatter().string(from: Date())
@@ -132,17 +133,19 @@ public actor JobManager {
                                 state = 'fetched', 
                                 title = ?, 
                                 creator = ?, 
+                                video_description = ?,
                                 duration_sec = ?, 
                                 source_path = ?,
                                 updated_at = ?
                             WHERE id = ?
                             """,
-                            arguments: [title, creator, duration, sourcePath, now, jobID]
+                            arguments: [title, creator, videoDescription, duration, sourcePath, now, jobID]
                         )
                     }
                     currentJob.state = JobState.fetched.rawValue
                     currentJob.title = title
                     currentJob.creator = creator
+                    currentJob.videoDescription = videoDescription
                     currentJob.durationSec = duration
                     currentJob.sourcePath = sourcePath
                     onJobUpdate?(currentJob)

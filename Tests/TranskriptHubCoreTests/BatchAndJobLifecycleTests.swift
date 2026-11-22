@@ -70,6 +70,7 @@ struct BatchAndJobLifecycleTests {
             sourceURL: "https://www.youtube.com/watch?v=aaaaa111111",
             title: "Successful Chapter 1",
             creator: "Author A",
+            videoDescription: "Chapter 1 resources and links: https://example.com/ch1",
             durationSec: 120,
             state: .completed
         )
@@ -126,8 +127,10 @@ struct BatchAndJobLifecycleTests {
             
             let content = try String(contentsOf: fileURL, encoding: .utf8)
             
-            // Successful sections must be present in content
+            // Successful sections and video description must be present in content
             #expect(content.contains("Successful Chapter 1"))
+            #expect(content.contains("DESCRIPTION"))
+            #expect(content.contains("Chapter 1 resources and links: https://example.com/ch1"))
             #expect(content.contains("This is the transcript content of chapter one."))
             #expect(content.contains("Successful Chapter 2"))
             #expect(content.contains("This is the transcript content of chapter three."))

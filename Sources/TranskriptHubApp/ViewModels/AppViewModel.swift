@@ -878,13 +878,16 @@ public final class AppViewModel: ObservableObject {
         
         return itemsToInclude.enumerated().compactMap { index, item -> String? in
             guard let t = item.transcript, !t.isEmpty else { return nil }
+            let body = item.isYouTube
+                ? OutputFormatter.ensureYouTubeDescriptionIncluded(transcript: t, description: item.videoDescription)
+                : t
             return """
             ================================================================================
             🎬 [\(index + 1)/\(itemsToInclude.count)] \(item.title)
             Kanal/Kaynak: \(item.subtitle)
             ================================================================================
             
-            \(t)
+            \(body)
             """
         }.joined(separator: "\n\n\n")
     }
@@ -1139,7 +1142,10 @@ public final class AppViewModel: ObservableObject {
         let updatedSegments = diarizer.renameSpeaker(in: currentSegments, from: oldName, to: newName)
         
         queueItems[index].segments = updatedSegments
-        let newFullText = updatedSegments.map(\.text).joined(separator: "\n\n")
+        let joinedText = updatedSegments.map(\.text).joined(separator: "\n\n")
+        let newFullText = queueItems[index].isYouTube
+            ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
+            : joinedText
         queueItems[index].transcript = newFullText
         
         // Atomic DB Update
@@ -1163,7 +1169,10 @@ public final class AppViewModel: ObservableObject {
         currentSegments[segmentIndex].words = words
         
         queueItems[index].segments = currentSegments
-        let newFullText = currentSegments.map(\.text).joined(separator: "\n\n")
+        let joinedText = currentSegments.map(\.text).joined(separator: "\n\n")
+        let newFullText = queueItems[index].isYouTube
+            ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
+            : joinedText
         queueItems[index].transcript = newFullText
         
         // Atomic DB Update
@@ -1507,6 +1516,7 @@ public final class AppViewModel: ObservableObject {
             ) {
                 if let idx = self?.queueItems.firstIndex(where: { $0.id == video.videoID }) {
                     self?.queueItems[idx].transcript = cached.transcriptText
+                    self?.queueItems[idx].videoDescription = OutputFormatter.extractYouTubeDescription(from: cached.transcriptText)
                     self?.queueItems[idx].state = .completed
                     self?.queueItems[idx].progress = 1.0
                     self?.queueItems[idx].subtitle = "\(source) • Önbellekten Yüklendi (Zaten İşlenmiş)"
@@ -2291,6 +2301,7 @@ public final class AppViewModel: ObservableObject {
                         ) {
                             Log.info("YouTube video loaded from cache: \(current.title)")
                             current.transcript = cached.transcriptText
+                            current.videoDescription = OutputFormatter.extractYouTubeDescription(from: cached.transcriptText) ?? current.videoDescription
                             current.state = .completed
                             current.progress = 1.0
                             current.forceReTranscribe = false
@@ -2322,9 +2333,11 @@ public final class AppViewModel: ObservableObject {
                             let media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
+                            let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
                             current.title = media.metadata.title
                             current.subtitle = "\(channel) • \(Int(duration))s"
                             current.durationSec = media.metadata.duration
+                            current.videoDescription = (videoDescription?.isEmpty == false) ? videoDescription : nil
                             
                             // Check cache again with fetched metadata title
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
@@ -2335,7 +2348,12 @@ public final class AppViewModel: ObservableObject {
                                 languageCode: lang
                             ) {
                                 Log.info("YouTube video loaded from cache: \(media.metadata.title)")
-                                current.transcript = cached.transcriptText
+                                let mergedCachedText = OutputFormatter.ensureYouTubeDescriptionIncluded(
+                                    transcript: cached.transcriptText,
+                                    description: current.videoDescription
+                                )
+                                current.transcript = mergedCachedText
+                                current.videoDescription = current.videoDescription ?? OutputFormatter.extractYouTubeDescription(from: mergedCachedText)
                                 current.state = .completed
                                 current.progress = 1.0
                                 current.subtitle = "\(channel) • Loaded from Cache"
@@ -2365,6 +2383,7 @@ public final class AppViewModel: ObservableObject {
                             let localAudioURL = media.localAudioURL
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
+                            let capturedDescription = current.videoDescription
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
                             let pipelineResult = try await pipelineCoordinator.execute(
                                 audioFileURL: localAudioURL,
@@ -2382,16 +2401,23 @@ public final class AppViewModel: ObservableObject {
                                     }
                                 },
                                 onLiveTranscript: { [weak self] liveText, _ in
+                                    let liveWithDesc = OutputFormatter.formatYouTubeTranscript(
+                                        transcript: liveText,
+                                        description: capturedDescription
+                                    )
                                     Task { @MainActor [weak self] in
                                         guard let self = self, !self.isCancelRequested else { return }
-                                        self.updateItemLiveTranscript(id: itemId, transcript: liveText)
+                                        self.updateItemLiveTranscript(id: itemId, transcript: liveWithDesc)
                                     }
                                 },
                                 cancellationToken: cancelToken
                             )
                             let prepared = pipelineResult.preparedAudio
                             let result = pipelineResult.transcriptResult
-                            let formatted = pipelineResult.formattedText
+                            let formatted = OutputFormatter.formatYouTubeTranscript(
+                                transcript: pipelineResult.formattedText,
+                                description: capturedDescription
+                            )
                             
                             current.transcript = formatted
                             
@@ -2722,7 +2748,11 @@ public final class AppViewModel: ObservableObject {
                     if (self.sessionSaveMode == .combined || self.sessionSaveMode == .both) && completedYouTube.count > 1 {
                         let combinedText = completedYouTube.compactMap { item -> String? in
                             guard let t = item.transcript, !t.isEmpty else { return nil }
-                            return "=== \(item.title) ===\n\n\(t)"
+                            let body = OutputFormatter.ensureYouTubeDescriptionIncluded(
+                                transcript: t,
+                                description: item.videoDescription
+                            )
+                            return "=== \(item.title) ===\n\n\(body)"
                         }.joined(separator: "\n\n" + String(repeating: "-", count: 40) + "\n\n")
                         
                         if !combinedText.isEmpty {

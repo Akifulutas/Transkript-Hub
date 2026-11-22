@@ -303,9 +303,13 @@ struct TranskriptHubCLI {
             
             // Post-processing
             let postProcessor = TranscriptPostProcessor()
-            let formattedText = postProcessor.process(
+            let rawFormattedText = postProcessor.process(
                 segments: result.segments,
                 options: PostProcessorOptions(insertTimestamps: insertTimestamps)
+            )
+            let formattedText = OutputFormatter.formatYouTubeTranscript(
+                transcript: rawFormattedText,
+                description: fetchedMedia.metadata.description
             )
             
             // Save Output using OutputWriter (Title.txt)

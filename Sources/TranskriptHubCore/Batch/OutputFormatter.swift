@@ -9,6 +9,7 @@ public struct BatchItemSection: Sendable {
     public let url: String?
     public let localFilePath: String?
     public let language: String?
+    public let videoDescription: String?
     public let transcriptText: String?
     public let errorMessage: String? // If failed
     public let isYouTube: Bool
@@ -22,6 +23,7 @@ public struct BatchItemSection: Sendable {
         url: String?,
         localFilePath: String? = nil,
         language: String?,
+        videoDescription: String? = nil,
         transcriptText: String?,
         errorMessage: String?,
         isYouTube: Bool = true
@@ -34,6 +36,7 @@ public struct BatchItemSection: Sendable {
         self.url = url
         self.localFilePath = localFilePath
         self.language = language
+        self.videoDescription = videoDescription
         self.transcriptText = transcriptText
         self.errorMessage = errorMessage
         self.isYouTube = isYouTube
@@ -72,12 +75,62 @@ public struct BatchExportMetadata: Sendable {
 }
 
 public enum OutputFormatter {
+    public static let youtubeDescriptionHeader = "VİDEO AÇIKLAMASI:"
+    public static let youtubeTranscriptHeader = "TRANSKRİPT:"
+    private static let sectionDivider = "----------------------------------------"
+    
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd HH:mm:ss"
         df.timeZone = TimeZone.current
         return df
     }()
+    
+    /// Formats a YouTube transcript with its video description section prepended cleanly when available.
+    public static func formatYouTubeTranscript(
+        transcript: String,
+        description: String?
+    ) -> String {
+        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let rawDesc = description?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawDesc.isEmpty else {
+            return trimmedTranscript
+        }
+        return """
+        \(youtubeDescriptionHeader)
+        \(rawDesc)
+
+        \(sectionDivider)
+
+        \(youtubeTranscriptHeader)
+        \(trimmedTranscript)
+        """
+    }
+    
+    /// Idempotent helper that ensures a YouTube transcript includes its video description
+    /// without duplicating the description block if it is already present.
+    public static func ensureYouTubeDescriptionIncluded(
+        transcript: String,
+        description: String?
+    ) -> String {
+        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTranscript.hasPrefix(youtubeDescriptionHeader) {
+            return trimmedTranscript
+        }
+        return formatYouTubeTranscript(transcript: trimmedTranscript, description: description)
+    }
+    
+    /// Extracts the video description block back from a formatted YouTube transcript (e.g. when loaded from cache).
+    public static func extractYouTubeDescription(from formattedTranscript: String) -> String? {
+        let trimmed = formattedTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix(youtubeDescriptionHeader) else { return nil }
+        let afterHeader = trimmed.dropFirst(youtubeDescriptionHeader.count)
+        guard let dividerRange = afterHeader.range(of: "\n\n\(sectionDivider)\n\n\(youtubeTranscriptHeader)") else {
+            return nil
+        }
+        let desc = afterHeader[..<dividerRange.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        return desc.isEmpty ? nil : desc
+    }
     
     public static func formatBatch(metadata: BatchExportMetadata, items: [BatchItemSection]) -> String {
         var lines: [String] = []
@@ -121,6 +174,12 @@ public enum OutputFormatter {
             } else {
                 if let lang = item.language {
                     lines.append("LANGUAGE: \(lang)")
+                }
+                if let desc = item.videoDescription?.trimmingCharacters(in: .whitespacesAndNewlines), !desc.isEmpty {
+                    lines.append("")
+                    lines.append("DESCRIPTION")
+                    lines.append("")
+                    lines.append(desc)
                 }
                 lines.append("")
                 lines.append("TRANSCRIPT")

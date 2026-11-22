@@ -58,6 +58,7 @@ public final class BatchAssembler: Sendable {
                     url: job.sourceURL,
                     localFilePath: job.sourcePath,
                     language: nil,
+                    videoDescription: job.videoDescription,
                     transcriptText: nil,
                     errorMessage: job.errorMessage ?? "Bilinmeyen hata",
                     isYouTube: job.sourceType == "youtube"
@@ -73,6 +74,7 @@ public final class BatchAssembler: Sendable {
                     url: job.sourceURL,
                     localFilePath: job.sourcePath,
                     language: job.detectedLang ?? batch.language,
+                    videoDescription: job.videoDescription,
                     transcriptText: section?.text ?? "",
                     errorMessage: nil,
                     isYouTube: job.sourceType == "youtube"

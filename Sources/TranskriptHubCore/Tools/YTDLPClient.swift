@@ -6,6 +6,23 @@ public struct YouTubeMetadata: Codable, Sendable {
     public let channel: String?
     public let duration: Double?
     public let ext: String?
+    public let description: String?
+    
+    public init(
+        id: String,
+        title: String,
+        channel: String?,
+        duration: Double?,
+        ext: String?,
+        description: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.channel = channel
+        self.duration = duration
+        self.ext = ext
+        self.description = description
+    }
 }
 
 public struct FetchedMedia: Sendable {
@@ -79,7 +96,7 @@ public final class YTDLPClient: Sendable {
             "-f", "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/18",
             "-o", outputTemplate,
             "--no-simulate",
-            "--print", "%(.{id,title,channel,duration,ext})#j",
+            "--print", "%(.{id,title,channel,duration,ext,description})j",
             "--progress",
             "--progress-template", "download:%(progress._percent_str)s"
         ]
@@ -235,14 +252,8 @@ public final class YTDLPClient: Sendable {
         
         // Extract JSON metadata from accumulated stdout
         let fullOutput = tracker.fullStdout
-        if let startRange = fullOutput.range(of: "{"),
-           let endRange = fullOutput.range(of: "}", options: .backwards),
-           startRange.lowerBound < endRange.upperBound {
-            let jsonSubstring = fullOutput[startRange.lowerBound..<endRange.upperBound]
-            if let data = String(jsonSubstring).data(using: .utf8),
-               let meta = try? JSONDecoder().decode(YouTubeMetadata.self, from: data) {
-                tracker.metadata = meta
-            }
+        if let meta = Self.parseMetadata(from: fullOutput) {
+            tracker.metadata = meta
         }
         
         // Look for the downloaded file in workspace
@@ -256,11 +267,37 @@ public final class YTDLPClient: Sendable {
             title: audioFile.deletingPathExtension().lastPathComponent,
             channel: nil,
             duration: nil,
-            ext: audioFile.pathExtension
+            ext: audioFile.pathExtension,
+            description: nil
         )
         
         progress?(1.0)
         return FetchedMedia(localAudioURL: audioFile, metadata: resolvedMetadata)
+    }
+    
+    /// Extracts `YouTubeMetadata` JSON emitted by `yt-dlp --print "%(.{...})j"`.
+    /// Prefers compact single-line JSON (safe when descriptions contain braces or progress lines interleave)
+    /// and falls back to multi-line `{ ... }` JSON decoding.
+    public static func parseMetadata(from stdout: String) -> YouTubeMetadata? {
+        let lines = stdout.components(separatedBy: .newlines)
+        for line in lines.reversed() {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("{"), trimmed.hasSuffix("}"),
+               let data = trimmed.data(using: .utf8),
+               let meta = try? JSONDecoder().decode(YouTubeMetadata.self, from: data) {
+                return meta
+            }
+        }
+        if let startRange = stdout.range(of: "{"),
+           let endRange = stdout.range(of: "}", options: .backwards),
+           startRange.lowerBound < endRange.upperBound {
+            let jsonSubstring = stdout[startRange.lowerBound..<endRange.upperBound]
+            if let data = String(jsonSubstring).data(using: .utf8),
+               let meta = try? JSONDecoder().decode(YouTubeMetadata.self, from: data) {
+                return meta
+            }
+        }
+        return nil
     }
     
     private func classifyError(stderr: String, exitCode: Int32) -> YTDLPErrorKind {

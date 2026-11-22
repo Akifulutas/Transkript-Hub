@@ -32,6 +32,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
     public var fileModificationDate: Date?
     public var thumbnailURL: URL?
     public var channelTitle: String?
+    public var videoDescription: String?
     public var forceReTranscribe: Bool
     
     // M1 Audio Playback & Media Retention Properties
@@ -58,6 +59,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         fileModificationDate: Date? = nil,
         thumbnailURL: URL? = nil,
         channelTitle: String? = nil,
+        videoDescription: String? = nil,
         forceReTranscribe: Bool = false,
         audioURL: URL? = nil,
         segments: [Segment] = [],
@@ -81,6 +83,7 @@ public struct QueueItem: Identifiable, Hashable, Sendable {
         self.fileModificationDate = fileModificationDate
         self.thumbnailURL = thumbnailURL
         self.channelTitle = channelTitle
+        self.videoDescription = videoDescription
         self.forceReTranscribe = forceReTranscribe
         self.audioURL = audioURL
         self.segments = segments

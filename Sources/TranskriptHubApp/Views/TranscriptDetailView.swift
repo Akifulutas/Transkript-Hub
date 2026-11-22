@@ -5,6 +5,7 @@ import TranskriptHubCore
 public struct TranscriptDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var searchInText: String = ""
+    @State private var isDescriptionExpanded: Bool = true
     
     public init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -78,6 +79,11 @@ public struct TranscriptDetailView: View {
                     
                     // 2. Transcript Content (Karaoke / Plain Text)
                     if viewModel.isKaraokeMode {
+                        if let desc = item.videoDescription ?? OutputFormatter.extractYouTubeDescription(from: text),
+                           !desc.isEmpty {
+                            videoDescriptionBanner(description: desc)
+                            Divider()
+                        }
                         let effectiveSegments: [Segment] = viewModel.segments(for: item)
                         KaraokeTranscriptView(
                             segments: effectiveSegments,
@@ -107,6 +113,57 @@ public struct TranscriptDetailView: View {
                 readyToTranscribeView(title: item.title)
             }
         }
+    }
+    
+    private func videoDescriptionBanner(description: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isDescriptionExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: isDescriptionExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "text.alignleft")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                        Text(viewModel.t("detail_video_description"))
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Spacer()
+                
+                Button(action: {
+                    viewModel.copyTranscript(text: description)
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.t("action_copy"))
+            }
+            
+            if isDescriptionExpanded {
+                ScrollView {
+                    Text(description)
+                        .font(.system(size: max(11, CGFloat(viewModel.transcriptFontSize) - 2)))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 110)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial.opacity(0.65))
     }
     
     private func effectiveTranscript(for item: QueueItem) -> String? {

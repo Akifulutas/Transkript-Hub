@@ -87,6 +87,7 @@ public struct JobRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     public var externalID: String?
     public var title: String?
     public var creator: String?
+    public var videoDescription: String?
     public var durationSec: Double?
     public var state: String
     public var attempt: Int
@@ -107,6 +108,7 @@ public struct JobRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         case externalID = "external_id"
         case title
         case creator
+        case videoDescription = "video_description"
         case durationSec = "duration_sec"
         case state
         case attempt
@@ -128,6 +130,7 @@ public struct JobRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         externalID: String? = nil,
         title: String? = nil,
         creator: String? = nil,
+        videoDescription: String? = nil,
         durationSec: Double? = nil,
         state: JobState = .queued,
         attempt: Int = 0,
@@ -147,6 +150,7 @@ public struct JobRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.externalID = externalID
         self.title = title
         self.creator = creator
+        self.videoDescription = videoDescription
         self.durationSec = durationSec
         self.state = state.rawValue
         self.attempt = attempt

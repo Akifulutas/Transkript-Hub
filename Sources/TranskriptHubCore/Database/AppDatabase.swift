@@ -136,6 +136,12 @@ public final class AppDatabase: Sendable {
             try db.create(index: "idx_cache_content_hash", on: "transcript_cache", columns: ["content_hash"])
         }
         
+        migrator.registerMigration("v4_job_video_description") { db in
+            try db.alter(table: "job") { t in
+                t.add(column: "video_description", .text)
+            }
+        }
+        
         return migrator
     }
 }
