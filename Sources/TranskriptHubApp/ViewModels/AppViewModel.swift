@@ -1,19 +1,21 @@
-import Foundation
-import Combine
-import SwiftUI
 import AppKit
-import UniformTypeIdentifiers
-import TranskriptHubCore
+import Combine
+import Foundation
 import GRDB
+import SwiftUI
+import TranskriptHubCore
+import UniformTypeIdentifiers
 
 public enum SidebarSection: String, Hashable, CaseIterable, Identifiable {
     case queue = "Kuyruk"
     case history = "Geçmiş"
     case watchedFolder = "İzlenen Klasör"
     case settings = "Ayarlar"
-    
-    public var id: String { rawValue }
-    
+
+    public var id: String {
+        rawValue
+    }
+
     public var icon: String {
         switch self {
         case .queue: return "tray.and.arrow.down.fill"
@@ -25,13 +27,15 @@ public enum SidebarSection: String, Hashable, CaseIterable, Identifiable {
 }
 
 public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
-    case general = "general"
-    case models = "models"
-    case storage = "storage"
-    case automation = "automation"
-    case updates = "updates"
-    
-    public var id: String { rawValue }
+    case general
+    case models
+    case storage
+    case automation
+    case updates
+
+    public var id: String {
+        rawValue
+    }
 }
 
 public enum BatchScopeSelection: Hashable, Sendable {
@@ -44,13 +48,16 @@ public enum BatchScopeSelection: Hashable, Sendable {
 }
 
 public struct PendingBatchIngestion: Identifiable, Sendable, Equatable {
-    public var id: String { url }
+    public var id: String {
+        url
+    }
+
     public let url: String
     public let type: YouTubeLinkType
     public let title: String
     public let subtitle: String
     public let singleVideoID: String?
-    
+
     public init(url: String, type: YouTubeLinkType, title: String, subtitle: String, singleVideoID: String? = nil) {
         self.url = url
         self.type = type
@@ -61,11 +68,13 @@ public struct PendingBatchIngestion: Identifiable, Sendable, Equatable {
 }
 
 public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
-    case microphone = "microphone"
-    case systemAudio = "systemAudio"
-    
-    public var id: String { rawValue }
-    
+    case microphone
+    case systemAudio
+
+    public var id: String {
+        rawValue
+    }
+
     public var displayName: String {
         switch self {
         case .microphone: return "🎙️ Canlı Mikrofon"
@@ -76,11 +85,11 @@ public enum AudioRecordingSource: String, CaseIterable, Identifiable, Sendable {
 
 final class NotificationObserverToken: @unchecked Sendable {
     private let token: any NSObjectProtocol
-    
+
     init(_ token: any NSObjectProtocol) {
         self.token = token
     }
-    
+
     deinit {
         NotificationCenter.default.removeObserver(token)
     }
@@ -95,8 +104,9 @@ public final class AppViewModel: ObservableObject {
             loadAudioForSelectedItem()
         }
     }
-    
+
     // MARK: - M1 Audio Playback & Media Retention
+
     public var sessionMediaDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = appSupport.appendingPathComponent("TranskriptHub/SessionMedia", isDirectory: true)
@@ -105,7 +115,7 @@ public final class AppViewModel: ObservableObject {
         }
         return dir
     }
-    
+
     public func loadAudioForSelectedItem() {
         guard let item = selectedItem else {
             audioPlayer.stop()
@@ -115,7 +125,7 @@ public final class AppViewModel: ObservableObject {
             await self.loadAudio(for: item)
         }
     }
-    
+
     public var selectedItemID: String? {
         get { selectedItemIDs.first }
         set {
@@ -126,8 +136,8 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
-    // Interface Language (English, Deutsch, Türkçe)
+
+    /// Interface Language (English, Deutsch, Türkçe)
     @Published public var appLanguage: AppLanguage = .turkish {
         didSet {
             UserDefaults.standard.set(appLanguage.rawValue, forKey: "appInterfaceLanguage")
@@ -136,36 +146,38 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func t(_ key: String, _ args: CVarArg...) -> String {
         let format = L10n.tr(key, lang: appLanguage)
-        if args.isEmpty { return format }
+        if args.isEmpty {
+            return format
+        }
         return String(format: format, arguments: args)
     }
-    
+
     public func updateItemProgress(id: String, progress: Double) {
         guard let index = queueItems.firstIndex(where: { $0.id == id }) else { return }
         queueItems[index].progress = progress
     }
-    
+
     public func updateItemLiveTranscript(id: String, transcript: String) {
         guard let index = queueItems.firstIndex(where: { $0.id == id }) else { return }
         queueItems[index].transcript = transcript
     }
-    
+
     // Floating Settings Modal
     @Published public var isSettingsPresented: Bool = false
     @Published public var selectedSettingsTab: SettingsTab = .general
     @Published public var isWatchedFolderPresented: Bool = false
     @Published public var isHistoryPresented: Bool = false
-    
+
     // Updates
     public let updateChecker = UpdateChecker()
     @Published public var updateInfo: AppUpdateInfo? = nil
     @Published public var isCheckingUpdates: Bool = false
     @Published public var updateCheckStatusText: String = ""
     @Published public var autoCheckUpdates: Bool = true
-    
+
     // Dedicated Unified Update Dialog (Menu Check)
     @Published public var isUnifiedUpdatePresented: Bool = false
     @Published public var isCheckingUnifiedUpdates: Bool = false
@@ -177,19 +189,19 @@ public final class AppViewModel: ObservableObject {
     @Published public var appUpdateDownloadFraction: Double = 0.0
     @Published public var appUpdateDownloadStatus: String = ""
     @Published public var unifiedModelDownloadSuccessName: String? = nil
-    private var appUpdateDownloadTask: Task<Void, Never>? = nil
-    
+    private var appUpdateDownloadTask: Task<Void, Never>?
+
     // Model Catalog Search & Online Repo
     @Published public var modelSearchQuery: String = ""
     @Published public var onlineModelStatusText: String = ""
     @Published public var isCheckingOnlineModels: Bool = false
-    
+
     public func openSettings(tab: SettingsTab = .general) {
         selectedSettingsTab = tab
         isSettingsPresented = true
         bringMainWindowToFront()
     }
-    
+
     public func bringMainWindowToFront() {
         DispatchQueue.main.async {
             if let window = NSApp.windows.first(where: { !($0 is NSPanel) }) {
@@ -198,44 +210,51 @@ public final class AppViewModel: ObservableObject {
             NSApp.activate(ignoringOtherApps: true)
         }
     }
-    
+
     @Published public var showCombinedSessionTranscript: Bool = false
     @Published public var searchQuery: String = ""
     @Published public var transcriptFontSize: Double = 13.0
-    
-    // Anti-Hallucination Loop Protection (condition_on_previous_text = false)
+
+    /// Anti-Hallucination Loop Protection (condition_on_previous_text = false)
     @Published public var antiHallucinationEnabled: Bool = UserDefaults.standard.object(forKey: "antiHallucinationEnabled") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(antiHallucinationEnabled, forKey: "antiHallucinationEnabled")
         }
     }
-    
-    // Density Mode (Standard / Compact)
+
+    /// Density Mode (Standard / Compact)
     @Published public var densityMode: DensityMode = .standard
-    
+
     // Confirmation & Undo State (8-State Matrix)
     @Published public var showUndoToast: Bool = false
     @Published public var undoToastMessage: String = ""
     private var undoBackupItems: [QueueItem] = []
     private var undoDismissTask: Task<Void, Never>?
-    
+
     // Unified Active Queue (YouTube links & local audio files)
     @Published public var queueItems: [QueueItem] = []
     @Published public var historyItems: [HistoryItem] = []
-    
+
     // MARK: - Queue Item Dismissal Persistence (Tombstones)
-    @Published private(set) public var dismissedQueueItemIDs: Set<String> = []
-    
+
+    @Published public private(set) var dismissedQueueItemIDs: Set<String> = []
+
     public func isQueueItemDismissed(id: String) -> Bool {
-        if dismissedQueueItemIDs.contains(id) { return true }
+        if dismissedQueueItemIDs.contains(id) {
+            return true
+        }
         if id.hasPrefix("/") {
             let resolved = URL(fileURLWithPath: id).resolvingSymlinksInPath().standardizedFileURL.path
-            if dismissedQueueItemIDs.contains(resolved) { return true }
+            if dismissedQueueItemIDs.contains(resolved) {
+                return true
+            }
         }
-        if folderWatcher?.isPathDismissed(id) == true { return true }
+        if folderWatcher?.isPathDismissed(id) == true {
+            return true
+        }
         return false
     }
-    
+
     public func dismissQueueItem(id: String) {
         dismissedQueueItemIDs.insert(id)
         if id.hasPrefix("/") {
@@ -247,7 +266,7 @@ public final class AppViewModel: ObservableObject {
         }
         persistDismissedQueueItems()
     }
-    
+
     public func dismissQueueItems(ids: [String]) {
         for id in ids {
             dismissedQueueItemIDs.insert(id)
@@ -261,7 +280,7 @@ public final class AppViewModel: ObservableObject {
         }
         persistDismissedQueueItems()
     }
-    
+
     public func undismissQueueItem(id: String) {
         dismissedQueueItemIDs.remove(id)
         if id.hasPrefix("/") {
@@ -273,7 +292,7 @@ public final class AppViewModel: ObservableObject {
         }
         persistDismissedQueueItems()
     }
-    
+
     private func persistDismissedQueueItems() {
         if dismissedQueueItemIDs.count > 5000 {
             let trimmed = Array(dismissedQueueItemIDs.suffix(3000))
@@ -281,22 +300,22 @@ public final class AppViewModel: ObservableObject {
         }
         UserDefaults.standard.set(Array(dismissedQueueItemIDs), forKey: "dismissedQueueItemIDs")
     }
-    
+
     // Playlist & Channel Batch Ingestion State
     @Published public var pendingBatchIngestion: PendingBatchIngestion? = nil
     @Published public var showMainWindowPlaylistSheet: Bool = false
     @Published public var isResolvingBatch: Bool = false
     @Published public var batchResolutionError: String? = nil
-    
+
     // Session Save Mode Prompt
     @Published public var isSaveModePromptPresented: Bool = false
     @Published public var sessionSaveMode: SessionSaveMode = .individual
-    
+
     // Quick Add Inputs
     @Published public var quickInputText: String = ""
     @Published public var isDropTargetActive: Bool = false
-    
-    // Model & Language Selection
+
+    /// Model & Language Selection
     @Published public var selectedModel: WhisperModel = .largeV3 {
         didSet {
             UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedWhisperModel")
@@ -305,25 +324,26 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
+
     @Published public var selectedLanguage: String = "auto"
-    
+
     public var downloadedModels: [WhisperModel] {
         modelManager.downloadedModels()
     }
-    
+
     public var selectedModelTitle: String {
         if downloadedModels.isEmpty {
             return "Model Yok"
         }
         return selectedModel.displayName
     }
-    
+
     // Model Download & Deletion Tracking
     @Published public var downloadingModel: WhisperModel? = nil
     @Published public var modelDownloadFraction: Double = 0.0
     @Published public var modelDownloadStatusText: String = ""
-    private var modelDownloadTask: Task<Void, Never>? = nil
-    
+    private var modelDownloadTask: Task<Void, Never>?
+
     // Processing & Progress
     @Published public var isProcessing: Bool = false
     @Published public var progressFraction: Double = 0.0
@@ -334,7 +354,7 @@ public final class AppViewModel: ObservableObject {
     @Published public var copiedToast: Bool = false
     @Published public var isPullRefreshing: Bool = false
     @Published public var currentSortOrder: QueueSortOrder = .newestFirst
-    
+
     // Audio Playback & Interactive Waveform Scrubbing
     public let audioPlayer = AudioPlayerController()
     public let waveformGenerator = AccelerateWaveformGenerator()
@@ -342,23 +362,23 @@ public final class AppViewModel: ObservableObject {
     @Published public var isLoadingWaveform: Bool = false
     @Published public var isKaraokeMode: Bool = true
     @Published public var currentPlayingItemId: String? = nil
-    
+
     // In-App Microphone / System Audio Recording Engine (Milestone 2)
     public let recordingEngine = AudioRecordingEngine()
     @Published public var isRecordingModalPresented: Bool = false
     @Published public var isRecordingSourceSheetPresented: Bool = false
     @Published public var recordingSource: AudioRecordingSource = .microphone
-    
+
     // Voice Memos Initial Import Prompt & Queue Sorting
     @Published public var isVoiceMemosPromptPresented: Bool = false
     @Published public var pendingVoiceMemosCount: Int = 0
-    
+
     // Copy Dialog & Actions
     @Published public var copyChoicePendingItem: QueueItem? = nil
     @Published public var isCopyChoicePresented: Bool = false
     @Published public var copiedCombinedToast: Bool = false
-    
-    // Already Transcribed Prompt State
+
+    /// Already Transcribed Prompt State
     public struct AlreadyTranscribedPromptInfo: Identifiable, Sendable {
         public let id: String
         public let items: [QueueItem]
@@ -367,8 +387,9 @@ public final class AppViewModel: ObservableObject {
             self.items = items
         }
     }
+
     @Published public var alreadyTranscribedPrompt: AlreadyTranscribedPromptInfo? = nil
-    
+
     // Welcome & Feature Tour Onboarding
     @Published public var isOnboardingPresented: Bool = false
     @Published public var isSpotlightTourActive: Bool = false
@@ -383,27 +404,28 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
+
     /// Source chosen in the picker sheet; recording starts once that sheet has finished
     /// dismissing (SwiftUI drops a sheet presented while another is still closing).
     public var pendingRecordingSource: AudioRecordingSource?
-    
+
     // Recording error / missing-permission alert
     @Published public var recordingAlertMessage: String? = nil
     @Published public var recordingAlertPermission: RecordingPermissionKind? = nil
-    
+
     public func requestRecording(source: AudioRecordingSource) {
         pendingRecordingSource = source
         isRecordingSourceSheetPresented = false
     }
-    
+
     public func recordingSourceSheetDidDismiss() {
         guard let source = pendingRecordingSource else { return }
         pendingRecordingSource = nil
         Task { await startRecording(source: source) }
     }
-    
+
     public func startRecording(source: AudioRecordingSource = .microphone) async {
-        self.recordingSource = source
+        recordingSource = source
         let input: RecordingInput = source == .microphone ? .microphone : .systemAudio
         do {
             _ = try await recordingEngine.startRecording(input: input)
@@ -413,7 +435,7 @@ public final class AppViewModel: ObservableObject {
             presentRecordingError(error)
         }
     }
-    
+
     public func stopRecordingAndTranscribe() async {
         do {
             let url = try await recordingEngine.stopRecording()
@@ -425,67 +447,67 @@ public final class AppViewModel: ObservableObject {
             presentRecordingError(error)
         }
     }
-    
+
     public func cancelRecording() {
         recordingEngine.cancelRecording()
         isRecordingModalPresented = false
         statusMessage = "Kayıt iptal edildi."
     }
-    
+
     public func openRecordingPermissionSettings() {
         if let url = recordingAlertPermission?.settingsURL {
             NSWorkspace.shared.open(url)
         }
         dismissRecordingAlert()
     }
-    
+
     public func dismissRecordingAlert() {
         recordingAlertMessage = nil
         recordingAlertPermission = nil
     }
-    
+
     private func presentRecordingError(_ error: Error) {
         let engineError = error as? RecordingEngineError
         recordingAlertPermission = engineError?.missingPermission
         recordingAlertMessage = error.localizedDescription
         statusMessage = "Kayıt başlatılamadı."
     }
-    
-    // KPI Analytics for Frosted Glass Dashboard
+
+    /// KPI Analytics for Frosted Glass Dashboard
     public var totalTranscribedCount: Int {
         completedItems.count + historyItems.count
     }
-    
+
     public var totalAudioSeconds: Double {
         let queueSecs = queueItems.compactMap(\.durationSec).reduce(0.0, +)
         let histSecs = Double(historyItems.count) * 180.0
         return queueSecs + histSecs
     }
-    
+
     public var totalAudioHoursString: String {
         let hours = totalAudioSeconds / 3600.0
         return String(format: "%.1f saat", max(hours, 0.1))
     }
-    
+
     public var totalWordCount: Int {
         let queueWords = queueItems.compactMap(\.transcript).map { $0.split(separator: " ").count }.reduce(0, +)
         let histWords = historyItems.map { $0.snippet.split(separator: " ").count }.reduce(0, +)
         return queueWords + histWords
     }
-    
+
     public var youtubeItemsCount: Int {
         queueItems.filter(\.isYouTube).count + historyItems.filter { $0.kind == "youtube" }.count
     }
-    
+
     public var localAudioItemsCount: Int {
         queueItems.filter { !$0.isYouTube }.count + historyItems.filter { $0.kind == "audio" }.count
     }
-    
+
     public var watchedFolderItemsCount: Int {
         queueItems.filter { $0.isWatchedFolderItem || $0.subtitle.contains("İzlenen") || $0.subtitle.contains("Watched") || $0.subtitle.contains("Sesli Not") || $0.subtitle.contains("iCloud") }.count
     }
-    
-    // System Monitors
+
+    /// System Monitors
     @Published public var isClipboardMonitoring: Bool = true {
         didSet {
             if isClipboardMonitoring {
@@ -495,7 +517,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     @Published public var isFolderWatching: Bool = true {
         didSet {
             if isFolderWatching {
@@ -505,7 +527,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public var autoTranscribeWatchedFolders: Bool {
         get { folderWatcher.autoTranscribe }
         set {
@@ -513,7 +535,7 @@ public final class AppViewModel: ObservableObject {
             objectWillChange.send()
         }
     }
-    
+
     public private(set) var clipboardMonitor: ClipboardMonitor!
     public var folderWatcher: FolderWatcher!
     private var folderWatcherCancellable: AnyCancellable?
@@ -526,11 +548,11 @@ public final class AppViewModel: ObservableObject {
     public private(set) var transcriptCacheManager: TranscriptCacheManager?
     private var didBecomeActiveObserver: NotificationObserverToken?
     private var willTerminateObserver: NotificationObserverToken?
-    
+
     public var isCustomOutputDirectory: Bool {
         outputWriter.isUsingCustomOutputDirectory
     }
-    
+
     public func selectOutputDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -540,7 +562,7 @@ public final class AppViewModel: ObservableObject {
         panel.prompt = t("action_select_folder")
         panel.message = t("watched_output_choose_prompt")
         panel.directoryURL = outputWriter.defaultOutputDirectory
-        
+
         if panel.runModal() == .OK, let selectedURL = panel.url {
             try? outputWriter.ensureDirectoryExists(at: selectedURL)
             outputWriter.setCustomOutputDirectory(selectedURL)
@@ -549,41 +571,42 @@ public final class AppViewModel: ObservableObject {
             objectWillChange.send()
         }
     }
-    
+
     public func resetOutputDirectory() {
         outputWriter.setCustomOutputDirectory(nil)
         outputDirectoryURL = outputWriter.defaultOutputDirectory
         statusMessage = "Çıktı klasörü varsayılana sıfırlandı."
         objectWillChange.send()
     }
-    
+
     @Published public var fullDiskAccessStatus: FullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
-    
+
     public func checkFullDiskAccess() {
         fullDiskAccessStatus = FullDiskAccessHelper.checkStatus()
     }
-    
+
     public func openFullDiskAccessSettings() {
         FullDiskAccessHelper.openSystemSettings()
     }
-    
+
     // MARK: - Audio Recording Permissions
+
     @Published public var microphonePermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
     @Published public var systemAudioPermissionStatus: AudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
     @Published public var hasOpenedSystemAudioSettings: Bool = false
-    
+
     public var isMicrophonePermissionGranted: Bool {
         microphonePermissionStatus.isGranted
     }
-    
+
     public var isSystemAudioPermissionGranted: Bool {
         systemAudioPermissionStatus.isGranted
     }
-    
+
     public func checkAudioPermissions() {
         microphonePermissionStatus = AudioPermissionHelper.checkMicrophoneStatus()
         systemAudioPermissionStatus = AudioPermissionHelper.checkSystemAudioStatus()
-        
+
         // Deep asynchronous verification: If preflight check was false, check if ScreenCaptureKit actually succeeds
         if systemAudioPermissionStatus != .authorized {
             Task { @MainActor [weak self] in
@@ -595,7 +618,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func requestMicrophonePermission() {
         Task { @MainActor [weak self] in
             guard let self = self else { return }
@@ -604,49 +627,49 @@ public final class AppViewModel: ObservableObject {
             self.objectWillChange.send()
         }
     }
-    
+
     public func requestSystemAudioPermission() {
         hasOpenedSystemAudioSettings = true
         _ = AudioPermissionHelper.requestSystemAudioAccess()
         checkAudioPermissions()
         objectWillChange.send()
     }
-    
+
     public func openMicrophoneSettings() {
         AudioPermissionHelper.openMicrophoneSettings()
     }
-    
+
     public func openSystemAudioSettings() {
         hasOpenedSystemAudioSettings = true
         AudioPermissionHelper.openSystemAudioSettings()
     }
-    
+
     public func relaunchApp() {
         AudioPermissionHelper.relaunchApp()
     }
-    
+
     public var watchedDirectoryPath: String {
         folderWatcher.watchedDirectory.path
     }
-    
+
     public var activeWatchedDirectoriesCount: Int {
         folderWatcher.activeWatchedDirectories.count
     }
-    
+
     public var activeCloudDownloads: Set<String> {
         folderWatcher.activeCloudDownloads
     }
-    
+
     public var isCloudDownloading: Bool {
         !folderWatcher.activeCloudDownloads.isEmpty
     }
-    
+
     public func triggerFolderScan() {
         folderWatcher.resetProcessedPaths()
         if folderWatcher.autoTranscribe {
             var hasQueuedWatched = false
             for i in queueItems.indices {
-                if queueItems[i].state == .queued && queueItems[i].isWatchedFolderItem {
+                if queueItems[i].state == .queued, queueItems[i].isWatchedFolderItem {
                     queueItems[i].autoProcess = true
                     hasQueuedWatched = true
                 }
@@ -657,7 +680,7 @@ public final class AppViewModel: ObservableObject {
         }
         statusMessage = "İzlenen klasörler tarandı."
     }
-    
+
     public func triggerCloudScan() {
         statusMessage = "iCloud ses dosyaları denetleniyor..."
         Task {
@@ -665,7 +688,7 @@ public final class AppViewModel: ObservableObject {
             statusMessage = "iCloud taraması tamamlandı."
         }
     }
-    
+
     public func selectCustomWatchedFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -674,13 +697,13 @@ public final class AppViewModel: ObservableObject {
         panel.canCreateDirectories = true
         panel.prompt = t("action_add")
         panel.message = t("watched_choose_folder_prompt")
-        
+
         if let first = folderWatcher.customFolderURLs.first {
             panel.directoryURL = first
         } else {
             panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
         }
-        
+
         if panel.runModal() == .OK {
             for selectedURL in panel.urls {
                 var isDir: ObjCBool = false
@@ -700,7 +723,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func removeCustomWatchedFolder(_ url: URL) {
         folderWatcher.removeCustomFolder(url)
         objectWillChange.send()
@@ -708,7 +731,7 @@ public final class AppViewModel: ObservableObject {
             await folderWatcher.scanDirectory()
         }
     }
-    
+
     public func resetCustomWatchedFolder() {
         folderWatcher.customFolderURLs = []
         folderWatcher.watchCustomFolder = false
@@ -717,17 +740,18 @@ public final class AppViewModel: ObservableObject {
         UserDefaults.standard.set(false, forKey: "FolderWatcher.watchCustomFolder")
         objectWillChange.send()
     }
-    
+
     // MARK: - Interactive Pull-to-Refresh
+
     public func triggerManualRefresh() async {
         guard !isPullRefreshing else { return }
         isPullRefreshing = true
         defer {
             isPullRefreshing = false
         }
-        
+
         checkFullDiskAccess()
-        
+
         // Scan watched directories (iCloud Drive, Voice Memos, custom folders)
         if !folderWatcher.isWatching {
             folderWatcher.startWatching()
@@ -735,7 +759,7 @@ public final class AppViewModel: ObservableObject {
         await folderWatcher.forceDownloadAllCloudItems()
         folderWatcher.triggerImmediateScan()
         await folderWatcher.scanDirectory()
-        
+
         // Check for any newly added Voice Memos if directly accessible
         if folderWatcher.isVoiceMemosDirectlyAccessible {
             let files = folderWatcher.existingVoiceMemosFiles()
@@ -744,9 +768,9 @@ public final class AppViewModel: ObservableObject {
                 addAudioFiles(unprocessed, autoProcess: folderWatcher.autoTranscribe)
             }
         }
-        
+
         // Check iCloud Drive directly for any ready audio files
-        if folderWatcher.watchiCloudDrive && folderWatcher.isICloudDriveAvailable {
+        if folderWatcher.watchiCloudDrive, folderWatcher.isICloudDriveAvailable {
             let fm = FileManager.default
             if let files = try? fm.contentsOfDirectory(at: FolderWatcher.iCloudRootDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
                 let audioFiles = files.filter { AudioValidator.isExtensionSupported($0.pathExtension) }
@@ -756,15 +780,15 @@ public final class AppViewModel: ObservableObject {
                 }
             }
         }
-        
+
         // Refresh history & metadata
         await loadHistoryFromDatabase()
         await resolvePendingVideoTitles()
-        
+
         // Minimum visual feedback duration so user perceives the action
         try? await Task.sleep(nanoseconds: 600_000_000)
     }
-    
+
     public func sourceLabel(for url: URL) -> String {
         let path = url.path
         if path.contains("group.com.apple.VoiceMemos.shared") {
@@ -777,28 +801,29 @@ public final class AppViewModel: ObservableObject {
             return "İzlenen Klasör"
         }
     }
-    
+
     // MARK: - Action-Oriented Metrics & 8-State Computed Properties
+
     public var successfulCount: Int {
         queueItems.filter { $0.state == .completed }.count
     }
-    
+
     public var completedCount: Int {
         successfulCount
     }
-    
+
     public var failedCount: Int {
         queueItems.filter { $0.state == .failed }.count
     }
-    
+
     public var inProgressCount: Int {
         queueItems.filter { $0.isInProgress }.count
     }
-    
+
     public var queuedCount: Int {
         queueItems.filter { $0.state == .queued }.count
     }
-    
+
     public func localizedState(_ state: QueueItemState) -> String {
         switch state {
         case .queued: return t("status_queued")
@@ -808,7 +833,7 @@ public final class AppViewModel: ObservableObject {
         case .failed: return t("status_failed")
         }
     }
-    
+
     public var actionableSummary: String {
         if queueItems.isEmpty {
             return isFolderWatching ? "\(t("action_empty_queue_title")) • 1 \(t("section_watched_folder"))" : "\(t("action_empty_queue_title")) • \(t("status_ready"))"
@@ -831,42 +856,41 @@ public final class AppViewModel: ObservableObject {
         }
         return parts.joined(separator: " • ")
     }
-    
-    // Action-Oriented Queue Categorization
+
+    /// Action-Oriented Queue Categorization
     public var failedItems: [QueueItem] {
         filteredQueueItems.filter { $0.state == .failed }
     }
-    
+
     public var activeOrQueuedItems: [QueueItem] {
         filteredQueueItems.filter { $0.state == .queued || $0.isInProgress }
     }
-    
+
     public var completedItems: [QueueItem] {
         filteredQueueItems.filter { $0.state == .completed }
     }
-    
+
     public var filteredQueueItems: [QueueItem] {
         if searchQuery.isEmpty {
             return queueItems
         }
         return queueItems.filter {
             $0.title.localizedCaseInsensitiveContains(searchQuery) ||
-            $0.subtitle.localizedCaseInsensitiveContains(searchQuery) ||
-            ($0.transcript?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+                $0.subtitle.localizedCaseInsensitiveContains(searchQuery) ||
+                ($0.transcript?.localizedCaseInsensitiveContains(searchQuery) ?? false)
         }
     }
-    
+
     public var selectedItem: QueueItem? {
-        guard selectedSection == .queue else { return nil }
-        guard let id = selectedItemID else { return nil }
+        guard selectedSection == .queue, let id = selectedItemID else { return nil }
         return queueItems.first(where: { $0.id == id })
     }
-    
+
     public var selectedItems: [QueueItem] {
         guard selectedSection == .queue else { return [] }
         return queueItems.filter { selectedItemIDs.contains($0.id) }
     }
-    
+
     public var combinedTranscript: String {
         let itemsToInclude: [QueueItem]
         let multiSelected = queueItems.filter { selectedItemIDs.contains($0.id) && $0.state == .completed }
@@ -875,7 +899,7 @@ public final class AppViewModel: ObservableObject {
         } else {
             itemsToInclude = queueItems.filter { $0.state == .completed }
         }
-        
+
         return itemsToInclude.enumerated().compactMap { index, item -> String? in
             guard let t = item.transcript, !t.isEmpty else { return nil }
             let body = item.isYouTube
@@ -886,23 +910,24 @@ public final class AppViewModel: ObservableObject {
             🎬 [\(index + 1)/\(itemsToInclude.count)] \(item.title)
             Kanal/Kaynak: \(item.subtitle)
             ================================================================================
-            
+
             \(body)
             """
         }.joined(separator: "\n\n\n")
     }
-    
+
     // MARK: - Queue Item Checkbox Selection
+
     @Published public var checkedQueueItemIDs: Set<String> = []
-    
+
     public var isAllQueueItemsChecked: Bool {
         !queueItems.isEmpty && checkedQueueItemIDs.count == queueItems.count
     }
-    
+
     public var checkedEligibleQueueItemsCount: Int {
         queueItems.filter { checkedQueueItemIDs.contains($0.id) && ($0.state == .queued || $0.state == .failed) }.count
     }
-    
+
     public func toggleQueueItemChecked(id: String) {
         withAnimation(.easeInOut(duration: 0.15)) {
             if checkedQueueItemIDs.contains(id) {
@@ -912,53 +937,51 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func isQueueItemChecked(id: String) -> Bool {
         checkedQueueItemIDs.contains(id)
     }
-    
+
     public func toggleSelectAllQueueItems() {
         withAnimation(.easeInOut(duration: 0.15)) {
             let pending = queueItems.filter { $0.state == .queued || $0.state == .failed }
             let pendingIDs = Set(pending.map(\.id))
-            if !pendingIDs.isEmpty && pendingIDs.isSubset(of: checkedQueueItemIDs) {
+            if !pendingIDs.isEmpty, pendingIDs.isSubset(of: checkedQueueItemIDs) {
                 checkedQueueItemIDs.subtract(pendingIDs)
             } else if !pendingIDs.isEmpty {
                 checkedQueueItemIDs.formUnion(pendingIDs)
+            } else if checkedQueueItemIDs.count == queueItems.count {
+                checkedQueueItemIDs.removeAll()
             } else {
-                if checkedQueueItemIDs.count == queueItems.count {
-                    checkedQueueItemIDs.removeAll()
-                } else {
-                    checkedQueueItemIDs = Set(queueItems.map(\.id))
-                }
+                checkedQueueItemIDs = Set(queueItems.map(\.id))
             }
         }
     }
-    
+
     public func selectAllQueueItems() {
         withAnimation(.easeInOut(duration: 0.15)) {
             checkedQueueItemIDs = Set(queueItems.map(\.id))
             selectedItemIDs = Set(queueItems.map(\.id))
         }
     }
-    
+
     public func deselectAllQueueItems() {
         withAnimation(.easeInOut(duration: 0.15)) {
             checkedQueueItemIDs.removeAll()
             selectedItemIDs.removeAll()
         }
     }
-    
+
     public var selectedHistoryItem: HistoryItem? {
-        guard selectedSection == .history else { return nil }
-        guard let id = selectedItemID else { return nil }
+        guard selectedSection == .history, let id = selectedItemID else { return nil }
         return historyItems.first(where: { $0.id == id })
     }
-    
+
     // MARK: - Audio Playback & Interactive Scrubbing Control
+
     public func loadAudio(for item: QueueItem) async {
         guard let url = item.effectiveAudioURL else { return }
-        if currentPlayingItemId == item.id && audioPlayer.currentURL == url {
+        if currentPlayingItemId == item.id, audioPlayer.currentURL == url {
             return
         }
         do {
@@ -969,7 +992,7 @@ public final class AppViewModel: ObservableObject {
             Log.error("Could not load audio for queue item \(item.id): \(error)")
         }
     }
-    
+
     public func loadAudio(for history: HistoryItem) async {
         let txtURL = URL(fileURLWithPath: history.outputPath)
         let possibleExtensions = ["m4a", "mp3", "wav", "aac", "caf"]
@@ -990,7 +1013,7 @@ public final class AppViewModel: ObservableObject {
             Log.error("Could not load audio for history item \(history.id): \(error)")
         }
     }
-    
+
     public func loadWaveform(for audioURL: URL) {
         isLoadingWaveform = true
         Task { [weak self] in
@@ -1008,9 +1031,9 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func togglePlayPause() {
-        if let item = selectedItem, (audioPlayer.currentURL == nil || currentPlayingItemId != item.id), item.effectiveAudioURL != nil {
+        if let item = selectedItem, audioPlayer.currentURL == nil || currentPlayingItemId != item.id, item.effectiveAudioURL != nil {
             Task {
                 await loadAudio(for: item)
                 audioPlayer.play()
@@ -1019,23 +1042,23 @@ public final class AppViewModel: ObservableObject {
             audioPlayer.togglePlayPause()
         }
     }
-    
+
     public func seekAudio(to time: Double) {
         audioPlayer.seek(to: time)
     }
-    
+
     public func skipBackward() {
         audioPlayer.skipBackward(by: 5.0)
     }
-    
+
     public func skipForward() {
         audioPlayer.skipForward(by: 5.0)
     }
-    
+
     public func setAudioSpeed(_ rate: Float) {
         audioPlayer.setPlaybackRate(rate)
     }
-    
+
     public func words(for item: QueueItem) -> [WordItem] {
         if let words = item.words, !words.isEmpty {
             return words
@@ -1044,10 +1067,10 @@ public final class AppViewModel: ObservableObject {
         guard !text.isEmpty else { return [] }
         let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
         guard !tokens.isEmpty else { return [] }
-        
+
         let totalDuration = (item.durationSec ?? (audioPlayer.duration > 0 ? audioPlayer.duration : Double(tokens.count) * 0.35))
         let durationPerWord = max(0.08, totalDuration / Double(tokens.count))
-        
+
         var generated: [WordItem] = []
         generated.reserveCapacity(tokens.count)
         for (i, token) in tokens.enumerated() {
@@ -1057,21 +1080,21 @@ public final class AppViewModel: ObservableObject {
         }
         return generated
     }
-    
-    public func words(for history: HistoryItem, text: String) -> [WordItem] {
+
+    public func words(for _: HistoryItem, text: String) -> [WordItem] {
         guard !text.isEmpty else { return [] }
         let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
         guard !tokens.isEmpty else { return [] }
         let totalDuration = audioPlayer.duration > 0 ? audioPlayer.duration : Double(tokens.count) * 0.35
         let durationPerWord = max(0.08, totalDuration / Double(tokens.count))
-        
+
         return tokens.enumerated().map { i, token in
             let start = Double(i) * durationPerWord
             let end = start + durationPerWord
             return WordItem(text: token, start: start, end: end)
         }
     }
-    
+
     public func segments(for item: QueueItem) -> [Segment] {
         if !item.segments.isEmpty {
             // Strip synthetic alternating "Speaker 1" / "Speaker 2" tags when real neural diarization was not executed
@@ -1079,7 +1102,7 @@ public final class AppViewModel: ObservableObject {
                 guard let spk = seg.speaker else { return true }
                 return spk.hasPrefix("Speaker ")
             }
-            if hasOnlySyntheticAlternating && item.segments.contains(where: { $0.speaker != nil }) {
+            if hasOnlySyntheticAlternating, item.segments.contains(where: { $0.speaker != nil }) {
                 return item.segments.map { seg in
                     var cleaned = seg
                     cleaned.speaker = nil
@@ -1093,7 +1116,7 @@ public final class AppViewModel: ObservableObject {
         let lines = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         let totalDuration = item.durationSec ?? (audioPlayer.duration > 0 ? audioPlayer.duration : Double(max(1, lines.count)) * 4.0)
         let step = max(0.5, totalDuration / Double(max(1, lines.count)))
-        
+
         return lines.enumerated().map { i, line in
             let start = Double(i) * step
             let end = min(totalDuration, start + step)
@@ -1101,13 +1124,13 @@ public final class AppViewModel: ObservableObject {
             return Segment(start: start, end: end, text: line, speaker: nil, words: words)
         }
     }
-    
-    public func segments(for history: HistoryItem, text: String) -> [Segment] {
+
+    public func segments(for _: HistoryItem, text: String) -> [Segment] {
         guard !text.isEmpty else { return [] }
         let lines = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         let totalDuration = audioPlayer.duration > 0 ? audioPlayer.duration : Double(max(1, lines.count)) * 4.0
         let step = max(0.5, totalDuration / Double(max(1, lines.count)))
-        
+
         return lines.enumerated().map { i, line in
             let start = Double(i) * step
             let end = min(totalDuration, start + step)
@@ -1115,10 +1138,11 @@ public final class AppViewModel: ObservableObject {
             return Segment(start: start, end: end, text: line, speaker: nil, words: words)
         }
     }
-    
+
     // MARK: - M3 Transcript Summarizer & Speaker Editing
+
     public let summarizer = TranscriptSummarizer()
-    
+
     public func summary(for item: QueueItem) -> TranscriptSummary {
         let segs = segments(for: item)
         if !segs.isEmpty {
@@ -1126,7 +1150,7 @@ public final class AppViewModel: ObservableObject {
         }
         return summarizer.summarize(text: item.transcript ?? "", duration: item.durationSec)
     }
-    
+
     public func summary(for history: HistoryItem, text: String) -> TranscriptSummary {
         let segs = segments(for: history, text: text)
         if !segs.isEmpty {
@@ -1134,13 +1158,13 @@ public final class AppViewModel: ObservableObject {
         }
         return summarizer.summarize(text: text, duration: nil)
     }
-    
+
     public func renameSpeaker(in item: QueueItem, from oldName: String, to newName: String) async {
         guard let index = queueItems.firstIndex(where: { $0.id == item.id }) else { return }
         let currentSegments = segments(for: queueItems[index])
         let diarizer = AcousticTurnDiarizer()
         let updatedSegments = diarizer.renameSpeaker(in: currentSegments, from: oldName, to: newName)
-        
+
         queueItems[index].segments = updatedSegments
         let joinedText = queueItems[index].chapters.isEmpty
             ? updatedSegments.map(\.text).joined(separator: "\n\n")
@@ -1149,27 +1173,27 @@ public final class AppViewModel: ObservableObject {
             ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
             : joinedText
         queueItems[index].transcript = newFullText
-        
+
         // Atomic DB Update
         if let db = try? AppDatabase.makeShared() {
             try? await db.updateTranscript(jobId: item.id, newText: newFullText, segments: updatedSegments)
         }
-        
+
         // Update on disk if file exists
         if let outURL = queueItems[index].outputURL {
             try? newFullText.write(to: outURL, atomically: true, encoding: .utf8)
         }
     }
-    
+
     public func updateSegmentText(in item: QueueItem, segmentIndex: Int, newText: String) async {
         guard let index = queueItems.firstIndex(where: { $0.id == item.id }) else { return }
         var currentSegments = segments(for: queueItems[index])
-        guard segmentIndex >= 0 && segmentIndex < currentSegments.count else { return }
-        
+        guard segmentIndex >= 0, segmentIndex < currentSegments.count else { return }
+
         currentSegments[segmentIndex].text = newText
         let words = Segment.interpolateWords(for: newText, start: currentSegments[segmentIndex].start, end: currentSegments[segmentIndex].end)
         currentSegments[segmentIndex].words = words
-        
+
         queueItems[index].segments = currentSegments
         let joinedText = queueItems[index].chapters.isEmpty
             ? currentSegments.map(\.text).joined(separator: "\n\n")
@@ -1178,19 +1202,20 @@ public final class AppViewModel: ObservableObject {
             ? OutputFormatter.formatYouTubeTranscript(transcript: joinedText, description: queueItems[index].videoDescription)
             : joinedText
         queueItems[index].transcript = newFullText
-        
+
         // Atomic DB Update
         if let db = try? AppDatabase.makeShared() {
             try? await db.updateTranscript(jobId: item.id, newText: newFullText, segments: currentSegments)
         }
-        
+
         // Update on disk if file exists
         if let outURL = queueItems[index].outputURL {
             try? newFullText.write(to: outURL, atomically: true, encoding: .utf8)
         }
     }
-    
+
     // MARK: - M5 Media Cache Eviction
+
     public var sessionMediaCacheSizeString: String {
         let dir = sessionMediaDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) else {
@@ -1204,17 +1229,19 @@ public final class AppViewModel: ObservableObject {
         }
         return ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
     }
-    
+
     public func evictSessionMediaCache() {
         let dir = sessionMediaDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
         for file in files {
-            if audioPlayer.currentURL == file { continue }
+            if audioPlayer.currentURL == file {
+                continue
+            }
             try? FileManager.default.removeItem(at: file)
         }
         statusMessage = "Medya önbelleği temizlendi."
     }
-    
+
     public func cleanupSessionMedia(forItemID id: String) {
         let dir = sessionMediaDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
@@ -1227,7 +1254,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func evictOrphanedSessionMedia() {
         let dir = sessionMediaDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
@@ -1242,7 +1269,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func evictAllSessionMedia() {
         audioPlayer.stop()
         let dir = sessionMediaDirectory
@@ -1251,61 +1278,62 @@ public final class AppViewModel: ObservableObject {
             try? FileManager.default.removeItem(at: file)
         }
     }
-    
+
     public init() {
         if let savedDismissed = UserDefaults.standard.stringArray(forKey: "dismissedQueueItemIDs") {
-            self.dismissedQueueItemIDs = Set(savedDismissed)
+            dismissedQueueItemIDs = Set(savedDismissed)
         } else {
-            self.dismissedQueueItemIDs = []
+            dismissedQueueItemIDs = []
         }
         let savedLang = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
         let initialLang = AppLanguage(rawValue: savedLang) ?? .turkish
-        self.appLanguage = initialLang
-        self.statusMessage = L10n.tr("status_ready", lang: initialLang)
-        self.outputDirectoryURL = self.outputWriter.defaultOutputDirectory
-        
+        appLanguage = initialLang
+        statusMessage = L10n.tr("status_ready", lang: initialLang)
+        outputDirectoryURL = outputWriter.defaultOutputDirectory
+
         let catalogModels = Set(WhisperModelCatalog.availableModels.map(\.model))
         if let savedModelRaw = UserDefaults.standard.string(forKey: "selectedWhisperModel"),
            let savedModel = WhisperModel(rawValue: savedModelRaw),
            catalogModels.contains(savedModel),
-           self.modelManager.isModelDownloaded(savedModel) {
-            self.selectedModel = savedModel
-        } else if self.modelManager.isModelDownloaded(.largeV3) {
-            self.selectedModel = .largeV3
-        } else if self.modelManager.isModelDownloaded(.qwen3ASR17B) {
-            self.selectedModel = .qwen3ASR17B
-        } else if self.modelManager.isModelDownloaded(.largeV3Q5) {
-            self.selectedModel = .largeV3Q5
-        } else if let bestDownloaded = self.modelManager.downloadedModels().first(where: { catalogModels.contains($0) }) {
-            self.selectedModel = bestDownloaded
+           modelManager.isModelDownloaded(savedModel)
+        {
+            selectedModel = savedModel
+        } else if modelManager.isModelDownloaded(.largeV3) {
+            selectedModel = .largeV3
+        } else if modelManager.isModelDownloaded(.qwen3ASR17B) {
+            selectedModel = .qwen3ASR17B
+        } else if modelManager.isModelDownloaded(.largeV3Q5) {
+            selectedModel = .largeV3Q5
+        } else if let bestDownloaded = modelManager.downloadedModels().first(where: { catalogModels.contains($0) }) {
+            selectedModel = bestDownloaded
         }
-        
+
         // Initialize database and cache synchronously BEFORE starting folder watcher so initial scan has cache ready
         do {
             let db = try AppDatabase.makeShared()
-            self.appDatabase = db
-            self.jobManager = JobManager(database: db, outputWriter: self.outputWriter)
-            self.transcriptCacheManager = TranscriptCacheManager(database: db)
+            appDatabase = db
+            jobManager = JobManager(database: db, outputWriter: outputWriter)
+            transcriptCacheManager = TranscriptCacheManager(database: db)
         } catch {
-            self.errorMessage = "Veritabanı başlatılamadı: \(error.localizedDescription)"
+            errorMessage = "Veritabanı başlatılamadı: \(error.localizedDescription)"
         }
-        
-        self.clipboardMonitor = ClipboardMonitor { [weak self] video in
+
+        clipboardMonitor = ClipboardMonitor { [weak self] video in
             self?.handleClipboardDiscoveredVideo(video)
         }
-        self.clipboardMonitor.onBatchDetected = { [weak self] linkType in
+        clipboardMonitor.onBatchDetected = { [weak self] linkType in
             self?.presentBatchIngestion(for: linkType)
         }
-        
-        self.folderWatcher = FolderWatcher()
-        self.folderWatcher.onNewAudioDiscovered = { [weak self] audioURL in
+
+        folderWatcher = FolderWatcher()
+        folderWatcher.onNewAudioDiscovered = { [weak self] audioURL in
             await self?.handleAutoDiscoveredAudio(audioURL)
         }
-        self.folderWatcher.onAutoTranscribeChanged = { [weak self] enabled in
+        folderWatcher.onAutoTranscribeChanged = { [weak self] enabled in
             guard let self = self, enabled else { return }
             var hasQueuedWatched = false
             for i in self.queueItems.indices {
-                if self.queueItems[i].state == .queued && self.queueItems[i].isWatchedFolderItem {
+                if self.queueItems[i].state == .queued, self.queueItems[i].isWatchedFolderItem {
                     self.queueItems[i].autoProcess = true
                     hasQueuedWatched = true
                 }
@@ -1314,23 +1342,23 @@ public final class AppViewModel: ObservableObject {
                 self.startAutoProcessingWatchedItems()
             }
         }
-        self.folderWatcherCancellable = self.folderWatcher.objectWillChange.sink { [weak self] _ in
+        folderWatcherCancellable = folderWatcher.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.objectWillChange.send()
             }
         }
-        
-        if self.isFolderWatching {
-            self.folderWatcher.startWatching()
+
+        if isFolderWatching {
+            folderWatcher.startWatching()
         }
-        if self.isClipboardMonitoring {
-            self.clipboardMonitor.startMonitoring()
+        if isClipboardMonitoring {
+            clipboardMonitor.startMonitoring()
         }
-        
+
         // Keep spotlight tour inactive by default on launch so the user is never blocked
-        self.isSpotlightTourActive = false
-        self.isOnboardingPresented = false
-        
+        isSpotlightTourActive = false
+        isOnboardingPresented = false
+
         let token = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
@@ -1345,8 +1373,8 @@ public final class AppViewModel: ObservableObject {
                 }
             }
         }
-        self.didBecomeActiveObserver = NotificationObserverToken(token)
-        
+        didBecomeActiveObserver = NotificationObserverToken(token)
+
         let termToken = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -1356,11 +1384,11 @@ public final class AppViewModel: ObservableObject {
                 self?.evictAllSessionMedia()
             }
         }
-        self.willTerminateObserver = NotificationObserverToken(termToken)
-        
+        willTerminateObserver = NotificationObserverToken(termToken)
+
         // Auto-purge any stale or orphaned session media left from prior runs
-        self.evictOrphanedSessionMedia()
-        
+        evictOrphanedSessionMedia()
+
         Task {
             do {
                 try await self.jobManager?.recoverState()
@@ -1375,36 +1403,37 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Zero-Touch Ingestion Handlers
+
     private func handleClipboardDiscoveredVideo(_ video: ParsedYouTubeVideo) {
         addYouTubeVideo(video, source: "Pano", isNewlyDiscovered: true)
     }
-    
+
     private func handleAutoDiscoveredAudio(_ url: URL) async {
         guard AudioValidator.isExtensionSupported(url.pathExtension) else { return }
-        
+
         let rawPath = url.path
         let resolvedPath = url.resolvingSymlinksInPath().standardizedFileURL.path
-        
+
         // If item was previously dismissed by user from queue, skip permanently
         if isQueueItemDismissed(id: rawPath) || isQueueItemDismissed(id: resolvedPath) {
             folderWatcher.markPathsAsProcessed([rawPath, resolvedPath])
             return
         }
-        
+
         if let existingIdx = queueItems.firstIndex(where: { $0.id == rawPath || $0.id == resolvedPath }) {
-            if queueItems[existingIdx].state == .queued && folderWatcher.autoTranscribe {
+            if queueItems[existingIdx].state == .queued, folderWatcher.autoTranscribe {
                 queueItems[existingIdx].autoProcess = true
                 startAutoProcessingWatchedItems()
             }
             return
         }
-        
+
         let title = url.deletingPathExtension().lastPathComponent
         let duration = try? AudioValidator.validate(fileURL: url)
         let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
-        
+
         // 1. Check if previously transcribed by duration + name
         if let cached = await transcriptCacheManager?.findCached(
             title: title,
@@ -1414,7 +1443,7 @@ public final class AppViewModel: ObservableObject {
         ) {
             Log.info("Audio file previously processed, retrieved from cache: \(title)")
             folderWatcher.markPathsAsProcessed([rawPath, resolvedPath])
-            
+
             if isQueueItemDismissed(id: rawPath) || isQueueItemDismissed(id: resolvedPath) {
                 return
             }
@@ -1431,7 +1460,7 @@ public final class AppViewModel: ObservableObject {
                 try? outputWriter.write(content: cached.transcriptText, to: targetURL)
                 resolvedOutURL = targetURL
             }
-            
+
             var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
@@ -1454,7 +1483,7 @@ public final class AppViewModel: ObservableObject {
             }
             return
         }
-        
+
         let shouldAutoStart = folderWatcher.autoTranscribe
         var item = QueueItem(
             id: url.path,
@@ -1472,15 +1501,16 @@ public final class AppViewModel: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
         }
-        
+
         if shouldAutoStart {
             startAutoProcessingWatchedItems()
         } else {
             statusMessage = "Yeni ses kuyruğa eklendi (onay bekliyor): \(title)"
         }
     }
-    
+
     // MARK: - Queue Management
+
     public func addYouTubeVideo(
         _ video: ParsedYouTubeVideo,
         source: String = "YouTube",
@@ -1488,11 +1518,11 @@ public final class AppViewModel: ObservableObject {
         isNewlyDiscovered: Bool = false
     ) {
         guard !queueItems.contains(where: { $0.id == video.videoID }) else { return }
-        
+
         let initialTitle = preloadedTitle ?? "Video başlığı alınıyor..."
         let initialSubtitle = "\(source) • Başlık aranıyor"
         let fallbackThumb = URL(string: "https://i.ytimg.com/vi/\(video.videoID)/mqdefault.jpg")
-        
+
         let item = QueueItem(
             id: video.videoID,
             kind: .youtube(video),
@@ -1507,11 +1537,11 @@ public final class AppViewModel: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.append(item)
         }
-        
+
         // Fast asynchronous title, author and thumbnail resolution (~100ms)
         Task { @MainActor [weak self] in
             await self?.resolveMetadata(for: video.videoID, source: source)
-            
+
             // Check cache for existing transcript
             if let cached = await self?.transcriptCacheManager?.findCached(
                 title: initialTitle,
@@ -1531,7 +1561,7 @@ public final class AppViewModel: ObservableObject {
                     }
                     self?.checkedQueueItemIDs.remove(video.videoID)
                     self?.sortQueue(by: self?.currentSortOrder ?? .newestFirst)
-                    
+
                     if let item = self?.queueItems[idx] {
                         self?.alreadyTranscribedPrompt = AlreadyTranscribedPromptInfo(items: [item])
                     }
@@ -1539,12 +1569,12 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     @MainActor
     public func resolveMetadata(for videoID: String, source: String) async {
         let info = await YouTubeMetadataResolver.shared.resolve(videoID: videoID)
         guard let index = queueItems.firstIndex(where: { $0.id == videoID }) else { return }
-        
+
         withAnimation(.easeOut(duration: 0.2)) {
             if queueItems[index].title == "Video başlığı alınıyor..." || queueItems[index].title.hasPrefix("http") {
                 queueItems[index].title = info.title
@@ -1557,17 +1587,15 @@ public final class AppViewModel: ObservableObject {
             queueItems[index].channelTitle = info.authorName
         }
     }
-    
+
     public func resolvePendingVideoTitles() async {
         for item in queueItems {
-            if case .youtube(let video) = item.kind {
-                if item.title.hasPrefix("http") || item.title == "Video başlığı alınıyor..." || item.channelTitle == nil {
-                    await resolveMetadata(for: video.videoID, source: "YouTube")
-                }
+            if case let .youtube(video) = item.kind, item.title.hasPrefix("http") || item.title == "Video başlığı alınıyor..." || item.channelTitle == nil {
+                await resolveMetadata(for: video.videoID, source: "YouTube")
             }
         }
     }
-    
+
     public func addAudioFiles(_ urls: [URL], autoProcess: Bool = false) {
         var resolvedURLs: [URL] = []
         for url in urls {
@@ -1588,23 +1616,23 @@ public final class AppViewModel: ObservableObject {
                 resolvedURLs.append(url)
             }
         }
-        
+
         if !autoProcess {
             for url in resolvedURLs {
                 undismissQueueItem(id: url.path)
             }
         }
-        
+
         var anyAddedForAuto = false
         for url in resolvedURLs {
             guard !queueItems.contains(where: { $0.id == url.path }) else { continue }
-            
+
             let isVideo = AudioValidator.isVideoExtension(url.pathExtension)
             let title = url.deletingPathExtension().lastPathComponent
             let duration = try? AudioValidator.validate(fileURL: url)
             let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
             let itemAutoProcess = autoProcess || isVideo
-            
+
             var item = QueueItem(
                 id: url.path,
                 kind: .audioFile(url),
@@ -1617,7 +1645,7 @@ public final class AppViewModel: ObservableObject {
                 audioURL: url
             )
             item.durationSec = duration
-            
+
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 queueItems.append(item)
                 sortQueue(by: currentSortOrder)
@@ -1625,7 +1653,7 @@ public final class AppViewModel: ObservableObject {
             if itemAutoProcess {
                 anyAddedForAuto = true
             }
-            
+
             // Check cache by filename and audio duration
             let itemId = item.id
             Task { [weak self] in
@@ -1648,7 +1676,7 @@ public final class AppViewModel: ObservableObject {
                         }
                         self.checkedQueueItemIDs.remove(itemId)
                         self.sortQueue(by: self.currentSortOrder)
-                        
+
                         // Prompt user if they want to re-transcribe
                         self.alreadyTranscribedPrompt = AlreadyTranscribedPromptInfo(items: [self.queueItems[idx]])
                     }
@@ -1659,19 +1687,20 @@ public final class AppViewModel: ObservableObject {
             startAutoProcessingItems()
         }
     }
-    
+
     /// Triggers queue processing for eligible items (including auto-transcribe videos and audio files)
     public func startAutoProcessingItems() {
-        self.sessionSaveMode = .individual
+        sessionSaveMode = .individual
         guard queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
         runQueueProcessor()
     }
-    
+
     // MARK: - Universal Drag-and-Drop Ingestion (Anywhere in App)
+
     @discardableResult
     public func handleUniversalDrop(providers: [NSItemProvider]) -> Bool {
         guard !providers.isEmpty else { return false }
-        
+
         var didAcceptAny = false
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier("public.file-url") {
@@ -1735,7 +1764,7 @@ public final class AppViewModel: ObservableObject {
         }
         return didAcceptAny
     }
-    
+
     public func processDroppedURL(_ url: URL) {
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
@@ -1773,13 +1802,13 @@ public final class AppViewModel: ObservableObject {
             selectedSection = .queue
         }
     }
-    
+
     public func promptForLocalAudioFiles() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowsOtherFileTypes = true
-        
+
         var types: [UTType] = [.audio, .movie, .video, .quickTimeMovie, .mpeg4Movie]
         for ext in AudioValidator.allowedExtensions {
             if let ut = UTType(filenameExtension: ext) {
@@ -1791,15 +1820,15 @@ public final class AppViewModel: ObservableObject {
             addAudioFiles(panel.urls)
         }
     }
-    
+
     public func addFromQuickInput() {
         let trimmed = quickInputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        
+
         // 1. Check if the input is a single link (playlist, channel, or video)
         if let detected = URLParser.detectType(trimmed) {
             switch detected {
-            case .singleVideo(let video):
+            case let .singleVideo(video):
                 addYouTubeVideo(video, source: "Hızlı Giriş")
             case .playlist, .channel:
                 presentBatchIngestion(for: detected)
@@ -1807,7 +1836,7 @@ public final class AppViewModel: ObservableObject {
             quickInputText = ""
             return
         }
-        
+
         // 2. Fallback to bulk link extraction
         let parsedList = URLParser.parseBulk(trimmed)
         if !parsedList.isEmpty {
@@ -1822,53 +1851,54 @@ public final class AppViewModel: ObservableObject {
         }
         quickInputText = ""
     }
-    
+
     public func addFromClipboard() {
         guard let text = NSPasteboard.general.string(forType: .string) else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         if let detected = URLParser.detectType(trimmed) {
             switch detected {
-            case .singleVideo(let video):
+            case let .singleVideo(video):
                 addYouTubeVideo(video, source: "Pano")
             case .playlist, .channel:
                 presentBatchIngestion(for: detected)
             }
             return
         }
-        
+
         let parsed = URLParser.parseBulk(text)
         for p in parsed {
             addYouTubeVideo(p, source: "Pano")
         }
     }
-    
+
     // MARK: - Batch Ingestion (Playlist & Channel)
+
     public func presentBatchIngestion(for linkType: YouTubeLinkType, fromMainWindow: Bool = false) {
         if fromMainWindow {
-            self.showMainWindowPlaylistSheet = true
+            showMainWindowPlaylistSheet = true
             NSApp.activate(ignoringOtherApps: true)
         } else {
-            self.showMainWindowPlaylistSheet = false
+            showMainWindowPlaylistSheet = false
         }
-        
+
         switch linkType {
-        case .singleVideo(let video):
+        case let .singleVideo(video):
             addYouTubeVideo(video)
-        case .playlist(let url, let playlistID, let videoID):
-            self.batchResolutionError = nil
-            self.isResolvingBatch = false
-            self.pendingBatchIngestion = PendingBatchIngestion(
+        case let .playlist(url, playlistID, videoID):
+            batchResolutionError = nil
+            isResolvingBatch = false
+            pendingBatchIngestion = PendingBatchIngestion(
                 url: url,
                 type: linkType,
                 title: "Oynatma Listesi",
                 subtitle: "Liste ID: \(playlistID)",
                 singleVideoID: videoID
             )
-        case .channel(let url, let channelIdentifier):
-            self.batchResolutionError = nil
-            self.isResolvingBatch = false
-            self.pendingBatchIngestion = PendingBatchIngestion(
+        case let .channel(url, channelIdentifier):
+            batchResolutionError = nil
+            isResolvingBatch = false
+            pendingBatchIngestion = PendingBatchIngestion(
                 url: url,
                 type: linkType,
                 title: "YouTube Kanalı",
@@ -1877,18 +1907,18 @@ public final class AppViewModel: ObservableObject {
             )
         }
     }
-    
+
     public func cancelBatchIngestion() {
         pendingBatchIngestion = nil
         showMainWindowPlaylistSheet = false
         isResolvingBatch = false
         batchResolutionError = nil
     }
-    
+
     @MainActor
     public func resolveAndIngestBatch(selection: BatchScopeSelection, customCount: Int = 10) async {
         guard let pending = pendingBatchIngestion else { return }
-        
+
         if case .singleVideoOnly = selection, let videoID = pending.singleVideoID {
             let video = ParsedYouTubeVideo(videoID: videoID)
             addYouTubeVideo(video)
@@ -1896,10 +1926,10 @@ public final class AppViewModel: ObservableObject {
             showMainWindowPlaylistSheet = false
             return
         }
-        
+
         isResolvingBatch = true
         batchResolutionError = nil
-        
+
         let maxVideos: Int?
         switch selection {
         case .all:
@@ -1915,18 +1945,18 @@ public final class AppViewModel: ObservableObject {
         case .singleVideoOnly:
             maxVideos = 1
         }
-        
+
         do {
             let toolMgr = ToolManager()
             let ytdlp = YTDLPClient(toolManager: toolMgr)
             let entries = try await ytdlp.resolvePlaylistOrChannel(url: pending.url, maxVideos: maxVideos)
-            
+
             guard !entries.isEmpty else {
                 batchResolutionError = "Bağlantıda video bulunamadı veya liste gizli."
                 isResolvingBatch = false
                 return
             }
-            
+
             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                 for entry in entries {
                     guard !queueItems.contains(where: { $0.id == entry.id }) else { continue }
@@ -1953,13 +1983,13 @@ public final class AppViewModel: ObservableObject {
             isResolvingBatch = false
         }
     }
-    
+
     public func addSampleYouTube() {
         if let sample = URLParser.parseSingle("https://www.youtube.com/watch?v=jNQXAC9IVRw") {
             addYouTubeVideo(sample)
         }
     }
-    
+
     public func removeItem(id: String) {
         cleanupSessionMedia(forItemID: id)
         dismissQueueItem(id: id)
@@ -1971,7 +2001,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func removeCheckedItems() {
         guard !checkedQueueItemIDs.isEmpty else { return }
         let idsToRemove = Array(checkedQueueItemIDs)
@@ -1987,8 +2017,9 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Undo / Confirmation Pattern (8-State Matrix)
+
     public func clearQueueWithUndo() {
         guard !queueItems.isEmpty else { return }
         if isProcessing {
@@ -1996,9 +2027,9 @@ public final class AppViewModel: ObservableObject {
         }
         undoBackupItems = queueItems
         let count = queueItems.count
-        
+
         dismissQueueItems(ids: queueItems.map(\.id))
-        
+
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             queueItems.removeAll()
             checkedQueueItemIDs.removeAll()
@@ -2006,7 +2037,7 @@ public final class AppViewModel: ObservableObject {
             undoToastMessage = "\(count) işlem kuyruktan kaldırıldı."
             showUndoToast = true
         }
-        
+
         undoDismissTask?.cancel()
         undoDismissTask = Task {
             try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
@@ -2018,7 +2049,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func performUndo() {
         undoDismissTask?.cancel()
         guard !undoBackupItems.isEmpty else { return }
@@ -2032,7 +2063,7 @@ public final class AppViewModel: ObservableObject {
             showUndoToast = false
         }
     }
-    
+
     public func dismissUndoToast() {
         undoDismissTask?.cancel()
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -2041,10 +2072,11 @@ public final class AppViewModel: ObservableObject {
             evictOrphanedSessionMedia()
         }
     }
-    
+
     // MARK: - Retry Logic for Failed Items
+
     public func retryFailedItems() {
-        for i in 0..<queueItems.count {
+        for i in 0 ..< queueItems.count {
             if queueItems[i].state == .failed {
                 queueItems[i].state = .queued
                 queueItems[i].autoProcess = true
@@ -2055,7 +2087,7 @@ public final class AppViewModel: ObservableObject {
         }
         startProcessingQueue()
     }
-    
+
     public func retryItem(id: String) {
         if let idx = queueItems.firstIndex(where: { $0.id == id }) {
             queueItems[idx].state = .queued
@@ -2066,15 +2098,16 @@ public final class AppViewModel: ObservableObject {
             startProcessingQueue()
         }
     }
-    
+
     // MARK: - Unified Processing Loop
+
     public var canStartQueue: Bool {
         if !checkedQueueItemIDs.isEmpty {
             return !isProcessing && queueItems.contains(where: { checkedQueueItemIDs.contains($0.id) && ($0.state == .queued || $0.state == .failed) })
         }
         return !isProcessing && queueItems.contains(where: { $0.state == .queued || $0.state == .failed })
     }
-    
+
     public func requestStartQueue() {
         guard canStartQueue else { return }
         let targetItems: [QueueItem]
@@ -2083,7 +2116,7 @@ public final class AppViewModel: ObservableObject {
         } else {
             targetItems = queueItems.filter { $0.state == .queued || $0.state == .failed }
         }
-        
+
         let pendingYouTube = targetItems.filter { $0.isYouTube }
         // Save mode prompt (combined vs individual) is strictly for multi-video YouTube batches.
         // Audio files and Voice Memos are always saved individually as single .txt files.
@@ -2093,15 +2126,15 @@ public final class AppViewModel: ObservableObject {
             startProcessingQueue(saveMode: .individual)
         }
     }
-    
+
     /// Automatically starts processing any queued watched-folder items (when `folderWatcher.autoTranscribe` is enabled)
     /// without touching unconfirmed YouTube queue items.
     public func startAutoProcessingWatchedItems() {
         guard folderWatcher.autoTranscribe else { return }
-        self.sessionSaveMode = .individual
+        sessionSaveMode = .individual
         var hasEligible = false
-        for i in 0..<queueItems.count {
-            if queueItems[i].isWatchedFolderItem && queueItems[i].state == .queued {
+        for i in 0 ..< queueItems.count {
+            if queueItems[i].isWatchedFolderItem, queueItems[i].state == .queued {
                 queueItems[i].autoProcess = true
                 hasEligible = true
             }
@@ -2109,31 +2142,29 @@ public final class AppViewModel: ObservableObject {
         guard hasEligible || queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
         runQueueProcessor()
     }
-    
+
     public func startProcessingQueue(saveMode: SessionSaveMode = .individual) {
         guard !queueItems.isEmpty else { return }
-        self.sessionSaveMode = saveMode
-        
+        sessionSaveMode = saveMode
+
         let hasChecked = !checkedQueueItemIDs.isEmpty
-        for i in 0..<queueItems.count {
+        for i in 0 ..< queueItems.count {
             if hasChecked {
-                if checkedQueueItemIDs.contains(queueItems[i].id) && (queueItems[i].state == .queued || queueItems[i].state == .failed) {
+                if checkedQueueItemIDs.contains(queueItems[i].id), queueItems[i].state == .queued || queueItems[i].state == .failed {
                     queueItems[i].state = .queued
                     queueItems[i].autoProcess = true
                     queueItems[i].errorMessage = nil
                 }
-            } else {
-                if queueItems[i].state == .queued || queueItems[i].state == .failed {
-                    queueItems[i].state = .queued
-                    queueItems[i].autoProcess = true
-                    queueItems[i].errorMessage = nil
-                }
+            } else if queueItems[i].state == .queued || queueItems[i].state == .failed {
+                queueItems[i].state = .queued
+                queueItems[i].autoProcess = true
+                queueItems[i].errorMessage = nil
             }
         }
-        
+
         runQueueProcessor()
     }
-    
+
     public func startProcessingSingleItem(id: String) {
         guard !isProcessing else { return }
         if let idx = queueItems.firstIndex(where: { $0.id == id }) {
@@ -2143,12 +2174,13 @@ public final class AppViewModel: ObservableObject {
             runQueueProcessor()
         }
     }
-    
+
     // MARK: - Whisper / Qwen ASR Engine Background Cache & Pre-Warming
-    private var cachedWhisperEngine: (modelPath: String, engine: any TranscriptionEngine)? = nil
-    private var engineWarmupTask: (modelPath: String, task: Task<any TranscriptionEngine, Error>)? = nil
-    private var currentProcessingTask: Task<Void, Never>? = nil
-    private var activeCancellationToken: TranscriptionCancellationToken? = nil
+
+    private var cachedWhisperEngine: (modelPath: String, engine: any TranscriptionEngine)?
+    private var engineWarmupTask: (modelPath: String, task: Task<any TranscriptionEngine, Error>)?
+    private var currentProcessingTask: Task<Void, Never>?
+    private var activeCancellationToken: TranscriptionCancellationToken?
     private var isCancelRequested: Bool = false
 
     /// Pre-loads the active model into Metal GPU / Unified Memory in the background so that
@@ -2177,14 +2209,15 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Queue Processing Cancellation
+
     public func cancelProcessing() {
         guard isProcessing else { return }
         isCancelRequested = true
         activeCancellationToken?.cancel()
         currentProcessingTask?.cancel()
-        
+
         // Revert items in progress (.transcribing / .fetching) back to .queued so nothing is lost
         for i in queueItems.indices {
             if queueItems[i].state == .transcribing || queueItems[i].state == .fetching {
@@ -2198,16 +2231,19 @@ public final class AppViewModel: ObservableObject {
                 }
             } else if queueItems[i].state == .queued {
                 queueItems[i].autoProcess = false
+                if queueItems[i].subtitle.contains("ön-indiriliyor") || queueItems[i].subtitle.contains("prefetching") || queueItems[i].subtitle.contains("⚡️") {
+                    queueItems[i].subtitle = queueItems[i].isYouTube ? "YouTube • Sırada" : (queueItems[i].isVideo ? "Video Dosyası • Sırada" : "Ses Dosyası • Sırada")
+                }
             }
         }
-        
+
         isProcessing = false
         progressFraction = 0.0
         currentOperation = ""
         statusMessage = t("status_cancelled")
         objectWillChange.send()
     }
-    
+
     private func getOrInitializeWhisperEngine(for modelURL: URL) async throws -> any TranscriptionEngine {
         let path = modelURL.path
         if let cached = cachedWhisperEngine, cached.modelPath == path {
@@ -2215,36 +2251,36 @@ public final class AppViewModel: ObservableObject {
         }
         if let warmup = engineWarmupTask, warmup.modelPath == path {
             let engine = try await warmup.task.value
-            self.cachedWhisperEngine = (path, engine)
-            self.engineWarmupTask = nil
+            cachedWhisperEngine = (path, engine)
+            engineWarmupTask = nil
             return engine
         }
         let engine = try await Task.detached(priority: .userInitiated) {
             try TranscriptionEngineFactory.makeEngine(modelPath: path)
         }.value
-        self.cachedWhisperEngine = (path, engine)
+        cachedWhisperEngine = (path, engine)
         return engine
     }
-    
+
     private func runQueueProcessor() {
         guard !isProcessing else {
             Log.info("Queue processor is already active; newly marked autoProcess items will be picked up automatically.")
             return
         }
         guard queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) else { return }
-        
+
         isProcessing = true
         isCancelRequested = false
         let cancelToken = TranscriptionCancellationToken()
-        self.activeCancellationToken = cancelToken
+        activeCancellationToken = cancelToken
         progressFraction = 0.05
         statusMessage = "İşlem başlatılıyor..."
         errorMessage = nil
-        
+
         let model = selectedModel
         let lang = selectedLanguage == "auto" ? nil : selectedLanguage
-        
-        self.currentProcessingTask = Task { [weak self] in
+
+        currentProcessingTask = Task { [weak self] in
             guard let self = self else { return }
             do {
                 // 1. Ensure Whisper Model is available
@@ -2264,14 +2300,77 @@ public final class AppViewModel: ObservableObject {
                 } else {
                     modelURL = self.modelManager.localURL(for: model)
                 }
-                
+
                 let whisperEngine = try await self.getOrInitializeWhisperEngine(for: modelURL)
                 let pipelineCoordinator = TranscriptionPipelineCoordinator()
                 let prefetchDecoder = AudioDecoder()
                 var prefetchedAudioTask: (urlPath: String, task: Task<PreparedAudio, Error>)? = nil
                 defer { prefetchedAudioTask?.task.cancel() }
                 var ytdlpClient: YTDLPClient? = nil
-                
+
+                // YouTube Lookahead Prefetch Manager: Maintains an overlapping pipeline where
+                // background downloads happen concurrently with active GPU / Metal transcription.
+                var prefetchedYouTubeTasks: [String: (workspace: URL, task: Task<FetchedMedia, Error>)] = [:]
+                defer {
+                    for (_, prefetched) in prefetchedYouTubeTasks {
+                        prefetched.task.cancel()
+                        try? FileManager.default.removeItem(at: prefetched.workspace)
+                    }
+                    prefetchedYouTubeTasks.removeAll()
+                }
+
+                @MainActor
+                func ensureYTDLPClient() async throws -> YTDLPClient {
+                    if let existing = ytdlpClient {
+                        return existing
+                    }
+                    let toolMgr = ToolManager()
+                    try await toolMgr.ensureToolsReady()
+                    let created = YTDLPClient(toolManager: toolMgr)
+                    ytdlpClient = created
+                    return created
+                }
+
+                @MainActor
+                func scheduleYouTubeLookahead() {
+                    guard !self.isCancelRequested, !Task.isCancelled, !cancelToken.isCancelled, let client = ytdlpClient else { return }
+
+                    // Look ahead in queue for eligible YouTube items not yet prefetched
+                    let pendingYouTube = self.queueItems.filter { item in
+                        item.state == .queued && item.autoProcess && item.isYouTube && prefetchedYouTubeTasks[item.id] == nil
+                    }
+
+                    // Bound lookahead buffer to at most 2 upcoming items to balance network & prevent YouTube rate limits
+                    for nextItem in pendingYouTube.prefix(2) {
+                        guard case let .youtube(nextVideo) = nextItem.kind else { continue }
+
+                        let prefetchWorkspace = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("transkript_prefetch_\(nextItem.id)_\(UUID().uuidString)", isDirectory: true)
+                        try? FileManager.default.createDirectory(at: prefetchWorkspace, withIntermediateDirectories: true)
+
+                        let task = Task.detached(priority: .utility) { [client] in
+                            try await client.fetch(url: nextVideo.canonicalURL, into: prefetchWorkspace)
+                        }
+                        prefetchedYouTubeTasks[nextItem.id] = (prefetchWorkspace, task)
+
+                        // Update item subtitle to visually indicate lookahead prefetch is active
+                        let nextItemID = nextItem.id
+                        let prefetchText = "⚡️ " + self.t("status_prefetching")
+                        if let idx = self.queueItems.firstIndex(where: { $0.id == nextItemID }),
+                           self.queueItems[idx].state == .queued
+                        {
+                            self.queueItems[idx].subtitle = prefetchText
+                        }
+                    }
+                }
+
+                // Prime YouTube lookahead pipeline before entering processing loop if queue contains YouTube videos
+                if self.queueItems.contains(where: { $0.state == .queued && $0.autoProcess && $0.isYouTube }) {
+                    if (try? await ensureYTDLPClient()) != nil {
+                        scheduleYouTubeLookahead()
+                    }
+                }
+
                 var processedCount = 0
                 while let item = self.queueItems.first(where: { $0.state == .queued && $0.autoProcess }) {
                     if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
@@ -2279,24 +2378,24 @@ public final class AppViewModel: ObservableObject {
                     }
                     processedCount += 1
                     let totalEligible = max(processedCount, self.queueItems.filter { $0.autoProcess || $0.state == .completed }.count)
-                    
+
                     self.statusMessage = "[\(processedCount)/\(totalEligible)] \(item.title) işleniyor..."
                     if self.selectedItemID != nil {
                         self.selectedItemID = item.id
                     }
-                    
+
                     // Create an isolated workspace directory specifically for this item to avoid file collision
                     let itemWorkspace = FileManager.default.temporaryDirectory
                         .appendingPathComponent("transkript_\(item.id)_\(UUID().uuidString)", isDirectory: true)
                     try FileManager.default.createDirectory(at: itemWorkspace, withIntermediateDirectories: true)
                     defer { try? FileManager.default.removeItem(at: itemWorkspace) }
-                    
+
                     var current = item
                     current.isNewlyDiscovered = false
                     current.autoProcess = false
-                    
+
                     switch item.kind {
-                    case .youtube(let video):
+                    case let .youtube(video):
                         // Check cache before fetching or transcribing
                         if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                             title: current.title,
@@ -2305,6 +2404,10 @@ public final class AppViewModel: ObservableObject {
                             modelID: model.rawValue,
                             languageCode: lang
                         ) {
+                            if let prefetched = prefetchedYouTubeTasks.removeValue(forKey: current.id) {
+                                prefetched.task.cancel()
+                                try? FileManager.default.removeItem(at: prefetched.workspace)
+                            }
                             Log.info("YouTube video loaded from cache: \(current.title)")
                             current.transcript = cached.transcriptText
                             current.videoDescription = OutputFormatter.extractYouTubeDescription(from: cached.transcriptText) ?? current.videoDescription
@@ -2317,26 +2420,41 @@ public final class AppViewModel: ObservableObject {
                                 self.lastOutputURL = current.outputURL
                             }
                             self.updateItem(current)
+                            scheduleYouTubeLookahead()
                             continue
                         }
-                        
+
                         current.state = .fetching
                         self.updateItem(current)
-                        self.currentOperation = "Downloading YouTube audio (yt-dlp)..."
-                        
+                        self.currentOperation = self.t("status_fetching_audio")
+
                         do {
-                            let ytdlp: YTDLPClient
-                            if let existing = ytdlpClient {
-                                ytdlp = existing
+                            let ytdlp = try await ensureYTDLPClient()
+                            let media: FetchedMedia
+                            var effectiveWorkspace = itemWorkspace
+
+                            // Consume prefetched media if already completed or in-flight
+                            if let prefetched = prefetchedYouTubeTasks.removeValue(forKey: current.id) {
+                                effectiveWorkspace = prefetched.workspace
+                                do {
+                                    media = try await prefetched.task.value
+                                } catch {
+                                    // If background prefetch threw an error or was cancelled, retry once in itemWorkspace
+                                    try? FileManager.default.removeItem(at: effectiveWorkspace)
+                                    effectiveWorkspace = itemWorkspace
+                                    media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
+                                }
                             } else {
-                                let toolMgr = ToolManager()
-                                try await toolMgr.ensureToolsReady()
-                                let created = YTDLPClient(toolManager: toolMgr)
-                                ytdlpClient = created
-                                ytdlp = created
+                                media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
                             }
-                            
-                            let media = try await ytdlp.fetch(url: video.canonicalURL, into: itemWorkspace)
+
+                            // Cleanup effectiveWorkspace if different from itemWorkspace
+                            defer {
+                                if effectiveWorkspace != itemWorkspace {
+                                    try? FileManager.default.removeItem(at: effectiveWorkspace)
+                                }
+                            }
+
                             let channel = media.metadata.channel ?? "YouTube"
                             let duration = media.metadata.duration ?? 0
                             let videoDescription = media.metadata.description?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2349,7 +2467,7 @@ public final class AppViewModel: ObservableObject {
                             current.durationSec = media.metadata.duration
                             current.videoDescription = (videoDescription?.isEmpty == false) ? videoDescription : nil
                             current.chapters = resolvedChapters
-                            
+
                             // Check cache again with fetched metadata title
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: media.metadata.title,
@@ -2376,9 +2494,10 @@ public final class AppViewModel: ObservableObject {
                                     self.lastOutputURL = current.outputURL
                                 }
                                 self.updateItem(current)
+                                scheduleYouTubeLookahead()
                                 continue
                             }
-                            
+
                             if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
                                 current.state = .queued
                                 current.autoProcess = false
@@ -2388,21 +2507,25 @@ public final class AppViewModel: ObservableObject {
                                 self.updateItem(current)
                                 break
                             }
-                            
+
                             current.state = .transcribing
                             current.transcript = ""
                             self.updateItem(current)
                             self.currentOperation = self.t("status_metal_active")
-                            
+
+                            // Pipeline Lookahead: Video N is now executing on Metal GPU;
+                            // immediately start downloading Video N+1 / N+2 in background!
+                            scheduleYouTubeLookahead()
+
                             let localAudioURL = media.localAudioURL
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
                             let capturedDescription = current.videoDescription
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
-                            
+
                             // Fetch SponsorBlock community tags in parallel with ASR transcription (0 ms added latency)
                             async let sponsorSegmentsTask = SponsorBlockClient.fetchSegments(videoID: video.videoID)
-                            
+
                             let pipelineResult = try await pipelineCoordinator.execute(
                                 audioFileURL: localAudioURL,
                                 engine: whisperEngine,
@@ -2440,9 +2563,9 @@ public final class AppViewModel: ObservableObject {
                                 sponsorSegments: sponsorSegments,
                                 options: postOpts
                             )
-                            
+
                             current.transcript = formatted
-                            
+
                             // Session Media Retention: Persist audio file so it survives workspace cleanup
                             let ext = media.localAudioURL.pathExtension.isEmpty ? "m4a" : media.localAudioURL.pathExtension
                             let sessionAudioURL = self.sessionMediaDirectory.appendingPathComponent("\(current.id).\(ext)")
@@ -2452,13 +2575,13 @@ public final class AppViewModel: ObservableObject {
                             try? FileManager.default.copyItem(at: media.localAudioURL, to: sessionAudioURL)
                             current.audioURL = sessionAudioURL
                             current.segments = result.segments
-                            
+
                             let waveformGen = WaveformGenerator()
                             current.waveformPoints = waveformGen.generateWaveform(from: prepared.samples, targetPoints: 200)
                             current.state = .completed
                             current.progress = 1.0
                             current.forceReTranscribe = false
-                            
+
                             var targetURLPath: String? = nil
                             // Save individual file if requested
                             if self.sessionSaveMode == .individual || self.sessionSaveMode == .both {
@@ -2472,7 +2595,7 @@ public final class AppViewModel: ObservableObject {
                                 current.outputURL = targetURL
                                 self.lastOutputURL = targetURL
                                 targetURLPath = targetURL.path
-                                
+
                                 self.saveToHistory(
                                     title: media.metadata.title,
                                     kind: "youtube",
@@ -2480,7 +2603,7 @@ public final class AppViewModel: ObservableObject {
                                     snippet: String(formatted.prefix(200))
                                 )
                             }
-                            
+
                             // Save to cache for future instant re-use
                             await self.transcriptCacheManager?.save(
                                 externalID: video.videoID,
@@ -2492,7 +2615,7 @@ public final class AppViewModel: ObservableObject {
                                 languageCode: lang,
                                 transcriptText: formatted
                             )
-                            
+
                         } catch is CancellationError {
                             Log.info("YouTube transcription cancelled.")
                             current.state = .queued
@@ -2514,14 +2637,15 @@ public final class AppViewModel: ObservableObject {
                             }
                             current.state = .failed
                             current.errorMessage = error.localizedDescription
+                            scheduleYouTubeLookahead()
                         }
-                        
-                    case .audioFile(let fileURL):
+
+                    case let .audioFile(fileURL):
                         do {
                             let isVideo = AudioValidator.isVideoExtension(fileURL.pathExtension)
                             let duration = try AudioValidator.validate(fileURL: fileURL)
                             current.durationSec = duration
-                            
+
                             // Check cache using content hash, name, exact duration, and active model!
                             if !current.forceReTranscribe, let cached = await self.transcriptCacheManager?.findCached(
                                 title: current.title,
@@ -2538,7 +2662,7 @@ public final class AppViewModel: ObservableObject {
                                 current.subtitle = isVideo
                                     ? "Önbellekten Yüklendi • Video Transkripti (\(Int(duration))s)"
                                     : "Önbellekten Yüklendi • Zaten Deşifre Edilmiş (\(Int(duration))s)"
-                                
+
                                 let baseName = fileURL.deletingPathExtension().lastPathComponent
                                 let targetDir = isVideo ? fileURL.deletingLastPathComponent() : self.outputWriter.defaultOutputDirectory
                                 if let outPath = cached.outputPath, FileManager.default.fileExists(atPath: outPath) {
@@ -2558,7 +2682,7 @@ public final class AppViewModel: ObservableObject {
                                 self.updateItem(current)
                                 continue
                             }
-                            
+
                             if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
                                 current.state = .queued
                                 current.autoProcess = false
@@ -2568,7 +2692,7 @@ public final class AppViewModel: ObservableObject {
                                 self.updateItem(current)
                                 break
                             }
-                            
+
                             // 1. Audio Extraction if file is Video
                             let effectiveAudioURL: URL
                             if isVideo {
@@ -2576,7 +2700,7 @@ public final class AppViewModel: ObservableObject {
                                 current.subtitle = "Videodan Ses Ayıklanıyor..."
                                 self.updateItem(current)
                                 self.currentOperation = "Videodan ses ayıklanıyor (M4A / MP3)..."
-                                
+
                                 let extracted = try await self.videoAudioExtractor.extractAudio(
                                     from: fileURL,
                                     destinationDirectory: self.sessionMediaDirectory
@@ -2585,7 +2709,7 @@ public final class AppViewModel: ObservableObject {
                             } else {
                                 effectiveAudioURL = fileURL
                             }
-                            
+
                             if self.isCancelRequested || Task.isCancelled || cancelToken.isCancelled {
                                 current.state = .queued
                                 current.autoProcess = false
@@ -2595,7 +2719,7 @@ public final class AppViewModel: ObservableObject {
                                 self.updateItem(current)
                                 break
                             }
-                            
+
                             // 2. Transcription (with lookahead audio decode prefetch for next queued local audio file)
                             current.state = .transcribing
                             current.subtitle = isVideo ? "Video Transkript Ediliyor..." : "Ses Transkript Ediliyor..."
@@ -2604,7 +2728,7 @@ public final class AppViewModel: ObservableObject {
                             self.currentOperation = isVideo
                                 ? "Video sesi çözümleniyor ve transkript ediliyor..."
                                 : "Yerel ses çözümleniyor ve transkript ediliyor..."
-                            
+
                             // Resolve or decode current audio file
                             let currentAudio: PreparedAudio
                             if let prefetched = prefetchedAudioTask, prefetched.urlPath == effectiveAudioURL.path {
@@ -2621,11 +2745,11 @@ public final class AppViewModel: ObservableObject {
                                     try prefetchDecoder.decode(fileURL: effectiveAudioURL)
                                 }.value
                             }
-                            
+
                             // Look ahead and start decoding the next queued non-video audio file in parallel while GPU/ANE runs
                             if let nextAudioItem = self.queueItems.first(where: {
                                 $0.id != current.id && $0.state == .queued && $0.autoProcess && !$0.isYouTube && !$0.isVideo
-                            }), case .audioFile(let nextURL) = nextAudioItem.kind {
+                            }), case let .audioFile(nextURL) = nextAudioItem.kind {
                                 if prefetchedAudioTask?.urlPath != nextURL.path {
                                     prefetchedAudioTask?.task.cancel()
                                     let task = Task.detached(priority: .utility) {
@@ -2634,7 +2758,7 @@ public final class AppViewModel: ObservableObject {
                                     prefetchedAudioTask = (nextURL.path, task)
                                 }
                             }
-                            
+
                             let itemId = current.id
                             let antiHallucination = self.antiHallucinationEnabled
                             let postOpts = PostProcessorOptions(deduplicateRepetitions: antiHallucination)
@@ -2664,7 +2788,7 @@ public final class AppViewModel: ObservableObject {
                             let prepared = pipelineResult.preparedAudio
                             let result = pipelineResult.transcriptResult
                             let formatted = pipelineResult.formattedText
-                            
+
                             current.transcript = formatted
                             current.audioURL = effectiveAudioURL
                             current.segments = result.segments
@@ -2676,12 +2800,12 @@ public final class AppViewModel: ObservableObject {
                             current.subtitle = isVideo
                                 ? "Video Transkripti • Dosyanın Yanına Kaydedildi"
                                 : (current.isWatchedFolderItem ? "Sesli Not / Klasör • Transkript Tamamlandı" : "Ses Transkripti • Tamamlandı")
-                            
+
                             // 3. Write Transcript: Next to source video ("videoyu nereden aldıysak onun yanına transkriptini vermiş ol")
                             var targetURLPath: String? = nil
                             let baseName = fileURL.deletingPathExtension().lastPathComponent
                             let targetDirectory: URL = isVideo ? fileURL.deletingLastPathComponent() : self.outputWriter.defaultOutputDirectory
-                            
+
                             do {
                                 let targetURL = self.outputWriter.resolveUniqueURL(
                                     forBaseName: baseName,
@@ -2693,7 +2817,7 @@ public final class AppViewModel: ObservableObject {
                                 current.outputURL = targetURL
                                 self.lastOutputURL = targetURL
                                 targetURLPath = targetURL.path
-                                
+
                                 if isVideo {
                                     current.subtitle = "Video Transkripti • Dosyanın Yanına Kaydedildi"
                                     self.statusMessage = "Transkript videonun yanına kaydedildi: \(targetURL.lastPathComponent)"
@@ -2713,14 +2837,14 @@ public final class AppViewModel: ObservableObject {
                                 self.lastOutputURL = fallbackURL
                                 targetURLPath = fallbackURL.path
                             }
-                            
+
                             self.saveToHistory(
                                 title: baseName,
                                 kind: isVideo ? "video" : "audio",
                                 outputPath: current.outputURL?.path ?? targetURLPath ?? "",
                                 snippet: String(formatted.prefix(200))
                             )
-                            
+
                             // Save to cache for future instant re-use
                             await self.transcriptCacheManager?.save(
                                 externalID: fileURL.path,
@@ -2732,9 +2856,9 @@ public final class AppViewModel: ObservableObject {
                                 languageCode: lang,
                                 transcriptText: formatted
                             )
-                            
+
                             self.updateItem(current)
-                            
+
                         } catch is CancellationError {
                             Log.info("Audio transcription cancelled.")
                             current.state = .queued
@@ -2756,13 +2880,14 @@ public final class AppViewModel: ObservableObject {
                             }
                             current.state = .failed
                             current.errorMessage = error.localizedDescription
+                            scheduleYouTubeLookahead()
                         }
                     }
-                    
+
                     self.updateItem(current)
                     self.progressFraction = Double(processedCount) / Double(max(1, totalEligible))
                 }
-                
+
                 // Combined session file is ONLY for multi-video YouTube batches if explicitly requested.
                 // Audio files / Sesli Notlar ALWAYS produce single individual .txt files and NEVER create a Toplu_Oturum file.
                 if !self.isCancelRequested && !Task.isCancelled {
@@ -2776,13 +2901,13 @@ public final class AppViewModel: ObservableObject {
                             )
                             return "=== \(item.title) ===\n\n\(body)"
                         }.joined(separator: "\n\n" + String(repeating: "-", count: 40) + "\n\n")
-                        
+
                         if !combinedText.isEmpty {
                             let formatter = DateFormatter()
                             formatter.dateFormat = "yyyy-MM-dd_HH-mm"
                             let dateStr = formatter.string(from: Date())
                             let combinedName = "Toplu_Oturum_\(dateStr)"
-                            
+
                             let targetURL = self.outputWriter.resolveUniqueURL(
                                 forBaseName: combinedName,
                                 in: self.outputWriter.defaultOutputDirectory,
@@ -2798,7 +2923,7 @@ public final class AppViewModel: ObservableObject {
                             )
                         }
                     }
-                    
+
                     self.statusMessage = "✅ Tüm işlemler tamamlandı."
                     self.currentOperation = ""
                     self.progressFraction = 1.0
@@ -2807,7 +2932,7 @@ public final class AppViewModel: ObservableObject {
                     self.currentOperation = ""
                     self.progressFraction = 0.0
                 }
-                
+
             } catch {
                 if self.isCancelRequested || Task.isCancelled {
                     self.statusMessage = self.t("status_cancelled")
@@ -2818,28 +2943,28 @@ public final class AppViewModel: ObservableObject {
                     self.statusMessage = "İşlem tamamlanamadı."
                 }
             }
-            
+
             self.isProcessing = false
             self.activeCancellationToken = nil
             self.currentProcessingTask = nil
-            
+
             // If cancellation occurred, do NOT restart. If new auto-processable items arrived normally, process them.
             if !self.isCancelRequested && self.queueItems.contains(where: { $0.state == .queued && $0.autoProcess }) {
                 self.runQueueProcessor()
             }
         }
     }
-    
+
     private func updateItem(_ item: QueueItem) {
         if let idx = queueItems.firstIndex(where: { $0.id == item.id }) {
             var sanitized = item
-            if sanitized.state == .completed && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+            if sanitized.state == .completed, sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor") {
                 sanitized.subtitle = sanitized.isVideo
                     ? "Video Transkripti • Dosyanın Yanına Kaydedildi"
                     : (sanitized.isWatchedFolderItem ? "Sesli Not / Klasör • Transkript Tamamlandı" : "Ses Transkripti • Tamamlandı")
-            } else if sanitized.state == .queued && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+            } else if sanitized.state == .queued, sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor") {
                 sanitized.subtitle = sanitized.isVideo ? "Video Dosyası • Sırada" : "Ses Dosyası • Sırada"
-            } else if sanitized.state == .failed && (sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor")) {
+            } else if sanitized.state == .failed, sanitized.subtitle.contains("Transkript Ediliyor") || sanitized.subtitle.contains("Ayıklanıyor") {
                 sanitized.subtitle = "Transkript Başarısız Oldu"
             }
             queueItems[idx] = sanitized
@@ -2849,8 +2974,9 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - History Database
+
     private func saveToHistory(title: String, kind: String, outputPath: String, snippet: String) {
         let history = HistoryItem(
             title: title,
@@ -2860,7 +2986,7 @@ public final class AppViewModel: ObservableObject {
             snippet: snippet
         )
         historyItems.insert(history, at: 0)
-        
+
         Task { [weak self] in
             guard let db = self?.appDatabase else { return }
             try? await db.dbQueue.write { db in
@@ -2871,7 +2997,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func loadHistoryFromDatabase() async {
         guard let db = appDatabase else { return }
         do {
@@ -2884,12 +3010,12 @@ public final class AppViewModel: ObservableObject {
                     let path: String = row["output_path"] ?? ""
                     let dateStr: String = row["done_at"] ?? ""
                     let date = ISO8601DateFormatter().date(from: dateStr) ?? Date()
-                    
+
                     var snippet = ""
                     if FileManager.default.fileExists(atPath: path), let content = try? String(contentsOfFile: path, encoding: .utf8) {
                         snippet = String(content.prefix(250))
                     }
-                    
+
                     list.append(HistoryItem(
                         id: id,
                         title: title,
@@ -2901,13 +3027,13 @@ public final class AppViewModel: ObservableObject {
                 }
                 return list
             }
-            
-            self.historyItems = items
+
+            historyItems = items
         } catch {
             Log.error("History load error: \(error.localizedDescription)")
         }
     }
-    
+
     public func clearAllHistory() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             historyItems.removeAll()
@@ -2926,7 +3052,7 @@ public final class AppViewModel: ObservableObject {
         }
         statusMessage = "Tüm geçmiş temizlendi."
     }
-    
+
     public func deleteHistoryItem(id: String) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             historyItems.removeAll(where: { $0.id == id })
@@ -2946,20 +3072,21 @@ public final class AppViewModel: ObservableObject {
         }
         statusMessage = "Kayıt geçmişten silindi."
     }
-    
+
     // MARK: - Actions
+
     public func copyTranscript(text: String?) {
         guard let text = text, !text.isEmpty else { return }
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
-        
+
         copiedToast = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.copiedToast = false
         }
     }
-    
+
     public func copyTranscriptContent(for item: QueueItem) {
         var textToCopy: String? = item.transcript
         if textToCopy == nil || textToCopy?.isEmpty == true {
@@ -2972,11 +3099,11 @@ public final class AppViewModel: ObservableObject {
                 }
             }
         }
-        
+
         guard let text = textToCopy, !text.isEmpty else { return }
         copyTranscript(text: text)
     }
-    
+
     public func requestCopyTranscript(for item: QueueItem) {
         if completedCount > 1 {
             copyChoicePendingItem = item
@@ -2985,19 +3112,19 @@ public final class AppViewModel: ObservableObject {
             copyTranscriptContent(for: item)
         }
     }
-    
+
     public func copyCombinedTranscript() {
         let text = combinedTranscript
         guard !text.isEmpty else { return }
         copyTranscript(text: text)
-        
+
         copiedCombinedToast = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.copiedCombinedToast = false
         }
         statusMessage = String(format: t("status_combined_copied"), completedCount)
     }
-    
+
     public func copySelectedTranscript() {
         if showCombinedSessionTranscript {
             copyCombinedTranscript()
@@ -3007,7 +3134,7 @@ public final class AppViewModel: ObservableObject {
             copyTranscript(text: currentText)
         }
     }
-    
+
     public func confirmReTranscribe(items: [QueueItem]) {
         let idsToReTranscribe = Set(items.map { $0.id })
         for id in idsToReTranscribe {
@@ -3026,11 +3153,11 @@ public final class AppViewModel: ObservableObject {
         alreadyTranscribedPrompt = nil
         startProcessingQueue()
     }
-    
+
     public func dismissAlreadyTranscribedPrompt() {
         alreadyTranscribedPrompt = nil
     }
-    
+
     public func openInFinder(path: String) {
         guard !path.isEmpty else { return }
         let expanded = (path as NSString).expandingTildeInPath
@@ -3053,11 +3180,11 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func openTranscriptFolderInFinder() {
         openInFinder(path: outputDirectoryURL.path)
     }
-    
+
     public func openItemOutputInFinder(_ item: QueueItem) {
         if let outURL = item.outputURL, FileManager.default.fileExists(atPath: outURL.path) {
             openInFinder(path: outURL.path)
@@ -3070,7 +3197,7 @@ public final class AppViewModel: ObservableObject {
         }
         openInFinder(path: outputDirectoryURL.path)
     }
-    
+
     public func openItemSource(_ item: QueueItem) {
         if let canon = item.canonicalURL {
             openInBrowser(url: canon)
@@ -3078,27 +3205,29 @@ public final class AppViewModel: ObservableObject {
             openInFinder(path: audioURL.path)
         }
     }
-    
+
     // MARK: - iCloud Transkript Setup & Output Binding
+
     public func setupICloudTranskriptFolderAndSetOutput() {
         do {
             let url = try folderWatcher.setupICloudTranskriptFolder()
-            self.outputWriter.setCustomOutputDirectory(url)
-            self.outputDirectoryURL = url
-            self.folderWatcher.watchiCloudDrive = true
+            outputWriter.setCustomOutputDirectory(url)
+            outputDirectoryURL = url
+            folderWatcher.watchiCloudDrive = true
             openInFinder(path: url.path)
             statusMessage = t("watched_icloud_setup_success")
-            self.folderWatcher.objectWillChange.send()
-            self.objectWillChange.send()
+            folderWatcher.objectWillChange.send()
+            objectWillChange.send()
         } catch {
             errorMessage = "iCloud Transkript klasörü oluşturulamadı: \(error.localizedDescription)"
         }
     }
-    
+
     // MARK: - Voice Memos Initial Import Flow
+
     public func handleEnableVoiceMemos() {
         let hasConfigured = UserDefaults.standard.bool(forKey: "VoiceMemos.hasConfiguredInitialImport")
-        if !hasConfigured && folderWatcher.isVoiceMemosDirectlyAccessible {
+        if !hasConfigured, folderWatcher.isVoiceMemosDirectlyAccessible {
             let files = folderWatcher.existingVoiceMemosFiles()
             if !files.isEmpty {
                 pendingVoiceMemosCount = files.count
@@ -3109,11 +3238,11 @@ public final class AppViewModel: ObservableObject {
         UserDefaults.standard.set(true, forKey: "VoiceMemos.hasConfiguredInitialImport")
         folderWatcher.watchVoiceMemos = true
     }
-    
+
     public func confirmVoiceMemosImport(importAll: Bool) {
         UserDefaults.standard.set(true, forKey: "VoiceMemos.hasConfiguredInitialImport")
         isVoiceMemosPromptPresented = false
-        
+
         let files = folderWatcher.existingVoiceMemosFiles().filter { !isQueueItemDismissed(id: $0.path) }
         if importAll {
             folderWatcher.watchVoiceMemos = true
@@ -3125,13 +3254,14 @@ public final class AppViewModel: ObservableObject {
             statusMessage = t("voice_memos_watch_new_only")
         }
     }
-    
+
     public func cancelVoiceMemosImport() {
         isVoiceMemosPromptPresented = false
         folderWatcher.watchVoiceMemos = false
     }
-    
+
     // MARK: - Welcome & Feature Tour Onboarding
+
     public func completeSpotlightTour() {
         UserDefaults.standard.set(true, forKey: "hasCompletedSpotlightTour")
         UserDefaults.standard.set(true, forKey: "hasCompletedAppOnboarding")
@@ -3140,7 +3270,7 @@ public final class AppViewModel: ObservableObject {
             isOnboardingPresented = false
         }
     }
-    
+
     public func startSpotlightTour() {
         withAnimation(.easeInOut(duration: 0.25)) {
             selectedSection = .queue
@@ -3149,32 +3279,35 @@ public final class AppViewModel: ObservableObject {
             isOnboardingPresented = false
         }
     }
-    
+
     public func completeOnboarding() {
         completeSpotlightTour()
     }
-    
+
     public func openOnboardingTour() {
         startSpotlightTour()
     }
-    
+
     // MARK: - Queue Sorting
+
     public enum QueueSortOrder: String, CaseIterable, Identifiable, Sendable {
         case newestFirst
         case oldestFirst
         case title
-        
-        public var id: String { rawValue }
+
+        public var id: String {
+            rawValue
+        }
     }
-    
+
     public var sortedQueueItems: [QueueItem] {
-        queueItems.sorted { (item1, item2) -> Bool in
+        queueItems.sorted { item1, item2 -> Bool in
             let comp1 = item1.state == .completed
             let comp2 = item2.state == .completed
             if comp1 != comp2 {
                 return !comp1
             }
-            
+
             switch currentSortOrder {
             case .newestFirst:
                 let d1 = item1.fileModificationDate ?? item1.addedAt
@@ -3189,18 +3322,18 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func sortQueue(by order: QueueSortOrder = .newestFirst) {
-        self.currentSortOrder = order
+        currentSortOrder = order
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            queueItems.sort { (item1, item2) -> Bool in
+            queueItems.sort { item1, item2 -> Bool in
                 // Completed items always sink to the bottom so pending items stay at the top
                 let comp1 = item1.state == .completed
                 let comp2 = item2.state == .completed
                 if comp1 != comp2 {
                     return !comp1
                 }
-                
+
                 switch order {
                 case .newestFirst:
                     let d1 = item1.fileModificationDate ?? item1.addedAt
@@ -3216,19 +3349,20 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func openInBrowser(url: String) {
         if let target = URL(string: url) {
             NSWorkspace.shared.open(target)
         }
     }
-    
+
     // MARK: - Updates & Model Catalog
+
     public func checkForUpdates() {
         guard !isCheckingUpdates else { return }
         isCheckingUpdates = true
         updateCheckStatusText = "GitHub yayınları denetleniyor..."
-        
+
         Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -3249,19 +3383,20 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func downloadLatestUpdate() {
         let urlString = updateInfo?.downloadURL ?? UpdateChecker.defaultDMGDownloadURL
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
         }
     }
-    
+
     // MARK: - Direct Unified Update Check (Menu Trigger)
+
     public func initiateUnifiedUpdateCheck() {
         // Ensure settings sheet is NOT opened
         isSettingsPresented = false
-        
+
         // Open the dedicated unified update modal
         isUnifiedUpdatePresented = true
         isCheckingUnifiedUpdates = true
@@ -3273,12 +3408,12 @@ public final class AppViewModel: ObservableObject {
         appUpdateDownloadFraction = 0.0
         appUpdateDownloadStatus = ""
         unifiedStatusMessage = t("update_checking_desc")
-        
+
         bringMainWindowToFront()
-        
+
         Task { [weak self] in
             guard let self = self else { return }
-            
+
             // 1. Check GitHub for App Updates
             var appInfo: AppUpdateInfo? = nil
             do {
@@ -3286,23 +3421,23 @@ public final class AppViewModel: ObservableObject {
             } catch {
                 // Network failure or offline
             }
-            
+
             // 2. Check for AI Models (Catalog & Download status)
             let candidateModel = self.findCandidateNewModel()
             _ = try? await WhisperModelCatalog.checkOnlineModelRepository()
-            
+
             await MainActor.run {
                 self.isCheckingUnifiedUpdates = false
                 let isAppNewer = appInfo?.isNewerThanCurrent == true
-                
+
                 if isAppNewer {
                     self.unifiedAppUpdate = appInfo
                 }
-                
+
                 if let model = candidateModel {
                     self.unifiedCandidateModel = model
                 }
-                
+
                 if !isAppNewer && candidateModel == nil {
                     self.unifiedIsUpToDate = true
                     self.unifiedStatusMessage = String(format: self.t("update_uptodate_desc"), UpdateChecker.currentVersion)
@@ -3310,32 +3445,32 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func findCandidateNewModel() -> WhisperModelSpec? {
         let downloaded = modelManager.downloadedModels()
-        
+
         // If the user already has Large-v3-Turbo, they are running the flagship model.
         // Never suggest smaller or quantized models (like Large-v3-Turbo Q5_0 or Base) as an update.
         if downloaded.contains(.largeV3) || downloaded.contains(.qwen3ASR17B) || downloaded.contains(.largeV3Q5) {
             return nil
         }
-        
+
         // If the user has any working models installed, do not show an intrusive modal prompt;
         // all other models (e.g. lightweight or quantized) can be selected directly in the model picker.
         if !downloaded.isEmpty {
             return nil
         }
-        
+
         // Fresh install with zero downloaded models: propose Large-v3 (maximum accuracy default)
         return WhisperModelCatalog.availableModels.first(where: { $0.model == .largeV3 })
     }
-    
+
     public func downloadModelInUpdateDialog(_ model: WhisperModel) {
         guard downloadingModel == nil else { return }
         downloadingModel = model
         modelDownloadFraction = 0.0
         modelDownloadStatusText = "Bağlanılıyor..."
-        
+
         modelDownloadTask = Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -3382,48 +3517,48 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func downloadAppUpdateAndRelaunch() {
         guard let urlString = unifiedAppUpdate?.downloadURL ?? updateInfo?.downloadURL ?? Optional(UpdateChecker.defaultDMGDownloadURL),
               let url = URL(string: urlString) else { return }
-        
-        self.isDownloadingAppUpdate = true
-        self.appUpdateDownloadFraction = 0.0
-        self.appUpdateDownloadStatus = "Bağlanılıyor..."
-        
-        self.appUpdateDownloadTask = Task { [weak self] in
+
+        isDownloadingAppUpdate = true
+        appUpdateDownloadFraction = 0.0
+        appUpdateDownloadStatus = "Bağlanılıyor..."
+
+        appUpdateDownloadTask = Task { [weak self] in
             guard let self = self else { return }
             do {
                 let tempDMG = FileManager.default.temporaryDirectory.appendingPathComponent("TranskriptHub-Update-\(UUID().uuidString).dmg")
-                
+
                 var request = URLRequest(url: url)
                 request.setValue("TranskriptHub-App/\(UpdateChecker.currentVersion)", forHTTPHeaderField: "User-Agent")
-                
+
                 let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
                 let expectedLength = response.expectedContentLength
-                
+
                 if FileManager.default.fileExists(atPath: tempDMG.path) {
                     try? FileManager.default.removeItem(at: tempDMG)
                 }
-                
+
                 FileManager.default.createFile(atPath: tempDMG.path, contents: nil)
                 guard let fileHandle = try? FileHandle(forWritingTo: tempDMG) else {
                     throw NSError(domain: "TranskriptHub", code: -1, userInfo: [NSLocalizedDescriptionKey: "Geçici dosya oluşturulamadı."])
                 }
-                
+
                 var written: Int64 = 0
                 var buffer = Data()
                 buffer.reserveCapacity(64 * 1024)
-                
+
                 for try await byte in asyncBytes {
                     try Task.checkCancellation()
                     buffer.append(byte)
                     written += 1
-                    
+
                     if buffer.count >= 64 * 1024 {
                         fileHandle.write(buffer)
                         buffer.removeAll(keepingCapacity: true)
-                        
+
                         let frac = expectedLength > 0 ? Double(written) / Double(expectedLength) : 0.0
                         let currentWritten = written
                         await MainActor.run {
@@ -3438,19 +3573,19 @@ public final class AppViewModel: ObservableObject {
                         }
                     }
                 }
-                
+
                 if !buffer.isEmpty {
                     fileHandle.write(buffer)
                 }
                 try fileHandle.close()
-                
+
                 await MainActor.run {
                     self.appUpdateDownloadFraction = 1.0
                     self.appUpdateDownloadStatus = self.t("update_installing_relaunching")
                 }
-                
+
                 try await Task.sleep(nanoseconds: 700_000_000)
-                
+
                 await MainActor.run {
                     self.applyUpdateAndRelaunch(dmgURL: tempDMG)
                 }
@@ -3469,7 +3604,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func cancelAppUpdateDownload() {
         appUpdateDownloadTask?.cancel()
         appUpdateDownloadTask = nil
@@ -3477,7 +3612,7 @@ public final class AppViewModel: ObservableObject {
         appUpdateDownloadFraction = 0.0
         appUpdateDownloadStatus = ""
     }
-    
+
     public func applyUpdateAndRelaunch(dmgURL: URL) {
         let currentPID = ProcessInfo.processInfo.processIdentifier
         let appBundleURL = Bundle.main.bundleURL
@@ -3487,15 +3622,15 @@ public final class AppViewModel: ObservableObject {
         } else {
             targetAppPath = "/Applications/TranskriptHub.app"
         }
-        
+
         let script = """
         PID=\(currentPID)
         DMG="\(dmgURL.path)"
         DEST="\(targetAppPath)"
         MNT=$(mktemp -d /tmp/th_update.XXXXXX)
-        
+
         hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MNT" -quiet
-        
+
         if [ -d "$MNT/TranskriptHub.app" ]; then
             while kill -0 $PID 2>/dev/null; do
                 sleep 0.2
@@ -3513,26 +3648,26 @@ public final class AppViewModel: ObservableObject {
             open "$DMG"
         fi
         """
-        
+
         let tempScriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("update_and_relaunch.sh")
         try? script.write(to: tempScriptURL, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptURL.path)
-        
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [tempScriptURL.path]
         try? process.run()
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             NSApplication.shared.terminate(nil)
         }
     }
-    
+
     public func checkOnlineModels() {
         guard !isCheckingOnlineModels else { return }
         isCheckingOnlineModels = true
         onlineModelStatusText = "HuggingFace deposu kontrol ediliyor..."
-        
+
         Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -3545,14 +3680,15 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Model Management in Settings
+
     public func downloadModelInSettings(_ model: WhisperModel) {
         guard downloadingModel == nil else { return }
         downloadingModel = model
         modelDownloadFraction = 0.0
         modelDownloadStatusText = "Bağlanılıyor..."
-        
+
         modelDownloadTask = Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -3606,7 +3742,7 @@ public final class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func cancelModelDownload() {
         modelDownloadTask?.cancel()
         modelDownloadTask = nil
@@ -3615,15 +3751,13 @@ public final class AppViewModel: ObservableObject {
         modelDownloadStatusText = ""
         objectWillChange.send()
     }
-    
+
     public func deleteModelInSettings(_ model: WhisperModel) {
         do {
             try modelManager.deleteModel(model)
             let remaining = modelManager.downloadedModels()
-            if selectedModel == model {
-                if let next = remaining.first {
-                    selectedModel = next
-                }
+            if selectedModel == model, let next = remaining.first {
+                selectedModel = next
             }
             objectWillChange.send()
         } catch {
@@ -3633,10 +3767,11 @@ public final class AppViewModel: ObservableObject {
 }
 
 // MARK: - Thread-Safe Live Segment Collector
+
 private final class SegmentCollector: @unchecked Sendable {
     private let lock = NSLock()
     private var segments: [Segment] = []
-    
+
     func append(_ segment: Segment) -> [Segment] {
         lock.lock()
         defer { lock.unlock() }
@@ -3644,4 +3779,3 @@ private final class SegmentCollector: @unchecked Sendable {
         return segments
     }
 }
-

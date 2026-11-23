@@ -4,9 +4,11 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     case english = "en"
     case german = "de"
     case turkish = "tr"
-    
-    public var id: String { rawValue }
-    
+
+    public var id: String {
+        rawValue
+    }
+
     public var displayName: String {
         switch self {
         case .english: return "🇬🇧 English"
@@ -16,12 +18,12 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-public struct L10n {
+public enum L10n {
     public static var currentLanguage: AppLanguage {
         let saved = UserDefaults.standard.string(forKey: "appInterfaceLanguage") ?? "tr"
         return AppLanguage(rawValue: saved) ?? .turkish
     }
-    
+
     public static func tr(_ key: String, lang: AppLanguage, _ args: CVarArg...) -> String {
         let format = strings[lang]?[key] ?? strings[.english]?[key] ?? key
         if args.isEmpty {
@@ -29,7 +31,7 @@ public struct L10n {
         }
         return String(format: format, arguments: args)
     }
-    
+
     public static func tr(_ key: String, _ args: CVarArg...) -> String {
         let lang = currentLanguage
         let format = strings[lang]?[key] ?? strings[.english]?[key] ?? key
@@ -38,7 +40,7 @@ public struct L10n {
         }
         return String(format: format, arguments: args)
     }
-    
+
     private static let strings: [AppLanguage: [String: String]] = [
         .english: [
             // Menus & Sections
@@ -49,14 +51,14 @@ public struct L10n {
             "section_operations": "Operations",
             "section_automation": "Automation & System",
             "sidebar_errors": "%d Errors",
-            
+
             // Settings Tabs
             "tab_general": "General",
             "tab_models": "AI Models",
             "tab_storage": "Storage & Output",
             "tab_automation": "Automation & Voice Memos",
             "tab_updates": "Updates",
-            
+
             // Watched Folder View
             "watched_title": "Folder Monitoring & Automation",
             "watched_subtitle": "Automatically transcribe audio files arriving in iCloud Drive, Voice Memos, or local folders.",
@@ -121,7 +123,7 @@ public struct L10n {
             "queue_sort_oldest_first": "Oldest to Newest",
             "queue_sort_alphabetical": "Alphabetical (A-Z)",
             "queue_sort_title": "Sort",
-            
+
             // Actions
             "action_transcribe_queue": "Transcribe Queue",
             "action_start_now": "Start Now",
@@ -152,7 +154,7 @@ public struct L10n {
             "action_words": "words",
             "action_chars": "chars",
             "action_search_text": "Search in text...",
-            
+
             // Statuses
             "status_attention_required": "ACTION REQUIRED",
             "status_processing_queue": "PROCESSING & QUEUE",
@@ -165,7 +167,8 @@ public struct L10n {
             "status_live_transcribing": "LIVE TRANSCRIBING",
             "status_metal_active": "Transcribing audio...",
             "status_fetching_audio": "Downloading YouTube audio (yt-dlp)...",
-            
+            "status_prefetching": "Pre-downloading in background...",
+
             // Sheets
             "sheet_save_mode_title": "Transcript Save Format",
             "sheet_save_mode_desc": "%d videos in queue. How should files be saved?",
@@ -180,7 +183,7 @@ public struct L10n {
             "sheet_save_combined": "Single Combined File Only",
             "sheet_save_combined_title": "Single Combined File Only",
             "sheet_save_combined_desc": "Combines all transcripts in order into a single session document.",
-            
+
             // Copy Dialog & Actions
             "dialog_copy_title": "Copy Transcript",
             "dialog_copy_prompt_message": "Do you want to copy this video's transcript or the combined transcript of the entire session?",
@@ -190,7 +193,7 @@ public struct L10n {
             "hub_copy_combined_count": "Copy All Transcripts (%d)",
             "hub_tooltip_copy_combined_desc": "Copies the ordered transcripts of all completed videos into the clipboard as one document.",
             "status_combined_copied": "Combined session transcript copied (%d videos).",
-            
+
             // Already Transcribed Prompt & Re-transcribe
             "already_transcribed_title": "Already Transcribed",
             "already_transcribed_title_multiple": "%d Items Already Transcribed",
@@ -222,7 +225,7 @@ public struct L10n {
             "record_permission_open_settings": "Open System Settings",
             "record_permission_needed_badge": "Permission Required",
             "record_relaunch_app": "Relaunch App",
-            
+
             // Hub Header Cards
             "hub_card_model": "AI MODEL",
             "hub_card_speech_language": "SPEECH LANGUAGE",
@@ -239,7 +242,7 @@ public struct L10n {
             "hub_configure": "Configure",
             "hub_files_count": "%d Files",
             "hub_records_count": "%d Records",
-            
+
             // Hub Popovers & Actions
             "hub_model_picker_title": "Whisper Models",
             "hub_speech_language_title": "Speech Language",
@@ -251,7 +254,7 @@ public struct L10n {
             "hub_lang_en_desc": "English meetings and audio",
             "hub_lang_de": "German",
             "hub_lang_de_desc": "German recordings and voice memos",
-            
+
             // Hub Quick Add & Queue Bar
             "hub_paste_clipboard": "Paste from Clipboard (⌘V)",
             "hub_paste_clipboard_help": "Paste YouTube link from clipboard into queue (⌘V)",
@@ -264,7 +267,7 @@ public struct L10n {
             "hub_retry_failed": "Retry Failed",
             "hub_processing": "Processing...",
             "hub_empty_queue": "Queue is currently empty. Paste a link above or drop audio files here.",
-            
+
             // Hover Tooltip Explanations
             "hub_tooltip_clipboard_title": "Clipboard Monitoring",
             "hub_tooltip_clipboard_desc": "Monitors your clipboard in the background. Copied YouTube links are automatically detected and queued for transcription without manual pasting. Passwords or personal data are never read.",
@@ -302,7 +305,7 @@ public struct L10n {
             "hub_tooltip_mic_source_desc": "Records live voice notes, lectures, and speech from your built-in or connected microphone.",
             "hub_tooltip_system_source_title": "Mac System Audio",
             "hub_tooltip_system_source_desc": "Directly captures audio playing inside your Mac (Zoom, Teams, YouTube, meetings) with pristine quality.",
-            
+
             // Interactive Spotlight Guided Tour
             "tour_badge": "FEATURE TOUR • STEP %d / %d",
             "tour_skip": "Skip Tour",
@@ -324,24 +327,24 @@ public struct L10n {
             "tour_step6_desc": "Drag and drop any audio or video files directly into this queue workspace, or use the top-right 'Add Media' button and ⌘V / ⌘O shortcuts.",
             "tour_step7_title": "7. Start Transcription & Explore",
             "tour_step7_desc": "Hit 'Send to Transcribe' to transcribe all queued files sequentially. When finished, reveal the .txt file in Finder, jump to any audio segment by clicking, or follow along with real-time Karaoke!",
-            
+
             // Toolbar & Media Popover
             "toolbar_add_media": "Add Media",
             "toolbar_add_media_help": "Paste YouTube link or choose audio files (⌘O / ⌘V)",
             "add_media_popover_title": "Add Link or Audio File",
             "add_media_url_label": "YouTube or Media Link",
             "add_media_paste_link_placeholder": "Paste link or video URL...",
-            
+
             // Sidebar & Navigation
             "sidebar_processing": "Processing...",
             "sidebar_listening": "Listening to Folders",
             "nav_back_to_hub": "Back to Studio",
-            
+
             // History View
             "history_empty_title": "No History Transcripts Yet",
             "history_empty_desc": "All completed transcripts are stored locally in SQLite database and archived here.",
             "history_clear_btn": "Clear History",
-            
+
             // Settings Floating Sheet
             "settings_clipboard_auto": "Clipboard Monitoring Automation",
             "settings_clipboard_auto_toggle": "Automatically detect YouTube video links copied to clipboard",
@@ -358,7 +361,7 @@ public struct L10n {
             "settings_opensource_repo": "Open Source & Repository",
             "settings_github_repo": "GitHub Repository",
             "settings_open_repo": "Open Repository",
-            
+
             // Detail & Live Stream
             "status_live_stream_header": "Live Transcript Stream",
             "status_live_stream_desc": "Words decoded by AI are displayed in real-time",
@@ -378,7 +381,7 @@ public struct L10n {
             "action_add": "Add",
             "action_empty_queue_title": "Queue is Empty",
             "action_empty_queue_desc": "Press ⌘V to paste clipboard link or drag files into the studio on the right.",
-            
+
             // Settings
             "settings_language": "Interface Language",
             "settings_language_desc": "Language used for application menus, buttons, and notifications.",
@@ -567,7 +570,7 @@ public struct L10n {
             "settings_voice_memos_method_b": "• **Method B (Share Sheet):** From the (...) menu next to any recording, choose **Share > Save to Files > iCloud Drive / Transkript**.",
             "settings_voice_memos_method_c": "• **Method C (Shortcuts):** You can create an Apple Shortcut on iPhone to 'Record Audio' and 'Save to iCloud Drive / Transkript Folder'.",
             "settings_current_version": "Current Version: v%@ (Production Build)",
-            
+
             // Onboarding Landing Tour
             "onboarding_skip": "Skip",
             "onboarding_back": "Back",
@@ -632,9 +635,9 @@ public struct L10n {
             "onboarding_step5_card3_desc": "All formatted .txt files are archived locally. Open your transcript folder in 1 click or with ⇧⌘T.",
             "menu_onboarding_tour": "Welcome & Feature Tour...",
             "settings_restart_onboarding": "Restart Feature Tour",
-            "settings_restart_onboarding_desc": "Reopens the guided feature walkthrough explaining every part of Transkript Hub."
+            "settings_restart_onboarding_desc": "Reopens the guided feature walkthrough explaining every part of Transkript Hub.",
         ],
-        
+
         .turkish: [
             // Menus & Sections
             "section_queue": "Kuyruk",
@@ -644,14 +647,14 @@ public struct L10n {
             "section_operations": "İşlemler",
             "section_automation": "Otomasyon & Sistem",
             "sidebar_errors": "%d Hata",
-            
+
             // Settings Tabs
             "tab_general": "Genel",
             "tab_models": "Yapay Zeka Modelleri",
             "tab_storage": "Depolama & Çıktı",
             "tab_automation": "Otomasyon & Sesli Notlar",
             "tab_updates": "Güncellemeler",
-            
+
             // Watched Folder View
             "watched_title": "Klasör İzleme ve Otomasyon",
             "watched_subtitle": "iCloud Drive, Sesli Notlar ve yerel klasörlerdeki sesleri otomatik transkript edin.",
@@ -716,7 +719,7 @@ public struct L10n {
             "queue_sort_oldest_first": "En Eskiden En Yeniden",
             "queue_sort_alphabetical": "Alfabetik (A-Z)",
             "queue_sort_title": "Sırala",
-            
+
             // Actions
             "action_transcribe_queue": "Transkripte Yolla",
             "action_start_now": "Şimdi Başlat",
@@ -747,7 +750,7 @@ public struct L10n {
             "action_words": "kelime",
             "action_chars": "karakter",
             "action_search_text": "Metinde ara...",
-            
+
             // Statuses
             "status_attention_required": "MÜDAHALE GEREKİYOR",
             "status_processing_queue": "İŞLENİYOR & KUYRUK",
@@ -760,7 +763,8 @@ public struct L10n {
             "status_live_transcribing": "CANLI TRANSKRİPT EDİLİYOR",
             "status_metal_active": "Yapay zeka sesi metne dönüştürüyor...",
             "status_fetching_audio": "YouTube sesi indiriliyor (yt-dlp)...",
-            
+            "status_prefetching": "Arka planda ön-indiriliyor...",
+
             // Sheets
             "sheet_save_mode_title": "Transkript Kayıt Formatı",
             "sheet_save_mode_desc": "Kuyrukta %d video bulunuyor. Dosyalar nasıl kaydedilsin?",
@@ -775,7 +779,7 @@ public struct L10n {
             "sheet_save_combined": "Yalnızca Tek Birleşik Dosya",
             "sheet_save_combined_title": "Yalnızca Tek Birleşik Dosya",
             "sheet_save_combined_desc": "Tüm videoların transkriptlerini sırayla tek bir oturum dosyasında birleştirir.",
-            
+
             // Copy Dialog & Actions
             "dialog_copy_title": "Transkripti Kopyala",
             "dialog_copy_prompt_message": "Bu videonun transkriptini kopyalamak istiyorsun yoksa bu videonun dahil olduğu toplu transkripti mi kopyalamak istiyorsun?",
@@ -785,7 +789,7 @@ public struct L10n {
             "hub_copy_combined_count": "Toplu Transkripti Kopyala (%d)",
             "hub_tooltip_copy_combined_desc": "Kuyruktaki tüm tamamlanmış videoların transkriptlerini sırayla tek bir oturum metni olarak panoya kopyalar.",
             "status_combined_copied": "Toplu oturum transkripti kopyalandı (%d video).",
-            
+
             // Already Transcribed Prompt & Re-transcribe
             "already_transcribed_title": "Daha Önce Transkript Edilmiş",
             "already_transcribed_title_multiple": "%d Öğe Daha Önce Transkript Edilmiş",
@@ -817,7 +821,7 @@ public struct L10n {
             "record_permission_open_settings": "Sistem Ayarlarını Aç",
             "record_permission_needed_badge": "İzin Gerekiyor",
             "record_relaunch_app": "Uygulamayı Yeniden Başlat",
-            
+
             // Hub Header Cards
             "hub_card_model": "YAPAY ZEKA MODELİ",
             "hub_card_speech_language": "KONUŞMA DİLİ",
@@ -834,7 +838,7 @@ public struct L10n {
             "hub_configure": "Yapılandır",
             "hub_files_count": "%d Dosya",
             "hub_records_count": "%d Kayıt",
-            
+
             // Hub Popovers & Actions
             "hub_model_picker_title": "Whisper Modelleri",
             "hub_speech_language_title": "Konuşma Dili",
@@ -846,7 +850,7 @@ public struct L10n {
             "hub_lang_en_desc": "İngilizce toplantı ve kayıtlar",
             "hub_lang_de": "Almanca",
             "hub_lang_de_desc": "Almanca kayıtlar ve sesli notlar",
-            
+
             // Hub Quick Add & Queue Bar
             "hub_paste_clipboard": "Panodan Yapıştır (⌘V)",
             "hub_paste_clipboard_help": "Panodaki YouTube video bağlantısını kuyruğa ekle (⌘V)",
@@ -859,7 +863,7 @@ public struct L10n {
             "hub_retry_failed": "Hatalıları Yeniden Dene",
             "hub_processing": "İşleniyor...",
             "hub_empty_queue": "Kuyruk şu an boş. Yukarıdaki alana link yapıştırabilir veya ses dosyası bırakabilirsiniz.",
-            
+
             // Hover Tooltip Explanations
             "hub_tooltip_clipboard_title": "Pano İzleme",
             "hub_tooltip_clipboard_desc": "Panoyu arka planda izler. Kopyaladığınız YouTube video bağlantılarını sıfır tıklamayla anında kuyruğa ekler. Şifreler veya kişisel verileriniz asla okunmaz ve kaydedilmez.",
@@ -897,7 +901,7 @@ public struct L10n {
             "hub_tooltip_mic_source_desc": "Dahili veya harici mikrofondan ortam seslerini ve kendi konuşmalarınızı kaydeder.",
             "hub_tooltip_system_source_title": "Mac Sistem Sesi",
             "hub_tooltip_system_source_desc": "Mac'inizde çalan Zoom, Teams toplantıları, YouTube videoları veya podcast seslerini doğrudan kaydeder.",
-            
+
             // Interactive Spotlight Guided Tour
             "tour_badge": "İNTERAKTİF REHBER • ADIM %d / %d",
             "tour_skip": "Turu Atla",
@@ -919,24 +923,24 @@ public struct L10n {
             "tour_step6_desc": "Ses veya video dosyalarını doğrudan bu kuyruk alanına sürükleyip bırakabilir, sağ üstteki 'Medya Ekle' tuşunu veya ⌘V / ⌘O kısayollarını kullanabilirsin.",
             "tour_step7_title": "7. Kuyruk & Transkripti Başlatma",
             "tour_step7_desc": "Kuyruktaki tüm ses dosyalarını 'Transkripte Yolla' butonuyla sırayla metne dönüştürürsün. İşlem bittiğinde Finder ikonuyla metin dosyasını bulabilir, tıklayarak o saniyeye zıplayabilir ve karaoke eşliğinde dinleyebilirsin!",
-            
+
             // Toolbar & Media Popover
             "toolbar_add_media": "Medya Ekle",
             "toolbar_add_media_help": "YouTube linki yapıştır veya ses dosyası seç (⌘O / ⌘V)",
             "add_media_popover_title": "Link veya Ses Dosyası Ekle",
             "add_media_url_label": "YouTube veya Medya Linki",
             "add_media_paste_link_placeholder": "Link yapıştırın (YouTube, ses/video)...",
-            
+
             // Sidebar & Navigation
             "sidebar_processing": "İşleniyor...",
             "sidebar_listening": "Klasör Dinleniyor",
             "nav_back_to_hub": "Ana Merkeze Dön",
-            
+
             // History View
             "history_empty_title": "Henüz Geçmiş Transkript Yok",
             "history_empty_desc": "Tamamlanan tüm transkriptleriniz yerel SQLite veritabanında saklanır ve burada arşivlenir.",
             "history_clear_btn": "Geçmişi Temizle",
-            
+
             // Settings Floating Sheet
             "settings_clipboard_auto": "Pano İzleme Otomasyonu",
             "settings_clipboard_auto_toggle": "Panoya kopyalanan YouTube video bağlantılarını otomatik yakala",
@@ -953,7 +957,7 @@ public struct L10n {
             "settings_opensource_repo": "Açık Kaynak ve Depo",
             "settings_github_repo": "GitHub Deposu",
             "settings_open_repo": "Depoyu Aç",
-            
+
             // Detail & Live Stream
             "status_live_stream_header": "Canlı Transkript Akışı",
             "status_live_stream_desc": "Çözümlenen kelimeler anlık görüntüleniyor",
@@ -973,7 +977,7 @@ public struct L10n {
             "action_add": "Ekle",
             "action_empty_queue_title": "Kuyruk Boş",
             "action_empty_queue_desc": "Panodaki linki almak için ⌘V tuşlayın veya dosyaları sağdaki stüdyo alanına sürükleyin.",
-            
+
             // Settings
             "settings_language": "Arayüz Dili",
             "settings_language_desc": "Uygulamanın menü, buton ve mesajlarında kullanılacak dil.",
@@ -1162,7 +1166,7 @@ public struct L10n {
             "settings_voice_memos_method_b": "• **Yöntem B (Paylaşım):** Ses kaydının yanındaki (...) menüsünden **Paylaş > Dosyalara Kaydet > iCloud Drive / Transkript** yolunu seçin.",
             "settings_voice_memos_method_c": "• **Yöntem C (Apple Kestirmeler):** iPhone'unuzdaki Kestirmeler uygulamasından 'Ses Kaydı Al' ve ardından 'iCloud Drive / Transkript Klasörüne Kaydet' kestirmesini kurabilirsiniz.",
             "settings_current_version": "Mevcut Sürüm: v%@ (Production Build)",
-            
+
             // Onboarding Landing Tour
             "onboarding_skip": "Atla",
             "onboarding_back": "Geri",
@@ -1227,9 +1231,9 @@ public struct L10n {
             "onboarding_step5_card3_desc": "Tamamlanan tüm .txt dosyalarınız arşivlenir. Ana ekrandaki klasör butonu veya ⇧⌘T ile çıktılarınıza anında ulaşın.",
             "menu_onboarding_tour": "Transkript Hub Tanıtımı (Rehber)...",
             "settings_restart_onboarding": "Tanıtım Turunu Yeniden Başlat",
-            "settings_restart_onboarding_desc": "Uygulamanın tüm özelliklerini adım adım anlatan rehber penceresini yeniden açar."
+            "settings_restart_onboarding_desc": "Uygulamanın tüm özelliklerini adım adım anlatan rehber penceresini yeniden açar.",
         ],
-        
+
         .german: [
             // Menus & Sections
             "section_queue": "Warteschlange",
@@ -1239,14 +1243,14 @@ public struct L10n {
             "section_operations": "Aktionen",
             "section_automation": "Automation & System",
             "sidebar_errors": "%d Fehler",
-            
+
             // Settings Tabs
             "tab_general": "Allgemein",
             "tab_models": "KI-Modelle",
             "tab_storage": "Speicher & Ausgabe",
             "tab_automation": "Automation & Sprachmemos",
             "tab_updates": "Aktualisierungen",
-            
+
             // Watched Folder View
             "watched_title": "Ordnerüberwachung & Automation",
             "watched_subtitle": "Audiodateien in iCloud Drive, Sprachmemos oder lokalen Ordnern automatisch transkribieren.",
@@ -1311,7 +1315,7 @@ public struct L10n {
             "queue_sort_oldest_first": "Älteste zuerst",
             "queue_sort_alphabetical": "Alphabetisch (A-Z)",
             "queue_sort_title": "Sortieren",
-            
+
             // Actions
             "action_transcribe_queue": "Warteschlange transkribieren",
             "action_start_now": "Jetzt starten",
@@ -1342,7 +1346,7 @@ public struct L10n {
             "action_words": "Wörter",
             "action_chars": "Zeichen",
             "action_search_text": "Im Text suchen...",
-            
+
             // Statuses
             "status_attention_required": "EINGRIFF ERFORDERLICH",
             "status_processing_queue": "IN BEARBEITUNG & WARTESCHLANGE",
@@ -1355,7 +1359,8 @@ public struct L10n {
             "status_live_transcribing": "LIVE-TRANSKRIPTION",
             "status_metal_active": "Transkription läuft...",
             "status_fetching_audio": "YouTube-Audio wird heruntergeladen (yt-dlp)...",
-            
+            "status_prefetching": "Im Hintergrund vorab heruntergeladen...",
+
             // Sheets
             "sheet_save_mode_title": "Transkript-Speicherformat",
             "sheet_save_mode_desc": "%d Videos in Warteschlange. Wie sollen Dateien gespeichert werden?",
@@ -1370,7 +1375,7 @@ public struct L10n {
             "sheet_save_combined": "Nur eine kombinierte Datei",
             "sheet_save_combined_title": "Nur eine kombinierte Datei",
             "sheet_save_combined_desc": "Kombiniert alle Transkripte der Reihe nach in einem einzigen Dokument.",
-            
+
             // Copy Dialog & Actions
             "dialog_copy_title": "Transkript kopieren",
             "dialog_copy_prompt_message": "Möchten Sie das Transkript dieses Videos oder das kombinierte Transkript der gesamten Sitzung kopieren?",
@@ -1380,7 +1385,7 @@ public struct L10n {
             "hub_copy_combined_count": "Alle Transkripte kopieren (%d)",
             "hub_tooltip_copy_combined_desc": "Kopiert die geordneten Transkripte aller abgeschlossenen Videos als ein Dokument in die Zwischenablage.",
             "status_combined_copied": "Kombiniertes Sitzungstranskript kopiert (%d Videos).",
-            
+
             // Already Transcribed Prompt & Re-transcribe
             "already_transcribed_title": "Bereits transkribiert",
             "already_transcribed_title_multiple": "%d Elemente bereits transkribiert",
@@ -1412,7 +1417,7 @@ public struct L10n {
             "record_permission_open_settings": "Systemeinstellungen öffnen",
             "record_permission_needed_badge": "Berechtigung erforderlich",
             "record_relaunch_app": "App neu starten",
-            
+
             // Hub Header Cards
             "hub_card_model": "KI-MODELL",
             "hub_card_speech_language": "SPRACHE",
@@ -1429,7 +1434,7 @@ public struct L10n {
             "hub_configure": "Konfigurieren",
             "hub_files_count": "%d Dateien",
             "hub_records_count": "%d Einträge",
-            
+
             // Hub Popovers & Actions
             "hub_model_picker_title": "Whisper-Modelle",
             "hub_speech_language_title": "Gesprochene Sprache",
@@ -1441,7 +1446,7 @@ public struct L10n {
             "hub_lang_en_desc": "Englische Meetings und Audioaufnahmen",
             "hub_lang_de": "Deutsch",
             "hub_lang_de_desc": "Deutsche Aufnahmen und Sprachmemos",
-            
+
             // Hub Quick Add & Queue Bar
             "hub_paste_clipboard": "Aus Zwischenablage (⌘V)",
             "hub_paste_clipboard_help": "YouTube-Link aus Zwischenablage einfügen (⌘V)",
@@ -1454,7 +1459,7 @@ public struct L10n {
             "hub_retry_failed": "Fehlgeschlagene wiederholen",
             "hub_processing": "Wird verarbeitet...",
             "hub_empty_queue": "Warteschlange ist leer. Fügen Sie oben einen Link ein oder legen Sie Audiodateien ab.",
-            
+
             // Hover Tooltip Explanations
             "hub_tooltip_clipboard_title": "Zwischenablage-Überwachung",
             "hub_tooltip_clipboard_desc": "Überwacht die Zwischenablage im Hintergrund. Kopierte YouTube-Links werden automatisch ohne manuelles Einfügen erfasst. Passwörter oder private Daten werden niemals gelesen.",
@@ -1492,7 +1497,7 @@ public struct L10n {
             "hub_tooltip_mic_source_desc": "Nimmt Sprachmemos, Vorlesungen und Sprache vom eingebauten oder angeschlossenen Mikrofon auf.",
             "hub_tooltip_system_source_title": "Mac-Systemaudio",
             "hub_tooltip_system_source_desc": "Nimmt Zoom-, Teams-, YouTube- oder Meetingsounds direkt von Ihrem Mac in erstklassiger Qualität auf.",
-            
+
             // Interactive Spotlight Guided Tour
             "tour_badge": "INTERAKTIVE TOUR • SCHRITT %d / %d",
             "tour_skip": "Tour überspringen",
@@ -1514,24 +1519,24 @@ public struct L10n {
             "tour_step6_desc": "Ziehen Sie Audio- oder Videodateien direkt in diesen Bereich oder nutzen Sie die Schaltfläche oben rechts und die Tastenkürzel ⌘V / ⌘O.",
             "tour_step7_title": "7. Warteschlange & Start",
             "tour_step7_desc": "Klicken Sie auf 'Transkription starten', um alle Dateien nacheinander zu verarbeiten. Nach Abschluss können Sie die Datei im Finder öffnen, Segmente anklicken oder dem Karaoke folgen!",
-            
+
             // Toolbar & Media Popover
             "toolbar_add_media": "Medien hinzufügen",
             "toolbar_add_media_help": "YouTube-Link einfügen oder Audiodatei auswählen (⌘O / ⌘V)",
             "add_media_popover_title": "Link oder Audiodatei hinzufügen",
             "add_media_url_label": "YouTube- oder Medien-Link",
             "add_media_paste_link_placeholder": "Link oder Video-URL einfügen...",
-            
+
             // Sidebar & Navigation
             "sidebar_processing": "Wird verarbeitet...",
             "sidebar_listening": "Ordner werden überwacht",
             "nav_back_to_hub": "Zurück zum Studio",
-            
+
             // History View
             "history_empty_title": "Noch kein Transkript-Verlauf",
             "history_empty_desc": "Alle abgeschlossenen Transkripte werden lokal in der SQLite-Datenbank archiviert.",
             "history_clear_btn": "Verlauf leeren",
-            
+
             // Settings Floating Sheet
             "settings_clipboard_auto": "Zwischenablage-Automatisierung",
             "settings_clipboard_auto_toggle": "Kopierte YouTube-Links automatisch erfassen",
@@ -1548,7 +1553,7 @@ public struct L10n {
             "settings_opensource_repo": "Open Source & Repository",
             "settings_github_repo": "GitHub-Repository",
             "settings_open_repo": "Repository öffnen",
-            
+
             // Detail & Live Stream
             "status_live_stream_header": "Live-Transkriptionsstream",
             "status_live_stream_desc": "Decodierte Wörter werden in Echtzeit angezeigt",
@@ -1568,7 +1573,7 @@ public struct L10n {
             "action_add": "Hinzufügen",
             "action_empty_queue_title": "Warteschlange ist leer",
             "action_empty_queue_desc": "Drücken Sie ⌘V, um den Zwischenablage-Link einzufügen, oder ziehen Sie Dateien in das Studio rechts.",
-            
+
             // Settings
             "settings_language": "Sprache der Benutzeroberfläche",
             "settings_language_desc": "Sprache für Menüs, Schaltflächen und Benachrichtigungen.",
@@ -1757,7 +1762,7 @@ public struct L10n {
             "settings_voice_memos_method_b": "• **Methode B (Teilen-Menü):** Über das (...)-Menü der Aufnahme **Teilen > In Dateien sichern > iCloud Drive / Transkript** wählen.",
             "settings_voice_memos_method_c": "• **Methode C (Apple Kurzbefehle):** Sie können einen Kurzbefehl auf dem iPhone erstellen, um Audio aufzunehmen und im Transkript-Ordner zu speichern.",
             "settings_current_version": "Aktuelle Version: v%@ (Production Build)",
-            
+
             // Onboarding Landing Tour
             "onboarding_skip": "Überspringen",
             "onboarding_back": "Zurück",
@@ -1822,7 +1827,7 @@ public struct L10n {
             "onboarding_step5_card3_desc": "Alle formatierten .txt-Dateien werden lokal archiviert. Öffnen Sie den Ordner mit 1 Klick oder ⇧⌘T.",
             "menu_onboarding_tour": "Transkript Hub Einführungstour...",
             "settings_restart_onboarding": "Einführungstour erneut starten",
-            "settings_restart_onboarding_desc": "Öffnet die geführte Tour erneut, die jeden Teil von Transkript Hub Schritt für Schritt erklärt."
-        ]
+            "settings_restart_onboarding_desc": "Öffnet die geführte Tour erneut, die jeden Teil von Transkript Hub Schritt für Schritt erklärt.",
+        ],
     ]
 }
