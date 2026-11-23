@@ -253,7 +253,7 @@ final class FolderWatcherTests: XCTestCase {
     
     func testWhisperModelCatalogSortedByAccuracyScoreAscending() {
         let models = WhisperModelCatalog.availableModels
-        XCTAssertEqual(models.count, 3)
+        XCTAssertEqual(models.count, 4)
         for i in 0..<(models.count - 1) {
             XCTAssertLessThanOrEqual(
                 models[i].accuracyScore,
@@ -261,8 +261,9 @@ final class FolderWatcherTests: XCTestCase {
                 "Model \(models[i].displayName) accuracyScore (\(models[i].accuracyScore)) must be <= next model \(models[i+1].displayName) accuracyScore (\(models[i+1].accuracyScore)) so the highest-accuracy model is at the bottom"
             )
         }
-        XCTAssertEqual(models[0].model, .largeV3Q5)
-        XCTAssertEqual(models[1].model, .qwen3ASR17B)
+        XCTAssertEqual(models[0].model, .largeV3Turbo)
+        XCTAssertEqual(models[1].model, .largeV3Q5)
+        XCTAssertEqual(models[2].model, .qwen3ASR17B)
         XCTAssertEqual(models.last?.model, .largeV3)
         
         // Verify all catalog models are >= 1 GB and descriptions are concise
@@ -276,7 +277,8 @@ final class FolderWatcherTests: XCTestCase {
     func testWhisperModelBenchmarkTenPointScaleRatings() {
         let models = WhisperModelCatalog.availableModels
         
-        guard let largeQ5 = models.first(where: { $0.model == .largeV3Q5 }),
+        guard let turbo = models.first(where: { $0.model == .largeV3Turbo }),
+              let largeQ5 = models.first(where: { $0.model == .largeV3Q5 }),
               let large = models.first(where: { $0.model == .largeV3 }),
               let qwen17 = models.first(where: { $0.model == .qwen3ASR17B }) else {
             XCTFail("Missing expected curated high-accuracy models in catalog")
@@ -284,6 +286,9 @@ final class FolderWatcherTests: XCTestCase {
         }
         
         // Verified Empirical Apple Silicon M1 Pro Benchmark Scale (out of 10)
+        XCTAssertEqual(turbo.speedScore, 9.0, accuracy: 0.01)
+        XCTAssertEqual(turbo.accuracyScore, 8.8, accuracy: 0.01)
+        
         XCTAssertEqual(largeQ5.speedScore, 6.0, accuracy: 0.01)
         XCTAssertEqual(largeQ5.accuracyScore, 9.5, accuracy: 0.01)
         
@@ -296,7 +301,7 @@ final class FolderWatcherTests: XCTestCase {
         for spec in models {
             XCTAssertGreaterThanOrEqual(spec.speedScore, 1.0)
             XCTAssertLessThanOrEqual(spec.speedScore, 10.0)
-            XCTAssertGreaterThanOrEqual(spec.accuracyScore, 9.5)
+            XCTAssertGreaterThanOrEqual(spec.accuracyScore, 8.5)
             XCTAssertLessThanOrEqual(spec.accuracyScore, 10.0)
         }
     }

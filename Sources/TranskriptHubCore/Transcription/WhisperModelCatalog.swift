@@ -60,6 +60,20 @@ public struct WhisperModelCatalog {
     /// 132-run Apple Silicon M1 Pro empirical benchmark where maximum transcription accuracy is the sole priority.
     private static let catalogEntries: [WhisperModelSpec] = [
         WhisperModelSpec(
+            model: .largeV3Turbo,
+            displayName: "Large-v3-Turbo",
+            sizeDescription: "1.60 GB",
+            sizeBytes: 1_620_000_000,
+            badge: "⚡️ Süper Hızlı 4-Katman",
+            speedRating: 5,
+            accuracyRating: 4,
+            speedScore: 9.0,
+            accuracyScore: 8.8,
+            summary: "3x daha hızlı; Silero VAD ile korumalı.",
+            isTurbo: true,
+            isQuantized: false
+        ),
+        WhisperModelSpec(
             model: .largeV3Q5,
             displayName: "Large-v3 (Q5_0)",
             sizeDescription: "1.08 GB",
