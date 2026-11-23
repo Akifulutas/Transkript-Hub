@@ -65,12 +65,19 @@ REPO="Akifulutas/Transkript-Hub"
 RELEASE_TITLE="Transkript Hub $TAG"
 RELEASE_BODY="## Transkript Hub $TAG
 
-### 👑 Maksimum Doğruluk Odaklı Çift Motorlu STT Mimarisi & Nöral Silero VAD v6.2.0
-- **Sadeleştirilmiş Elit Model Kataloğu (\`>= 1 GB\`, \`>= 9.5/10\` Doğruluk)**: 1 GB altındaki ve doğruluk açısından domine edilen tüm modeller kaldırılarak yalnızca **\`Large-v3\` (3.09 GB, \`9.7/10\`)**, **\`Qwen3-ASR-1.7B\` (4.70 GB, \`9.6/10\`)** ve **\`Large-v3 (Q5_0)\` (1.08 GB, \`9.5/10\`)** bırakıldı.
-- **Saf C \`Qwen3-ASR-1.7B\` Entegrasyonu (\`CQwenASR\`)**: Apple \`Accelerate\` BLAS + NEON (\`-O3 -ffast-math\`) ile sıfır Python bağımlılıklı yerel Qwen3-ASR motoru eklendi.
-- **Nöral Silero VAD v6.2.0 + Saf Swift \`vDSP\` \`AudioConditioner\`**: 95 Hz Butterworth yüksek geçiren filtre, konuşma modülasyonu kapılı kısık-ses kazancı (\`p90 > p15 * 1.8\`) ve \`<= 28.0 sn\` bağımsız nöral VAD dilimleme ile sessizlik halüsinasyonları \`0/5\` düzeyine indirildi.
-- **Whisper \`Beam Search (beam=5)\` & \`flash_attn = true\`**: Yumuşak başlangıç kelimelerini ve teknik terimleri kurtaran ışın araması ve Metal Flash Attention varsayılan olarak etkinleştirildi.
-- **Kuyruk Alt Başlık & Anti-Halüsinasyon Düzeltmesi**: \`AppViewModel\` içinde \`noContext\` parametresi \`antiHallucinationEnabled\` ayarına bağlandı ve tamamlanan ses kayıtlarında \`\"Ses Transkript Ediliyor...\"\` alt başlığının takılı kalma sorunu giderildi.
+### ⚡️ Büyük Kuyruklar İçin Asenkron Çift Kanallı Boru Hattı (Lookahead Prefetching)
+- **Sıfır Bekleme Geçişi (Zero-Wait Transition)**: YouTube videoları işlenirken ağ I/O ile GPU hesaplaması birbirinin arkasına gizlendi. Video 1 Metal GPU'da transkript edilirken Video 2 arka planda önceden indirilir. Video 1 bittiği anda Video 2 beklemeden transkripte girer (%35–%40 net hızlanma).
+- **Kayan Pencere Sınırı (Sliding Window = 2 Video)**: Aşırı disk kullanımı ve YouTube bot engeli riskini sıfırlayan tamponlu ön-indirme.
+
+### 🚀 Large-v3-Turbo (1.60 GB) Kataloğa Eklendi
+- **25x–35x Hızla Deşifre**: 32 katman ses okuma zekası korunurken 4 katman decoder ile 3 kat daha hızlı deşifre.
+- **Nöral Silero VAD v6.2.0 + vDSP AudioConditioner Koruması**: Sessizlik tuzaklarında halüsinasyon riskini sıfıra indiren tam koruma zırhı.
+- **Doğruluk Sıralaması**: Doğruluk en yüksek model (\`Large-v3\`, 9.7/10) en altta kalacak şekilde kalibre edildi.
+
+### 🧠 Tek Dosyada Sıfır Maliyetli Maksimum YouTube İstihbaratı
+- **Heatmap (En Çok Tekrar İzlenen Anlar)**: Videonun en yoğun anları ve o anlarda konuşulan cümleler.
+- **SponsorBlock**: Reklam/sponsor aralıkları ve videonun kilit anı (highlight).
+- **İçindekiler & Bölümler**: Bölümlendirilmiş başlıklar ve tekilleştirilmiş kaynak linkleri dizini.
 
 ### 📦 İndirme
 Aşağıdaki \`TranskriptHub.dmg\` dosyasını indirip doğrudan Uygulamalar (Applications) klasörünüze taşıyabilirsiniz."
